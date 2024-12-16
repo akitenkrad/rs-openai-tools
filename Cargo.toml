@@ -6,8 +6,8 @@ members = ["openai-tools"]
 version = "0.1.0"
 edition = "2021"
 authors = ["akitenkrad"]
-description = ""
-repository = ""
+description = "Tools for OpenAI API"
+repository = "https://github.com/akitenkrad/openai-tools"
 license = "MIT/Apache-2.0"
 
 [workspace.dependencies]
