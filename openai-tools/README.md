@@ -64,8 +64,7 @@ use openai_tools::OpenAI;
     let mut openai = OpenAI::new();
     let messages = vec![Message::new(
         "user",
-        "Hi there! How's the weather tomorrow in Tokyo? If you can't answer, report error."
-            ,
+        "Hi there! How's the weather tomorrow in Tokyo? If you can't answer, report error.",
     )];
 
     // build json schema
