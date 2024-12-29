@@ -12,9 +12,9 @@ pub struct ItemType {
 }
 
 impl ItemType {
-    pub fn new(type_name: String, description: Option<String>) -> Self {
+    pub fn new(type_name: &str, description: Option<String>) -> Self {
         Self {
-            type_name,
+            type_name: type_name.to_string(),
             description: description,
             items: None,
         }
@@ -36,7 +36,11 @@ impl ItemType {
         Self {
             type_name: self.type_name.clone(),
             description: self.description.clone(),
-            items: if self.items.is_some() { Option::from(Box::new(items)) } else { None },
+            items: if self.items.is_some() {
+                Option::from(Box::new(items))
+            } else {
+                None
+            },
         }
     }
 }
@@ -53,15 +57,19 @@ pub struct JsonItem {
 }
 
 impl JsonItem {
-    pub fn new(type_name: String, properties: FxHashMap<String, ItemType>) -> Self {
+    pub fn new(type_name: &str, properties: FxHashMap<String, ItemType>) -> Self {
         let mut required = Vec::new();
         for key in properties.keys() {
             required.push(key.clone());
         }
         Self {
-            type_name,
+            type_name: type_name.to_string(),
             properties,
-            required: if required.is_empty() { None } else { Option::from(required) },
+            required: if required.is_empty() {
+                None
+            } else {
+                Option::from(required)
+            },
             additional_properties: false,
         }
     }
@@ -75,22 +83,22 @@ impl JsonItem {
         }
     }
 
-    pub fn add_property(&mut self, prop_name: String, item: ItemType) {
-        self.properties.insert(prop_name.clone(), item.clone());
+    pub fn add_property(&mut self, prop_name: &str, item: ItemType) {
+        self.properties.insert(prop_name.to_string(), item.clone());
         if self.required.is_none() {
-            self.required = Option::from(vec![prop_name.clone()]);
+            self.required = Option::from(vec![prop_name.to_string()]);
         } else {
             let mut required = self.required.clone().unwrap();
-            required.push(prop_name.clone());
+            required.push(prop_name.to_string());
             self.required = Option::from(required);
         }
     }
 
-    pub fn add_array(&mut self, prop_name: String, items: JsonItem) {
-        let mut prop = ItemType::new("array".to_string(), None);
+    pub fn add_array(&mut self, prop_name: &str, items: JsonItem) {
+        let mut prop = ItemType::new("array", None);
         prop.items = Option::from(Box::new(items));
-        self.properties.insert(prop_name.clone(), prop);
-        self.required = Option::from(vec![prop_name.clone()]);
+        self.properties.insert(prop_name.to_string(), prop);
+        self.required = Option::from(vec![prop_name.to_string()]);
     }
 
     pub fn clone(&self) -> Self {
@@ -114,28 +122,31 @@ pub struct JsonSchema {
 }
 
 impl JsonSchema {
-    pub fn new(name: String) -> Self {
+    pub fn new(name: &str) -> Self {
         let schema = JsonItem::default();
-        Self { name, schema }
+        Self {
+            name: name.to_string(),
+            schema,
+        }
     }
 
-    pub fn new_schema(name: String) -> Self {
+    pub fn new_schema(name: &str) -> Self {
         Self {
-            name,
+            name: name.to_string(),
             schema: JsonItem::default(),
         }
     }
 
-    pub fn add_property(&mut self, prop_name: String, type_name: String, description: Option<String>) {
+    pub fn add_property(&mut self, prop_name: &str, type_name: &str, description: Option<String>) {
         let new_item = ItemType::new(type_name, description);
         self.schema.add_property(prop_name, new_item);
     }
 
-    pub fn add_array(&mut self, prop_name: String, items: Vec<(String, String)>) {
+    pub fn add_array(&mut self, prop_name: &str, items: Vec<(String, String)>) {
         let mut array_item = JsonItem::default();
         for (name, description) in items.iter() {
-            let item = ItemType::new("string".to_string(), Option::from(description.clone()));
-            array_item.add_property(name.clone(), item);
+            let item = ItemType::new("string", Option::from(description.clone()));
+            array_item.add_property(name, item);
         }
         self.schema.add_array(prop_name, array_item);
     }

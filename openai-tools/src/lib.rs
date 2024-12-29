@@ -17,10 +17,10 @@ pub struct Message {
 }
 
 impl Message {
-    pub fn new(role: String, message: String) -> Self {
+    pub fn new(role: &str, message: &str) -> Self {
         Self {
-            role,
-            content: message,
+            role: String::from(role),
+            content: String::from(message),
             refusal: None,
         }
     }
@@ -34,9 +34,9 @@ pub struct ResponseFormat {
 }
 
 impl ResponseFormat {
-    pub fn new(type_name: String, json_schema: JsonSchema) -> Self {
+    pub fn new(type_name: &str, json_schema: JsonSchema) -> Self {
         Self {
-            type_name,
+            type_name: String::from(type_name),
             json_schema,
         }
     }
@@ -162,7 +162,7 @@ impl ChatCompletionRequestBody {
 
     pub fn default() -> Self {
         Self {
-            model: "".to_string(),
+            model: String::default(),
             messages: Vec::new(),
             store: None,
             frequency_penalty: None,
@@ -221,7 +221,7 @@ impl OpenAI {
     }
 
     pub fn model_id(&mut self, model_id: &str) -> &mut Self {
-        self.completion_body.model = model_id.to_string();
+        self.completion_body.model = String::from(model_id);
         return self;
     }
 

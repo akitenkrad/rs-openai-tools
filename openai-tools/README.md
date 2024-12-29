@@ -5,7 +5,7 @@
 
 API Wrapper for OpenAI API.
 
-<img src="LOGO.png" alt="LOGO" width="150" height="150">
+<img src="../LOGO.png" alt="LOGO" width="150" height="150">
 
 ## Installation
 
@@ -37,7 +37,7 @@ use openai_tools::OpenAI;
     ```rust
     let mut openai = OpenAI::new();
     let messages = vec![
-        Message::new("user".to_string(), "Hi there!".to_string())
+        Message::new("user", "Hi there!")
     ];
 
     openai
@@ -63,9 +63,9 @@ use openai_tools::OpenAI;
 
     let mut openai = OpenAI::new();
     let messages = vec![Message::new(
-        "user".to_string(),
+        "user",
         "Hi there! How's the weather tomorrow in Tokyo? If you can't answer, report error."
-            .to_string(),
+            ,
     )];
 
     // build json schema
