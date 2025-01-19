@@ -1,7 +1,7 @@
 use fxhash::FxHashMap;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ItemType {
     #[serde(rename = "type")]
     pub type_name: String,
@@ -45,7 +45,7 @@ impl ItemType {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct JsonItem {
     #[serde(rename = "type")]
     pub type_name: String,
@@ -115,7 +115,7 @@ impl JsonItem {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct JsonSchema {
     pub name: String,
     pub schema: JsonItem,

@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use std::env;
 use std::process::Command;
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Message {
     pub role: String,
     pub content: String,
@@ -26,7 +26,7 @@ impl Message {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ResponseFormat {
     #[serde(rename = "type")]
     pub type_name: String,
@@ -42,7 +42,7 @@ impl ResponseFormat {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ChatCompletionRequestBody {
     // ID of the model to use. (https://platform.openai.com/docs/models#model-endpoint-compatibility)
     pub model: String,
@@ -179,14 +179,14 @@ impl ChatCompletionRequestBody {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Choice {
     pub index: u32,
     pub message: Message,
     pub finish_reason: String,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Usage {
     pub prompt_tokens: u64,
     pub completion_tokens: u64,
@@ -194,7 +194,7 @@ pub struct Usage {
     pub completion_tokens_details: FxHashMap<String, u64>,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Response {
     pub id: String,
     pub object: String,
