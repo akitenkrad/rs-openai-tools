@@ -3,8 +3,8 @@ use super::*;
 
 #[test]
 fn test_build_json_schema_simple() {
-    let mut json_schema = JsonSchema::new("test-schema");
-    json_schema.add_property("test_property", "string", None);
+    let mut json_schema = JsonSchema::new(String::from("test-schema"));
+    json_schema.add_property(String::from("test_property"), String::from("string"), None);
 
     let schema_string = serde_json::to_string(&json_schema).unwrap();
     println!("{}", serde_json::to_string_pretty(&json_schema).unwrap());
@@ -17,10 +17,10 @@ fn test_build_json_schema_simple() {
 
 #[test]
 fn test_build_json_schema_with_description() {
-    let mut json_schema = JsonSchema::new("test-schema");
+    let mut json_schema = JsonSchema::new(String::from("test-schema"));
     json_schema.add_property(
-        "email",
-        "string",
+        String::from("email"),
+        String::from("string"),
         Some(String::from("The email address that appears in the input")),
     );
 
@@ -35,14 +35,14 @@ fn test_build_json_schema_with_description() {
 
 #[test]
 fn test_build_json_schema_add_array() {
-    let mut json_schema = JsonSchema::new("test-schema");
+    let mut json_schema = JsonSchema::new(String::from("test-schema"));
     json_schema.add_property(
-        "test-property",
-        "string",
+        String::from("test-property"),
+        String::from("string"),
         Some(String::from("This is a test property")),
     );
     json_schema.add_array(
-        "test-array",
+        String::from("test-array"),
         vec![
             (
                 String::from("test-array-property-1"),
@@ -69,8 +69,8 @@ fn test_build_body_simple() {
     let body = ChatCompletionRequestBody::new(
         "gpt-4o-mini".to_string(),
         vec![Message::new(
-            "assistant",
-            "Hi there! How can I assist you today?",
+            String::from("assistant"),
+            String::from("Hi there! How can I assist you today?"),
         )],
         None,
         None,
@@ -96,18 +96,18 @@ fn test_build_body_simple() {
 
 #[test]
 fn test_build_body_with_args() {
-    let mut json_schema = JsonSchema::new("test-schema");
+    let mut json_schema = JsonSchema::new(String::from("test-schema"));
     json_schema.add_property(
-        "test_property",
-        "string",
+        String::from("test_property"),
+        String::from("string"),
         Option::from(String::from("This is a test property")),
     );
-    let response_format = ResponseFormat::new("json_schema", json_schema);
+    let response_format = ResponseFormat::new(String::from("json_schema"), json_schema);
     let body = ChatCompletionRequestBody::new(
         "gpt-4o-mini".to_string(),
         vec![Message::new(
-            "assistant",
-            "Hi there! How can I assist you today?",
+            String::from("assistant"),
+            String::from("Hi there! How can I assist you today?"),
         )],
         Some(true),
         Some(0.5),
@@ -213,10 +213,13 @@ fn test_deserialize_api_response() {
 #[test]
 fn test_chat_completion() {
     let mut openai = OpenAI::new();
-    let messages = vec![Message::new("user", "Hi there!")];
+    let messages = vec![Message::new(
+        String::from("user"),
+        String::from("Hi there!"),
+    )];
 
     openai
-        .model_id("gpt-4o-mini")
+        .model_id(String::from("gpt-4o-mini"))
         .messages(messages)
         .temperature(1.0);
 
@@ -228,10 +231,13 @@ fn test_chat_completion() {
 #[test]
 fn test_chat_completion_2() {
     let mut openai = OpenAI::new();
-    let messages = vec![Message::new("user", "トンネルを抜けると？")];
+    let messages = vec![Message::new(
+        String::from("user"),
+        String::from("トンネルを抜けると？"),
+    )];
 
     openai
-        .model_id("gpt-4o-mini")
+        .model_id(String::from("gpt-4o-mini"))
         .messages(messages)
         .temperature(1.5);
 
@@ -256,38 +262,43 @@ struct Weather {
 fn test_chat_completion_with_json_schema() {
     let mut openai = OpenAI::new();
     let messages = vec![Message::new(
-        "user",
-        "Hi there! How's the weather tomorrow in Tokyo? If you can't answer, report error.",
+        String::from("user"),
+        String::from(
+            "Hi there! How's the weather tomorrow in Tokyo? If you can't answer, report error.",
+        ),
     )];
 
-    let mut json_schema = JsonSchema::new("weather");
+    let mut json_schema = JsonSchema::new(String::from("weather"));
     json_schema.add_property(
-        "location",
-        "string",
+        String::from("location"),
+        String::from("string"),
         Option::from(String::from("The location to check the weather for.")),
     );
     json_schema.add_property(
-        "date",
-        "string",
+        String::from("date"),
+        String::from("string"),
         Option::from(String::from("The date to check the weather for.")),
     );
     json_schema.add_property(
-        "weather",
-        "string",
+        String::from("weather"),
+        String::from("string"),
         Option::from(String::from("The weather for the location and date.")),
     );
     json_schema.add_property(
-        "error",
-        "string",
+        String::from("error"),
+        String::from("string"),
         Option::from(String::from(
             "Error message. If there is no error, leave this field empty.",
         )),
     );
     openai
-        .model_id("gpt-4o-mini")
+        .model_id(String::from("gpt-4o-mini"))
         .messages(messages)
         .temperature(1.0)
-        .response_format(ResponseFormat::new("json_schema", json_schema));
+        .response_format(ResponseFormat::new(
+            String::from("json_schema"),
+            json_schema,
+        ));
 
     let response = openai.chat().unwrap();
     println!("{:#?}", response);
@@ -308,39 +319,41 @@ fn test_chat_completion_with_json_schema() {
 fn test_chat_completion_with_json_schema_expect_error() {
     let mut openai = OpenAI::new();
     let messages = vec![Message::new(
-        "user",
-        "Hi there! How's the weather tomorrow in Tokyo? Today is 3024/12/25. If you can't answer, report error."
-            ,
+        String::from("user"),
+        String::from("Hi there! How's the weather tomorrow in Tokyo? Today is 3024/12/25. If you can't answer, report error."),
     )];
 
-    let mut json_schema = JsonSchema::new("weather");
+    let mut json_schema = JsonSchema::new(String::from("weather"));
     json_schema.add_property(
-        "location",
-        "string",
+        String::from("location"),
+        String::from("string"),
         Option::from(String::from("The location to check the weather for.")),
     );
     json_schema.add_property(
-        "date",
-        "string",
+        String::from("date"),
+        String::from("string"),
         Option::from(String::from("The date to check the weather for.")),
     );
     json_schema.add_property(
-        "weather",
-        "string",
+        String::from("weather"),
+        String::from("string"),
         Option::from(String::from("The weather for the location and date.")),
     );
     json_schema.add_property(
-        "error",
-        "string",
+        String::from("error"),
+        String::from("string"),
         Option::from(String::from(
             "Error message. If there is no error, leave this field empty.",
         )),
     );
     openai
-        .model_id("gpt-4o-mini")
+        .model_id(String::from("gpt-4o-mini"))
         .messages(messages)
         .temperature(1.0)
-        .response_format(ResponseFormat::new("json_schema", json_schema));
+        .response_format(ResponseFormat::new(
+            String::from("json_schema"),
+            json_schema,
+        ));
 
     let response = openai.chat().unwrap();
     println!("{:#?}", response);
@@ -362,63 +375,66 @@ fn test_summarize() {
     let mut openai = OpenAI::new();
     let instruction = std::fs::read_to_string("src/test_rsc/sample_instruction.txt").unwrap();
 
-    let messages = vec![Message::new("user", &instruction)];
+    let messages = vec![Message::new(String::from("user"), instruction.clone())];
 
-    let mut json_schema = JsonSchema::new("summary");
+    let mut json_schema = JsonSchema::new(String::from("summary"));
     json_schema.add_property(
-        "is_survey",
-        "boolean",
+        String::from("is_survey"),
+        String::from("boolean"),
         Option::from(String::from(
             "この論文がサーベイ論文かどうかをtrue/falseで判定．",
         )),
     );
     json_schema.add_property(
-        "research_question",
-        "string",
+        String::from("research_question"),
+        String::from("string"),
         Option::from(String::from("この論文のリサーチクエスチョンの説明．この論文の背景や既存研究との関連も含めて記述する．")),
     );
     json_schema.add_property(
-        "contributions",
-        "string",
+        String::from("contributions"),
+        String::from("string"),
         Option::from(String::from(
             "この論文のコントリビューションをリスト形式で記述する．",
         )),
     );
     json_schema.add_property(
-        "dataset",
-        "string",
+        String::from("dataset"),
+        String::from("string"),
         Option::from(String::from(
             "この論文で使用されているデータセットをリストアップする．",
         )),
     );
     json_schema.add_property(
-        "proposed_method",
-        "string",
+        String::from("proposed_method"),
+        String::from("string"),
         Option::from(String::from("提案手法の詳細な説明．")),
     );
     json_schema.add_property(
-        "experiment_results",
-        "string",
+        String::from("experiment_results"),
+        String::from("string"),
         Option::from(String::from("実験の結果の詳細な説明．")),
     );
     json_schema.add_property(
-        "comparison_with_related_works",
-        "string",
+        String::from("comparison_with_related_works"),
+        String::from("string"),
         Option::from(String::from("関連研究と比較した場合のこの論文の新規性についての説明．可能な限り既存研究を参照しながら記述すること．")),
     );
     json_schema.add_property(
-        "future_works",
-        "string",
+        String::from("future_works"),
+        String::from("string"),
         Option::from(String::from(
             "未解決の課題および将来の研究の方向性について記述．",
         )),
     );
 
     openai
-        .model_id("gpt-4o-mini")
+        .model_id(String::from("gpt-4o-mini"))
         .messages(messages)
         .temperature(1.0)
-        .response_format(ResponseFormat::new("json_schema", json_schema));
+        .response_format(ResponseFormat::new(
+            String::from("json_schema"),
+            json_schema,
+        ));
 
     let response = openai.chat().unwrap();
     println!("{}", response.choices[0].message.content);

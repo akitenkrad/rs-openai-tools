@@ -12,7 +12,7 @@ pub struct ItemType {
 }
 
 impl ItemType {
-    pub fn new(type_name: &str, description: Option<String>) -> Self {
+    pub fn new(type_name: String, description: Option<String>) -> Self {
         Self {
             type_name: type_name.to_string(),
             description: description,
@@ -83,7 +83,7 @@ impl JsonItem {
         }
     }
 
-    pub fn add_property(&mut self, prop_name: &str, item: ItemType) {
+    pub fn add_property(&mut self, prop_name: String, item: ItemType) {
         self.properties.insert(prop_name.to_string(), item.clone());
         if self.required.is_none() {
             self.required = Option::from(vec![prop_name.to_string()]);
@@ -94,8 +94,8 @@ impl JsonItem {
         }
     }
 
-    pub fn add_array(&mut self, prop_name: &str, items: JsonItem) {
-        let mut prop = ItemType::new("array", None);
+    pub fn add_array(&mut self, prop_name: String, items: JsonItem) {
+        let mut prop = ItemType::new(String::from("array"), None);
         prop.items = Option::from(Box::new(items));
         self.properties.insert(prop_name.to_string(), prop);
         self.required = Option::from(vec![prop_name.to_string()]);
@@ -122,7 +122,7 @@ pub struct JsonSchema {
 }
 
 impl JsonSchema {
-    pub fn new(name: &str) -> Self {
+    pub fn new(name: String) -> Self {
         let schema = JsonItem::default();
         Self {
             name: name.to_string(),
@@ -130,23 +130,28 @@ impl JsonSchema {
         }
     }
 
-    pub fn new_schema(name: &str) -> Self {
+    pub fn new_schema(name: String) -> Self {
         Self {
             name: name.to_string(),
             schema: JsonItem::default(),
         }
     }
 
-    pub fn add_property(&mut self, prop_name: &str, type_name: &str, description: Option<String>) {
+    pub fn add_property(
+        &mut self,
+        prop_name: String,
+        type_name: String,
+        description: Option<String>,
+    ) {
         let new_item = ItemType::new(type_name, description);
         self.schema.add_property(prop_name, new_item);
     }
 
-    pub fn add_array(&mut self, prop_name: &str, items: Vec<(String, String)>) {
+    pub fn add_array(&mut self, prop_name: String, items: Vec<(String, String)>) {
         let mut array_item = JsonItem::default();
         for (name, description) in items.iter() {
-            let item = ItemType::new("string", Option::from(description.clone()));
-            array_item.add_property(name, item);
+            let item = ItemType::new(String::from("string"), Option::from(description.clone()));
+            array_item.add_property(name.clone(), item);
         }
         self.schema.add_array(prop_name, array_item);
     }

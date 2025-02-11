@@ -1,3 +1,92 @@
+//! # Usage
+//! ## Chat Completion
+//
+//! ### Simple Chat
+//
+//! ```rust
+//! # use openai_tools::{Message, OpenAI, Response};
+//! # fn main() {
+//!     let mut openai = OpenAI::new();
+//!     let messages = vec![
+//!         Message::new(String::from("user"), String::from("Hi there!"))
+//!     ];
+//
+//!     openai
+//!         .model_id(String::from("gpt-4o-mini"))
+//!         .messages(messages)
+//!         .temperature(1.0);
+//
+//!     let response: Response = openai.chat().unwrap();
+//!     println!("{}", &response.choices[0].message.content);
+//!     // Hello! How can I assist you today?
+//! # }
+//! ```
+//
+//! ### Chat with Json Schema
+//
+//! ```rust
+//! # use openai_tools::{json_schema::JsonSchema, Message, OpenAI, Response, ResponseFormat};
+//! # use serde::{Deserialize, Serialize};
+//! # use serde_json;
+//! # use std::env;
+//! # fn main() {
+//!     #[derive(Debug, Serialize, Deserialize)]
+//!     struct Weather {
+//!         location: String,
+//!         date: String,
+//!         weather: String,
+//!         error: String,
+//!     }
+//
+//!     let mut openai = OpenAI::new();
+//!     let messages = vec![Message::new(
+//!         String::from("user"),
+//!         String::from("Hi there! How's the weather tomorrow in Tokyo? If you can't answer, report error."),
+//!     )];
+//
+//!     // build json schema
+//!     let mut json_schema = JsonSchema::new("weather".to_string());
+//!     json_schema.add_property(
+//!         String::from("location"),
+//!         String::from("string"),
+//!         Option::from(String::from("The location to check the weather for.")),
+//!     );
+//!     json_schema.add_property(
+//!         String::from("date"),
+//!         String::from("string"),
+//!         Option::from(String::from("The date to check the weather for.")),
+//!     );
+//!     json_schema.add_property(
+//!         String::from("weather"),
+//!         String::from("string"),
+//!         Option::from(String::from("The weather for the location and date.")),
+//!     );
+//!     json_schema.add_property(
+//!         String::from("error"),
+//!         String::from("string"),
+//!         Option::from(String::from("Error message. If there is no error, leave this field empty.")),
+//!     );
+//
+//!     // configure chat completion model
+//!     openai
+//!         .model_id(String::from("gpt-4o-mini"))
+//!         .messages(messages)
+//!         .temperature(1.0)
+//!         .response_format(ResponseFormat::new(String::from("json_schema"), json_schema));
+//!
+//!     // execute chat
+//!     let response = openai.chat().unwrap();
+//
+//!     let answer: Weather = serde_json::from_str::<Weather>(&response.choices[0].message.content).unwrap();
+//!     println!("{:?}", answer)
+//!     // Weather {
+//!     //     location: "Tokyo",
+//!     //     date: "2023-10-01",
+//!     //     weather: "Temperatures around 25°C with partly cloudy skies and a slight chance of rain.",
+//!     //     error: "",
+//!     // }
+//! # }
+//! ```
 pub mod json_schema;
 
 use anyhow::Result;
@@ -17,7 +106,7 @@ pub struct Message {
 }
 
 impl Message {
-    pub fn new(role: &str, message: &str) -> Self {
+    pub fn new(role: String, message: String) -> Self {
         Self {
             role: String::from(role),
             content: String::from(message),
@@ -34,7 +123,7 @@ pub struct ResponseFormat {
 }
 
 impl ResponseFormat {
-    pub fn new(type_name: &str, json_schema: JsonSchema) -> Self {
+    pub fn new(type_name: String, json_schema: JsonSchema) -> Self {
         Self {
             type_name: String::from(type_name),
             json_schema,
@@ -220,7 +309,7 @@ impl OpenAI {
         };
     }
 
-    pub fn model_id(&mut self, model_id: &str) -> &mut Self {
+    pub fn model_id(&mut self, model_id: String) -> &mut Self {
         self.completion_body.model = String::from(model_id);
         return self;
     }
