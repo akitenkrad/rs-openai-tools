@@ -388,6 +388,14 @@ impl OpenAI {
 
         let body = serde_json::to_string(&self.completion_body)?;
         let url = "https://api.openai.com/v1/chat/completions";
+
+        // dump the body to a file
+        let body_piped = Command::new("echo")
+            .arg(body)
+            .stdout(std::process::Stdio::piped())
+            .spawn()
+            .expect("Failed to execute command");
+
         let cmd = Command::new("curl")
             .arg(url)
             .arg("-H")
@@ -395,7 +403,8 @@ impl OpenAI {
             .arg("-H")
             .arg(format!("Authorization: Bearer {}", self.api_key))
             .arg("-d")
-            .arg(body)
+            .arg("@-") // Read from stdin
+            .stdin(std::process::Stdio::from(body_piped.stdout.unwrap()))
             .output()
             .expect("Failed to execute command");
 
