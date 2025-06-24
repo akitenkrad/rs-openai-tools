@@ -30,4 +30,4 @@ script = "cargo fmt -- --emit files"
 dependencies = ["compose-build"]
 description = "Run all tests in the project."
 install_crate = "cargo-nextest"
-script = "cargo nextest run --workspace --status-level all --test-threads=1"
+script = "cargo nextest run --workspace --status-level all --test-threads=1 ${@}"

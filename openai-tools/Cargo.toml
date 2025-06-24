@@ -13,6 +13,10 @@ dotenvy.workspace = true
 fxhash.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+tiktoken-rs.workspace = true
+tracing.workspace = true
+request.workspace = true
+tokio.workspace = true
 
 [package.metadata.release]
 tag = true

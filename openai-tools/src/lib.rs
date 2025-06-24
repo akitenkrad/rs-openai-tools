@@ -95,7 +95,6 @@ use fxhash::FxHashMap;
 use json_schema::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::env;
-use std::process::Command;
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Message {
@@ -374,7 +373,7 @@ impl OpenAI {
         return self;
     }
 
-    pub fn chat(&mut self) -> Result<Response> {
+    pub async fn chat(&mut self) -> Result<Response> {
         // Check if the API key is set & body is built.
         if self.api_key.is_empty() {
             return Err(anyhow::Error::msg("API key is not set."));
@@ -389,32 +388,37 @@ impl OpenAI {
         let body = serde_json::to_string(&self.completion_body)?;
         let url = "https://api.openai.com/v1/chat/completions";
 
-        // dump the body to a file
-        let mut body_piped = Command::new("cat")
-            .stdin(std::process::Stdio::piped())
-            .stdout(std::process::Stdio::piped())
-            .spawn()
-            .expect("Failed to execute command");
-        if let Some(mut stdin) = body_piped.stdin.take() {
-            use std::io::Write;
-            stdin
-                .write_all(body.as_bytes())
-                .expect("Failed to write to stdin");
+        let client = request::Client::new();
+        let mut header = request::header::HeaderMap::new();
+        header.insert(
+            "Content-Type",
+            request::header::HeaderValue::from_static("application/json"),
+        );
+        header.insert(
+            "Authorization",
+            request::header::HeaderValue::from_str(&format!("Bearer {}", self.api_key)).unwrap(),
+        );
+        header.insert(
+            "User-Agent",
+            request::header::HeaderValue::from_static("openai-tools-rust/0.1.0"),
+        );
+        let response = client
+            .post(url)
+            .headers(header)
+            .body(body)
+            .send()
+            .await
+            .expect("Failed to send request");
+        if !response.status().is_success() {
+            let status = response.status();
+            let content = response.text().await.expect("Failed to read response text");
+            let e_msg = format!(
+                "Request failed with status: {} CONTENT: {}",
+                status, content
+            );
+            return Err(anyhow::Error::msg(e_msg));
         }
-
-        let cmd = Command::new("curl")
-            .arg(url)
-            .arg("-H")
-            .arg("Content-Type: application/json")
-            .arg("-H")
-            .arg(format!("Authorization: Bearer {}", self.api_key))
-            .arg("-d")
-            .arg("@-") // Read from stdin
-            .stdin(std::process::Stdio::from(body_piped.stdout.unwrap()))
-            .output()
-            .expect("Failed to execute command");
-
-        let content = String::from_utf8_lossy(&cmd.stdout).to_string();
+        let content = response.text().await.expect("Failed to read response text");
 
         match serde_json::from_str::<Response>(&content) {
             Ok(response) => return Ok(response),

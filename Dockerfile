@@ -2,7 +2,7 @@ FROM ubuntu:24.04
 
 # Install Rust and Cargo
 RUN apt update -y && \
-    apt install -y build-essential curl && \
+    apt install -y build-essential curl pkg-config libssl-dev && \
     apt clean && \
     rm -rf /var/lib/apt/lists/*
 
