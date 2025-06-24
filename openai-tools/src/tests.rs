@@ -439,3 +439,49 @@ fn test_summarize() {
     let response = openai.chat().unwrap();
     println!("{}", response.choices[0].message.content);
 }
+
+#[test]
+fn test_chat_completion_with_long_arguments() {
+    let mut openai = OpenAI::new();
+    let messages = vec![Message::new(
+        String::from("user"),
+        String::from(
+            r#"Hi there! How's the weather tomorrow in Tokyo? If you can't answer, report error.
+        Context: Tokyo is a bustling metropolis with a rich history and a vibrant culture. It is known for its advanced technology, delicious cuisine, and beautiful parks. The city experiences four distinct seasons, with hot summers and cold winters. The weather can change rapidly, so it's always good to check the forecast before making plans.
+        Here is a long context to test the model's ability to handle extended input:
+        Tokyo is the capital city of Japan, known for its vibrant culture, advanced technology, and rich history. The city experiences four distinct seasons, with hot, humid summers and mild winters. Weather forecasting in Tokyo is generally reliable, but unexpected changes can occur due to its proximity to the ocean and mountainous regions.
+        In recent years, Tokyo has hosted several international events, including the 2020 Summer Olympics. The city's infrastructure is designed to handle large populations and frequent visitors, with efficient public transportation and numerous amenities.
+        When considering the weather for tomorrow, it is important to note that forecasts may vary depending on the source. The Japan Meteorological Agency provides up-to-date information, but sudden shifts in atmospheric pressure or typhoons can lead to rapid changes.
+        If you are planning outdoor activities in Tokyo, it is advisable to check the weather forecast regularly and prepare for possible rain or strong winds, especially during the typhoon season from August to October.
+        Additionally, Tokyo's weather can be influenced by global climate patterns such as El Niño and La Niña, which may cause unusual temperature fluctuations or precipitation levels.
+        In summary, while Tokyo generally enjoys a temperate climate, it is always best to stay informed about the latest weather updates to ensure a safe and enjoyable experience in the city.
+
+        Context: The climate in Tokyo is characterized by a humid subtropical climate zone, with significant seasonal variation. Spring brings cherry blossoms and mild temperatures, while summer is hot and humid, often accompanied by heavy rainfall and occasional typhoons. Autumn is generally pleasant with cooler temperatures and clear skies, making it a popular season for outdoor activities. Winter is relatively mild compared to other regions of Japan, with rare snowfall and crisp, dry air. Due to its geographical location, Tokyo can experience sudden weather changes, so residents and visitors are advised to monitor weather reports, especially during the rainy and typhoon seasons.
+        Here is some additional long context to further test the model's ability to process extended input:
+        Tokyo's urban landscape is a blend of modern skyscrapers and historic temples, reflecting centuries of cultural evolution. The city is divided into several wards, each with its own unique character and attractions. Shibuya is famous for its bustling crossing and youth culture, while Asakusa offers a glimpse into traditional Japan with the iconic Senso-ji Temple. The efficient public transportation system, including the extensive subway and train networks, makes it easy to navigate the city and explore its diverse neighborhoods.
+        The weather in Tokyo can have a significant impact on daily life, influencing everything from commuting patterns to seasonal festivals. During the rainy season, known as "tsuyu," residents often carry umbrellas and adjust their schedules to avoid heavy downpours. In contrast, the cherry blossom season in spring draws crowds to parks and riversides, where people gather for "hanami" picnics under the blooming trees.
+        Tokyo's proximity to the Pacific Ocean means that it is occasionally affected by typhoons, which can bring strong winds and heavy rainfall. The city's infrastructure is designed to withstand such events, with advanced drainage systems and strict building codes. However, residents are still advised to stay informed through weather alerts and prepare emergency supplies in case of severe storms.
+        In recent years, climate change has led to more frequent heatwaves and unpredictable weather patterns in Tokyo. The local government has implemented measures to mitigate the effects of extreme heat, such as installing misting stations and promoting the use of shade structures in public spaces. Environmental awareness campaigns encourage residents to conserve energy and reduce their carbon footprint.
+        Overall, Tokyo's dynamic climate and vibrant urban environment make it a fascinating subject for weather-related inquiries and research. Whether planning a visit or studying the city's meteorological trends, staying informed about the latest weather updates is essential for making the most of what Tokyo has to offer.
+
+        Context: Tokyo is a city that never sleeps, with a rich tapestry of culture, technology, and history woven into its fabric. The weather in Tokyo can be as dynamic as the city itself, with each season bringing its own unique charm and challenges. From the cherry blossoms of spring to the vibrant foliage of autumn, the city's climate plays a significant role in shaping the experiences of both residents and visitors.
+        The summer months in Tokyo are characterized by high humidity and temperatures that can soar above 30 degrees Celsius. This is also the time when the city experiences its rainy season, known as "tsuyu," which typically lasts from early June to mid-July. During this period, heavy rainfall can lead to localized flooding and transportation disruptions, so it's essential to stay updated on weather forecasts.
+        As the summer heat gives way to autumn, Tokyo transforms into a canvas of red and gold as the leaves change color. The cooler temperatures make it an ideal time for outdoor activities, and many festivals celebrate the beauty of the season. However, typhoons can still pose a threat during this time, bringing strong winds and heavy rain.
+        Winter in Tokyo is relatively mild compared to other parts of Japan, with temperatures rarely dropping below freezing. Snowfall is infrequent but can occur, creating a picturesque scene in the city's parks and gardens. The dry air and clear skies make it a great time for stargazing and enjoying the city's illuminated landmarks.
+        Despite the challenges posed by its climate, Tokyo remains a resilient city that adapts to its weather patterns. From innovative urban planning to community preparedness initiatives, the city's response to its dynamic climate is a testament to its enduring spirit and commitment to sustainability.
+
+        Context: Tokyo is a city that thrives on its dynamic climate, with each season offering a unique experience. The weather can change rapidly, so it's essential to stay informed about the latest forecasts. The city is known for its hot, humid summers and mild winters, with occasional snowfall. Spring brings beautiful cherry blossoms, while autumn showcases stunning foliage. Typhoons can occur during the late summer and early autumn months, bringing heavy rain and strong winds. It's always a good idea to check the weather before planning outdoor activities in Tokyo.
+        Tokyo's weather is influenced by its geographical location, surrounded by mountains and the Pacific Ocean. This results in a humid subtropical climate, with distinct seasons that can affect daily life. The city experiences a rainy season in June and July, which can lead to localized flooding. However, the city's infrastructure is well-equipped to handle such events, ensuring minimal disruption to transportation and daily activities.
+        When it comes to weather forecasting, Tokyo has a reliable system in place. The Japan Meteorological Agency provides accurate and timely updates, allowing residents and visitors to plan accordingly. Whether you're looking to enjoy a sunny day in one of Tokyo's many parks or need to prepare for a sudden downpour, staying informed about the weather is key to making the most of your time in this vibrant city.
+        "#,
+        ),
+    )];
+
+    openai
+        .model_id(String::from("gpt-4o-mini"))
+        .messages(messages)
+        .temperature(1.0);
+
+    let response = openai.chat().unwrap();
+    println!("{:#?}", response);
+}

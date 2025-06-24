@@ -390,11 +390,17 @@ impl OpenAI {
         let url = "https://api.openai.com/v1/chat/completions";
 
         // dump the body to a file
-        let body_piped = Command::new("echo")
-            .arg(body)
+        let mut body_piped = Command::new("cat")
+            .stdin(std::process::Stdio::piped())
             .stdout(std::process::Stdio::piped())
             .spawn()
             .expect("Failed to execute command");
+        if let Some(mut stdin) = body_piped.stdin.take() {
+            use std::io::Write;
+            stdin
+                .write_all(body.as_bytes())
+                .expect("Failed to write to stdin");
+        }
 
         let cmd = Command::new("curl")
             .arg(url)
