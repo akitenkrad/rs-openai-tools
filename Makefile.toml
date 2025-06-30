@@ -1,6 +1,9 @@
 [config]
 default_to_workspace = false
 
+[env]
+env_file = ".env"
+
 [tasks.format-all]
 dependencies = ["sort-cargo-toml", "clippy", "reformat"]
 description = "Format all code in the project."
@@ -31,3 +34,8 @@ dependencies = ["compose-build"]
 description = "Run all tests in the project."
 install_crate = "cargo-nextest"
 script = "cargo nextest run --workspace --status-level all --test-threads=1 ${@}"
+
+[tasks.doctest]
+dependencies = ["compose-build"]
+description = "Run doctests in the project."
+script = "cargo test --doc"

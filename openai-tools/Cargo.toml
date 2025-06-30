@@ -17,6 +17,7 @@ tiktoken-rs.workspace = true
 tracing.workspace = true
 request.workspace = true
 tokio.workspace = true
+derive-new.workspace = true
 
 [package.metadata.release]
 tag = true
