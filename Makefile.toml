@@ -11,13 +11,13 @@ description = "Format all code in the project."
 [tasks.build-no-cache]
 description = "Build the project."
 script = [
-    "docker compose build --pull --no-cache --progress=plain && docker compose run --rm instance cargo build --release",
+  "docker compose build --pull --no-cache --progress=plain && docker compose run --rm instance cargo build --release",
 ]
 
 [tasks.compose-build]
 description = "Build the project."
 script = [
-    "docker compose build --progress=plain && docker compose run --rm instance cargo build --release",
+  "docker compose build --progress=plain && docker compose run --rm instance cargo build --release",
 ]
 
 [tasks.sort-cargo-toml]
