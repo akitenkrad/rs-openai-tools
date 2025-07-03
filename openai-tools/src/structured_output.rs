@@ -23,10 +23,10 @@
 //! ## Example
 //!
 //! ```rust
-//! use openai_tools::json_schema::JsonSchema;
+//! use openai_tools::structured_output::Schema;
 //!
 //! // Create a schema for a person object
-//! let mut schema = JsonSchema::new("person".to_string());
+//! let mut schema = Schema::chat_json_schema("person".to_string());
 //!
 //! // Add basic properties
 //! schema.add_property(
@@ -80,7 +80,7 @@ use serde::{Deserialize, Serialize};
 /// # Example
 ///
 /// ```rust
-/// use openai_tools::json_schema::ItemType;
+/// use openai_tools::structured_output::ItemType;
 ///
 /// // Simple string property
 /// let name_prop = ItemType::new(
@@ -119,7 +119,7 @@ impl ItemType {
     /// # Example
     ///
     /// ```rust
-    /// use openai_tools::json_schema::ItemType;
+    /// use openai_tools::structured_output::ItemType;
     ///
     /// // Create a string property with description
     /// let email = ItemType::new(
@@ -198,7 +198,7 @@ impl ItemType {
 /// # Example
 ///
 /// ```rust
-/// use openai_tools::json_schema::{JsonItem, ItemType};
+/// use openai_tools::structured_output::{JsonItem, ItemType};
 /// use fxhash::FxHashMap;
 ///
 /// // Create properties map
@@ -244,7 +244,7 @@ impl JsonItem {
     /// # Example
     ///
     /// ```rust
-    /// use openai_tools::json_schema::{JsonItem, ItemType};
+    /// use openai_tools::structured_output::{JsonItem, ItemType};
     /// use fxhash::FxHashMap;
     ///
     /// let mut props = FxHashMap::default();
@@ -283,7 +283,7 @@ impl JsonItem {
     /// # Example
     ///
     /// ```rust
-    /// use openai_tools::json_schema::{JsonItem, ItemType};
+    /// use openai_tools::structured_output::{JsonItem, ItemType};
     ///
     /// let mut schema = JsonItem::default();
     /// // Add properties later using add_property()
@@ -310,7 +310,7 @@ impl JsonItem {
     /// # Example
     ///
     /// ```rust
-    /// use openai_tools::json_schema::{JsonItem, ItemType};
+    /// use openai_tools::structured_output::{JsonItem, ItemType};
     ///
     /// let mut schema = JsonItem::default();
     /// let string_prop = ItemType::new("string".to_string(), Some("A name".to_string()));
@@ -343,7 +343,7 @@ impl JsonItem {
     /// # Example
     ///
     /// ```rust
-    /// use openai_tools::json_schema::{JsonItem, ItemType};
+    /// use openai_tools::structured_output::{JsonItem, ItemType};
     /// use fxhash::FxHashMap;
     ///
     /// let mut schema = JsonItem::default();
@@ -404,10 +404,10 @@ impl JsonItem {
 /// # Example
 ///
 /// ```rust
-/// use openai_tools::json_schema::JsonSchema;
+/// use openai_tools::structured_output::Schema;
 ///
 /// // Create a schema for extracting contact information
-/// let mut contact_schema = JsonSchema::new("contact_info".to_string());
+/// let mut contact_schema = Schema::chat_json_schema("contact_info".to_string());
 ///
 /// contact_schema.add_property(
 ///     "name".to_string(),
@@ -455,9 +455,9 @@ impl Schema {
     /// # Example
     ///
     /// ```rust
-    /// use openai_tools::json_schema::JsonSchema;
+    /// use openai_tools::structured_output::Schema;
     ///
-    /// let schema = JsonSchema::new("user_profile".to_string());
+    /// let schema = Schema::chat_json_schema("user_profile".to_string());
     /// // Schema is now ready for property addition
     /// ```
     pub fn responses_text_schema() -> Self {
@@ -505,9 +505,9 @@ impl Schema {
     /// # Example
     ///
     /// ```rust
-    /// use openai_tools::json_schema::JsonSchema;
+    /// use openai_tools::structured_output::Schema;
     ///
-    /// let mut chat_schema = JsonSchema::chat_json_schema("chat_response".to_string());
+    /// let mut chat_schema = Schema::chat_json_schema("chat_response".to_string());
     /// chat_schema.add_property(
     ///     "response".to_string(),
     ///     "string".to_string(),
@@ -536,9 +536,9 @@ impl Schema {
     /// # Example
     ///
     /// ```rust
-    /// use openai_tools::json_schema::JsonSchema;
+    /// use openai_tools::structured_output::Schema;
     ///
-    /// let mut schema = JsonSchema::new("person".to_string());
+    /// let mut schema = Schema::chat_json_schema("person".to_string());
     ///
     /// // Add string property with description
     /// schema.add_property(
@@ -588,9 +588,9 @@ impl Schema {
     /// # Example
     ///
     /// ```rust
-    /// use openai_tools::json_schema::JsonSchema;
+    /// use openai_tools::structured_output::Schema;
     ///
-    /// let mut schema = JsonSchema::new("user_profile".to_string());
+    /// let mut schema = Schema::chat_json_schema("user_profile".to_string());
     ///
     /// // Add an array of address objects
     /// schema.add_array(
@@ -635,9 +635,9 @@ impl Schema {
     /// # Example
     ///
     /// ```rust
-    /// use openai_tools::json_schema::JsonSchema;
+    /// use openai_tools::structured_output::Schema;
     ///
-    /// let mut original = JsonSchema::new("template".to_string());
+    /// let mut original = Schema::chat_json_schema("template".to_string());
     /// original.add_property("id".to_string(), "number".to_string(), None);
     ///
     /// let mut copy = original.clone();

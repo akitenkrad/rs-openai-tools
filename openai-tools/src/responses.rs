@@ -32,7 +32,7 @@
 //! async fn main() -> anyhow::Result<()> {
 //!     let mut responses = Responses::new();
 //!     
-//!     let messages = vec![Message::new("user".to_string(), "Calculate 5 + 3".to_string())];
+//!     let messages = vec![Message::from_string("user".to_string(), "Calculate 5 + 3".to_string())];
 //!     let mut params = FxHashMap::default();
 //!     params.insert("a".to_string(), "number".to_string());
 //!     params.insert("b".to_string(), "number".to_string());
@@ -41,7 +41,7 @@
 //!     
 //!     responses
 //!         .model_id("gpt-4o-mini".into())
-//!         .messages_input(messages)
+//!         .messages(messages)
 //!         .tools(vec![tool]);
 //!
 //!     let result = responses.complete().await?;
@@ -58,6 +58,7 @@ use crate::{
 use derive_new::new;
 use dotenvy::dotenv;
 use fxhash::FxHashMap;
+use request;
 use serde::{ser::SerializeStruct, Deserialize, Serialize};
 use std::{env, vec};
 
@@ -484,13 +485,13 @@ pub struct ResponsesResponse {
 ///     let mut responses = Responses::new();
 ///     
 ///     let messages = vec![
-///         Message::new("system".to_string(), "You are a helpful assistant.".to_string()),
-///         Message::new("user".to_string(), "Hello!".to_string()),
+///         Message::from_string("system".to_string(), "You are a helpful assistant.".to_string()),
+///         Message::from_string("user".to_string(), "Hello!".to_string()),
 ///     ];
 ///     
 ///     responses
 ///         .model_id("gpt-4o-mini".into())
-///         .messages_input(messages);
+///         .messages(messages);
 ///
 ///     let result = responses.complete().await?;
 ///     // Process result...
@@ -508,7 +509,7 @@ pub struct ResponsesResponse {
 /// async fn main() -> anyhow::Result<()> {
 ///     let mut responses = Responses::new();
 ///     
-///     let messages = vec![Message::new("user".to_string(), "Calculate 15 * 8".to_string())];
+///     let messages = vec![Message::from_string("user".to_string(), "Calculate 15 * 8".to_string())];
 ///     
 ///     let mut params = FxHashMap::default();
 ///     params.insert("a".to_string(), "number".to_string());
@@ -518,7 +519,7 @@ pub struct ResponsesResponse {
 ///     
 ///     responses
 ///         .model_id("gpt-4o-mini".into())
-///         .messages_input(messages)
+///         .messages(messages)
 ///         .tools(vec![calculator]);
 ///
 ///     let result = responses.complete().await?;
@@ -671,13 +672,13 @@ impl Responses {
     /// let mut responses = Responses::new();
     ///
     /// let messages = vec![
-    ///     Message::new("system".to_string(), "You are a helpful assistant.".to_string()),
-    ///     Message::new("user".to_string(), "What's the weather like?".to_string()),
+    ///     Message::from_string("system".to_string(), "You are a helpful assistant.".to_string()),
+    ///     Message::from_string("user".to_string(), "What's the weather like?".to_string()),
     /// ];
     ///
     /// responses
     ///     .model_id("gpt-4o-mini".into())
-    ///     .messages_input(messages);
+    ///     .messages(messages);
     /// ```
     pub fn messages(&mut self, messages: Vec<Message>) -> &mut Self {
         self.request_body.messages_input = Some(messages);
@@ -836,6 +837,8 @@ impl Responses {
 
 #[cfg(test)]
 mod tests {
+    use crate::common::MessageContent;
+
     use super::*;
     use std::sync::Once;
     use tracing_subscriber::EnvFilter;
@@ -890,7 +893,7 @@ mod tests {
         let mut responses = Responses::new();
         responses.model_id("gpt-4o-mini".into());
         responses.instructions("test instructions".into());
-        let messages = vec![Message::new(
+        let messages = vec![Message::from_string(
             String::from("user"),
             String::from("Hello world!"),
         )];
@@ -924,7 +927,7 @@ mod tests {
         let mut responses = Responses::new();
         responses.model_id("gpt-4o-mini".into());
         responses.instructions("test instructions".into());
-        let messages = vec![Message::new(
+        let messages = vec![Message::from_string(
             String::from("user"),
             String::from("Calculate 2 + 2 using a calculator tool."),
         )];
@@ -975,7 +978,7 @@ mod tests {
         let mut responses = Responses::new();
         responses.model_id("gpt-4o-mini".into());
 
-        let messages = vec![Message::new(
+        let messages = vec![Message::from_string(
             String::from("user"),
             String::from("What is the capital of France?"),
         )];
@@ -999,6 +1002,44 @@ mod tests {
                     )
                     .unwrap();
                     assert_eq!(res.capital, "Paris");
+                    break;
+                }
+                Err(e) => {
+                    tracing::error!("Error: {} (retrying... {})", e, counter);
+                    counter -= 1;
+                    if counter == 0 {
+                        assert!(false, "Failed to complete responses after 3 attempts");
+                    }
+                }
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn test_responses_with_image_input() {
+        init_tracing();
+        let mut responses = Responses::new();
+        responses.model_id("gpt-4o-mini".into());
+        responses.instructions("test instructions".into());
+
+        let message = Message::from_message_array(
+            "user".into(),
+            vec![
+                MessageContent::from_text("Do you find a clock in this image?".into()),
+                MessageContent::from_image_file("src/test_rsc/sample_image.jpg".into()),
+            ],
+        );
+        responses.messages(vec![message]);
+
+        let body_json = serde_json::to_string_pretty(&responses.request_body).unwrap();
+        tracing::info!("Request body: {}", body_json);
+
+        let mut counter = 3;
+        loop {
+            match responses.complete().await {
+                Ok(res) => {
+                    tracing::info!("Response: {}", serde_json::to_string_pretty(&res).unwrap());
+                    assert!(res.output[0].content.as_ref().unwrap()[0].text.len() > 0);
                     break;
                 }
                 Err(e) => {

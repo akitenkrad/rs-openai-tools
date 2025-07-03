@@ -1,5 +1,28 @@
-//! # Usage
-//! ## Chat Completion
+//! # openai-tools
+//! This crate provides a simple interface to interact with OpenAI's Chat Completion API.
+//! # Example Usage
+//!
+//! ```rust
+//! # use openai_tools::common::Message;
+//! # use openai_tools::chat::ChatCompletionResponse;
+//! # use openai_tools::chat::ChatCompletion;
+//! # #[tokio::main]
+//! # async fn main() {
+//!     let mut chat = ChatCompletion::new();
+//!     let messages = vec![
+//!         Message::from_string(String::from("user"), String::from("Hi there!"))
+//!     ];
+//!
+//!     chat
+//!         .model_id(String::from("gpt-4o-mini"))
+//!         .messages(messages)
+//!         .temperature(1.0);
+//!
+//!     let response: ChatCompletionResponse = chat.chat().await.unwrap();
+//!     println!("{}", &response.choices[0].message.content);
+//!     // Hello! How can I assist you today?
+//! # }
+//! ```
 //!
 //! ### Simple Chat Completion
 //!
@@ -10,7 +33,7 @@
 //! # async fn main() {
 //!     let mut chat = ChatCompletion::new();
 //!     let messages = vec![
-//!         Message::new(String::from("user"), String::from("Hi there!"))
+//!         Message::from_string(String::from("user"), String::from("Hi there!"))
 //!     ];
 //
 //!     chat
@@ -27,7 +50,7 @@
 //! ### Chat with Json Schema
 //
 //! ```rust
-//! # use openai_tools::json_schema::JsonSchema;
+//! # use openai_tools::structured_output::Schema;
 //! # use openai_tools::common::Message;
 //! # use openai_tools::chat::{
 //! #   ChatCompletion, ChatCompletionResponse, ChatCompletionResponseFormat
@@ -46,13 +69,13 @@
 //!     }
 //
 //!     let mut chat = ChatCompletion::new();
-//!     let messages = vec![Message::new(
+//!     let messages = vec![Message::from_string(
 //!         String::from("user"),
 //!         String::from("Hi there! How's the weather tomorrow in Tokyo? If you can't answer, report error."),
 //!     )];
 //
 //!     // build json schema
-//!     let mut json_schema = JsonSchema::new("weather".to_string());
+//!     let mut json_schema = Schema::chat_json_schema("weather".to_string());
 //!     json_schema.add_property(
 //!         String::from("location"),
 //!         String::from("string"),

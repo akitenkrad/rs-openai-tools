@@ -23,7 +23,7 @@
 //! # async fn example() -> Result<()> {
 //! let mut chat = ChatCompletion::new();
 //! let messages = vec![
-//!     Message::new("user".to_string(), "Hello, world!".to_string())
+//!     Message::from_string("user".to_string(), "Hello, world!".to_string())
 //! ];
 //!
 //! chat.model_id("gpt-4o-mini".to_string())
@@ -40,7 +40,7 @@
 //!
 //! ```rust
 //! use openai_tools::chat::{ChatCompletion, ChatCompletionResponseFormat};
-//! use openai_tools::json_schema::JsonSchema;
+//! use openai_tools::structured_output::Schema;
 //! use openai_tools::common::Message;
 //! use openai_tools::errors::Result;
 //! use serde::{Deserialize, Serialize};
@@ -53,14 +53,14 @@
 //! }
 //!
 //! # async fn example() -> Result<()> {
-//! let mut schema = JsonSchema::new("weather".to_string());
+//! let mut schema = Schema::chat_json_schema("weather".to_string());
 //! schema.add_property("location".to_string(), "string".to_string(), None);
 //! schema.add_property("temperature".to_string(), "number".to_string(), None);
 //! schema.add_property("condition".to_string(), "string".to_string(), None);
 //!
 //! let mut chat = ChatCompletion::new();
 //! chat.model_id("gpt-4o-mini".to_string())
-//!     .messages(vec![Message::new("user".to_string(), "What's the weather in Tokyo?".to_string())])
+//!     .messages(vec![Message::from_string("user".to_string(), "What's the weather in Tokyo?".to_string())])
 //!     .response_format(ChatCompletionResponseFormat::new("json_schema".to_string(), schema));
 //!
 //! let response = chat.chat().await?;
@@ -92,9 +92,9 @@ use std::env;
 ///
 /// ```rust
 /// use openai_tools::chat::ChatCompletionResponseFormat;
-/// use openai_tools::json_schema::JsonSchema;
+/// use openai_tools::structured_output::Schema;
 ///
-/// let mut schema = JsonSchema::new("person".to_string());
+/// let mut schema = Schema::chat_json_schema("person".to_string());
 /// schema.add_property("name".to_string(), "string".to_string(), Some("Person's name".to_string()));
 /// schema.add_property("age".to_string(), "integer".to_string(), Some("Person's age".to_string()));
 ///
@@ -123,9 +123,9 @@ impl ChatCompletionResponseFormat {
     ///
     /// ```rust
     /// use openai_tools::chat::ChatCompletionResponseFormat;
-    /// use openai_tools::json_schema::JsonSchema;
+    /// use openai_tools::structured_output::Schema;
     ///
-    /// let schema = JsonSchema::new("example".to_string());
+    /// let schema = Schema::chat_json_schema("example".to_string());
     /// let format = ChatCompletionResponseFormat::new("json_schema".to_string(), schema);
     /// ```
     pub fn new(type_name: String, json_schema: Schema) -> Self {
@@ -164,7 +164,7 @@ impl ChatCompletionResponseFormat {
 /// use openai_tools::common::Message;
 ///
 /// let mut body = ChatCompletionRequestBody::new("gpt-4o-mini".to_string());
-/// body.messages = vec![Message::new("user".to_string(), "Hello!".to_string())];
+/// body.messages = vec![Message::from_string("user".to_string(), "Hello!".to_string())];
 /// body.temperature = Some(0.7);
 /// ```
 
@@ -265,6 +265,14 @@ impl ChatCompletionRequestBody {
     }
 }
 
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct ChatResponseMessage {
+    pub content: String,
+    pub role: String,
+    pub refusal: Option<String>,
+    pub annotations: Option<Vec<String>>,
+}
+
 /// Represents a single choice in the chat completion response.
 ///
 /// Each chat completion request can generate multiple choices (controlled by the `n` parameter).
@@ -283,11 +291,10 @@ impl ChatCompletionRequestBody {
 /// - "length" - Maximum token limit reached
 /// - "content_filter" - Content was filtered due to policy violations
 /// - "tool_calls" - Model decided to call a function/tool
-
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Choice {
     pub index: u32,
-    pub message: Message,
+    pub message: ChatResponseMessage,
     pub finish_reason: String,
 }
 
@@ -354,12 +361,12 @@ pub struct ChatCompletionResponse {
 /// use openai_tools::chat::ChatCompletion;
 /// use openai_tools::common::Message;
 ///
-/// # async fn example() -> Result<()> {
+/// # async fn example() -> anyhow::Result<()> {
 /// let mut chat = ChatCompletion::new();
 ///
 /// let response = chat
 ///     .model_id("gpt-4o-mini".to_string())
-///     .messages(vec![Message::new("user".to_string(), "Hello!".to_string())])
+///     .messages(vec![Message::from_string("user".to_string(), "Hello!".to_string())])
 ///     .temperature(0.7)
 ///     .chat()
 ///     .await?;
@@ -444,8 +451,8 @@ impl ChatCompletion {
     /// # use openai_tools::common::Message;
     /// let mut chat = ChatCompletion::new();
     /// let messages = vec![
-    ///     Message::new("system".to_string(), "You are a helpful assistant.".to_string()),
-    ///     Message::new("user".to_string(), "Hello!".to_string()),
+    ///     Message::from_string("system".to_string(), "You are a helpful assistant.".to_string()),
+    ///     Message::from_string("user".to_string(), "Hello!".to_string()),
     /// ];
     /// chat.messages(messages);
     /// ```
@@ -660,9 +667,9 @@ impl ChatCompletion {
     ///
     /// ```rust
     /// # use openai_tools::chat::{ChatCompletion, ChatCompletionResponseFormat};
-    /// # use openai_tools::json_schema::JsonSchema;
+    /// # use openai_tools::structured_output::Schema;
     /// let mut chat = ChatCompletion::new();
-    /// let mut schema = JsonSchema::new("person".to_string());
+    /// let mut schema = Schema::chat_json_schema("person".to_string());
     /// schema.add_property("name".to_string(), "string".to_string(), None);
     ///
     /// let format = ChatCompletionResponseFormat::new("json_schema".to_string(), schema);
@@ -705,7 +712,7 @@ impl ChatCompletion {
     ///
     /// let response = chat
     ///     .model_id("gpt-4o-mini".to_string())
-    ///     .messages(vec![Message::new("user".to_string(), "Hello!".to_string())])
+    ///     .messages(vec![Message::from_string("user".to_string(), "Hello!".to_string())])
     ///     .chat()
     ///     .await?;
     ///
@@ -766,7 +773,6 @@ mod tests {
     use serde::{Deserialize, Serialize};
     use serde_json;
     use std::sync::Once;
-    use tiktoken_rs::o200k_base;
     use tracing_subscriber::EnvFilter;
 
     static INIT: Once = Once::new();
@@ -786,7 +792,7 @@ mod tests {
     async fn test_chat_completion() {
         init_tracing();
         let mut chat = ChatCompletion::new();
-        let messages = vec![Message::new(
+        let messages = vec![Message::from_string(
             String::from("user"),
             String::from("Hi there!"),
         )];
@@ -799,7 +805,7 @@ mod tests {
         loop {
             match chat.chat().await {
                 Ok(response) => {
-                    println!("{}", &response.choices[0].message.content);
+                    tracing::info!("{}", &response.choices[0].message.content);
                     assert!(true);
                     break;
                 }
@@ -825,7 +831,7 @@ mod tests {
     async fn test_chat_completion_2() {
         init_tracing();
         let mut chat = ChatCompletion::new();
-        let messages = vec![Message::new(
+        let messages = vec![Message::from_string(
             String::from("user"),
             String::from("トンネルを抜けると？"),
         )];
@@ -876,7 +882,7 @@ mod tests {
     async fn test_chat_completion_with_json_schema() {
         init_tracing();
         let mut openai = ChatCompletion::new();
-        let messages = vec![Message::new(
+        let messages = vec![Message::from_string(
             String::from("user"),
             String::from(
                 "Hi there! How's the weather tomorrow in Tokyo? If you can't answer, report error.",
@@ -967,7 +973,10 @@ mod tests {
         let mut openai = ChatCompletion::new();
         let instruction = std::fs::read_to_string("src/test_rsc/sample_instruction.txt").unwrap();
 
-        let messages = vec![Message::new(String::from("user"), instruction.clone())];
+        let messages = vec![Message::from_string(
+            String::from("user"),
+            instruction.clone(),
+        )];
 
         let mut json_schema = Schema::chat_json_schema(String::from("summary"));
         json_schema.add_property(
@@ -1084,12 +1093,12 @@ mod tests {
         init_tracing();
         let mut openai = ChatCompletion::new();
         let text = std::fs::read_to_string("src/test_rsc/long_text.txt").unwrap();
-        let messages = vec![Message::new(String::from("user"), text)];
+        let messages = vec![Message::from_string(String::from("user"), text)];
 
-        let bpe = o200k_base().unwrap();
-        let token_count = bpe
-            .encode_with_special_tokens(messages[0].content.as_str())
-            .len();
+        let token_count = messages
+            .iter()
+            .map(|m| m.get_input_token_count())
+            .sum::<usize>();
         tracing::info!("Token count: {}", token_count);
 
         openai

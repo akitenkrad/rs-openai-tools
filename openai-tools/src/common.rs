@@ -15,7 +15,7 @@
 //! use openai_tools::common::{Message, Usage};
 //!
 //! // Create a user message
-//! let message = Message::new("user".to_string(), "Hello, world!".to_string());
+//! let message = Message::from_string("user".to_string(), "Hello, world!".to_string());
 //!
 //! // Usage is typically returned by API responses
 //! let usage = Usage::new(
@@ -32,9 +32,10 @@
 //! println!("Total tokens used: {:?}", usage.total_tokens);
 //! ```
 
+use base64::prelude::*;
 use derive_new::new;
 use fxhash::FxHashMap;
-use serde::{Deserialize, Serialize};
+use serde::{ser::SerializeStruct, Deserialize, Serialize};
 
 /// Token usage statistics for OpenAI API requests.
 ///
@@ -92,6 +93,157 @@ pub struct Usage {
     pub completion_tokens_details: Option<FxHashMap<String, usize>>,
 }
 
+/// Represents the content of a message, which can be either text or an image.
+///
+/// This structure is used to encapsulate different types of message content
+/// that can be sent to or received from AI models. It supports both text-based
+/// content and image content (either as URLs or base64-encoded data).
+///
+/// # Fields
+///
+/// * `type_name` - The type of content ("input_text" for text, "input_image" for images)
+/// * `text` - Optional text content when the message contains text
+/// * `image_url` - Optional image URL or base64-encoded image data when the message contains an image
+///
+/// # Example
+///
+/// ```rust
+/// use openai_tools::common::MessageContent;
+///
+/// // Create text content
+/// let text_content = MessageContent::from_text("Hello, world!".to_string());
+///
+/// // Create image content from URL
+/// // let image_content = MessageContent::from_image_url("https://example.com/image.jpg".to_string());
+///
+/// // Create image content from file
+/// // let file_content = MessageContent::from_image_file("path/to/image.jpg".to_string());
+/// ```
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+pub struct MessageContent {
+    #[serde(rename = "type")]
+    pub type_name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub text: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub image_url: Option<String>,
+}
+
+impl MessageContent {
+    /// Creates a new `MessageContent` containing text.
+    ///
+    /// This constructor creates a message content instance specifically for text-based
+    /// messages. The content type is automatically set to "input_text" and the
+    /// image_url field is set to None.
+    ///
+    /// # Arguments
+    ///
+    /// * `text` - The text content to include in the message
+    ///
+    /// # Returns
+    ///
+    /// A new `MessageContent` instance configured for text content.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use openai_tools::common::MessageContent;
+    ///
+    /// let content = MessageContent::from_text("Hello, AI assistant!".to_string());
+    /// assert_eq!(content.type_name, "input_text");
+    /// assert_eq!(content.text, Some("Hello, AI assistant!".to_string()));
+    /// assert_eq!(content.image_url, None);
+    /// ```
+    pub fn from_text(text: String) -> Self {
+        Self {
+            type_name: "input_text".to_string(),
+            text: Some(text),
+            image_url: None,
+        }
+    }
+
+    /// Creates a new `MessageContent` containing an image from a URL.
+    ///
+    /// This constructor creates a message content instance for image-based messages
+    /// using an existing image URL. The content type is automatically set to
+    /// "input_image" and the text field is set to None.
+    ///
+    /// # Arguments
+    ///
+    /// * `image_url` - The URL or base64-encoded data URI of the image
+    ///
+    /// # Returns
+    ///
+    /// A new `MessageContent` instance configured for image content.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use openai_tools::common::MessageContent;
+    ///
+    /// let content = MessageContent::from_image_url("https://example.com/image.jpg".to_string());
+    /// assert_eq!(content.type_name, "input_image");
+    /// assert_eq!(content.text, None);
+    /// assert_eq!(content.image_url, Some("https://example.com/image.jpg".to_string()));
+    /// ```
+    pub fn from_image_url(image_url: String) -> Self {
+        Self {
+            type_name: "input_image".to_string(),
+            text: None,
+            image_url: Some(image_url),
+        }
+    }
+
+    /// Creates a new `MessageContent` containing an image loaded from a file.
+    ///
+    /// This constructor reads an image file from the local filesystem, encodes it
+    /// as base64, and creates a data URI suitable for use with AI models. The
+    /// content type is automatically set to "input_image" and the text field
+    /// is set to None.
+    ///
+    /// # Arguments
+    ///
+    /// * `file_path` - The path to the image file to load
+    ///
+    /// # Returns
+    ///
+    /// A new `MessageContent` instance configured for image content with base64-encoded data.
+    ///
+    /// # Supported Formats
+    ///
+    /// - PNG (.png)
+    /// - JPEG (.jpg, .jpeg)
+    /// - GIF (.gif)
+    ///
+    pub fn from_image_file(file_path: String) -> Self {
+        let ext = file_path.clone();
+        let ext = std::path::Path::new(&ext)
+            .extension()
+            .and_then(|s| s.to_str())
+            .unwrap();
+        let img = image::ImageReader::open(file_path.clone())
+            .expect("Failed to open image file")
+            .decode()
+            .expect("Failed to decode image");
+        let img_fmt = match ext {
+            "png" => image::ImageFormat::Png,
+            "jpg" | "jpeg" => image::ImageFormat::Jpeg,
+            "gif" => image::ImageFormat::Gif,
+            _ => panic!("Unsupported image format"),
+        };
+        let mut buf = std::io::Cursor::new(Vec::new());
+        img.write_to(&mut buf, img_fmt)
+            .expect("Failed to write image to buffer");
+        let base64_string = BASE64_STANDARD.encode(buf.into_inner());
+        let image_url = format!("data:image/{};base64,{}", ext, base64_string);
+        Self {
+            type_name: "input_image".to_string(),
+            text: None,
+            image_url: Some(image_url),
+        }
+    }
+}
+
 /// Represents a single message in a conversation with an AI model.
 ///
 /// Messages are the fundamental building blocks of conversations in chat-based
@@ -119,19 +271,19 @@ pub struct Usage {
 /// use openai_tools::common::Message;
 ///
 /// // Create a system message to set context
-/// let system_msg = Message::new(
+/// let system_msg = Message::from_string(
 ///     "system".to_string(),
 ///     "You are a helpful assistant that explains complex topics simply.".to_string()
 /// );
 ///
 /// // Create a user message
-/// let user_msg = Message::new(
+/// let user_msg = Message::from_string(
 ///     "user".to_string(),
 ///     "What is quantum computing?".to_string()
 /// );
 ///
 /// // Create an assistant response
-/// let assistant_msg = Message::new(
+/// let assistant_msg = Message::from_string(
 ///     "assistant".to_string(),
 ///     "Quantum computing is a type of computation that uses quantum mechanics...".to_string()
 /// );
@@ -139,12 +291,58 @@ pub struct Usage {
 /// // Messages are typically used in vectors for conversation history
 /// let conversation = vec![system_msg, user_msg, assistant_msg];
 /// ```
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct Message {
-    pub role: String,
-    pub content: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub refusal: Option<String>,
+    role: String,
+    content: Option<MessageContent>,
+    contents: Option<Vec<MessageContent>>,
+}
+
+impl Serialize for Message {
+    /// Custom serialization implementation for `Message`.
+    ///
+    /// This method ensures that messages are serialized correctly by enforcing
+    /// that either `content` or `contents` is present, but not both. This prevents
+    /// invalid message structures from being serialized.
+    ///
+    /// # Arguments
+    ///
+    /// * `serializer` - The serializer to use for output
+    ///
+    /// # Returns
+    ///
+    /// Result of the serialization operation
+    ///
+    /// # Errors
+    ///
+    /// Returns a serialization error if:
+    /// - Both `content` and `contents` are present
+    /// - Neither `content` nor `contents` are present
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let mut state = serializer.serialize_struct("Message", 3)?;
+        state.serialize_field("role", &self.role)?;
+
+        // Ensure that either content or contents is present, but not both
+        if (self.content.is_none() && self.contents.is_none())
+            || (self.content.is_some() && self.contents.is_some())
+        {
+            return Err(serde::ser::Error::custom(
+                "Message must have either content or contents",
+            ));
+        }
+
+        // Serialize content or contents based on which one is present
+        if let Some(content) = &self.content {
+            state.serialize_field("content", &content.text)?;
+        }
+        if let Some(contents) = &self.contents {
+            state.serialize_field("content", contents)?;
+        }
+        state.end()
+    }
 }
 
 impl Message {
@@ -166,34 +364,149 @@ impl Message {
     /// # Example
     ///
     /// ```rust
-    /// use openai_tools::common::Message;
-    ///
+    /// # use openai_tools::common::Message;
+    /// # pub fn main() {
     /// // Create various types of messages
-    /// let system_message = Message::new(
+    /// let system_message = Message::from_string(
     ///     "system".to_string(),
     ///     "You are a helpful AI assistant.".to_string()
     /// );
     ///
-    /// let user_message = Message::new(
+    /// let user_message = Message::from_string(
     ///     "user".to_string(),
     ///     "Hello! How are you today?".to_string()
     /// );
     ///
-    /// let assistant_message = Message::new(
+    /// let assistant_message = Message::from_string(
     ///     "assistant".to_string(),
     ///     "Hello! I'm doing well, thank you for asking.".to_string()
     /// );
-    ///
-    /// // Verify the message was created correctly
-    /// assert_eq!(user_message.role, "user");
-    /// assert_eq!(user_message.content, "Hello! How are you today?");
-    /// assert_eq!(user_message.refusal, None);
+    /// # }
     /// ```
-    pub fn new(role: String, message: String) -> Self {
+    /// Creates a new `Message` from a role and text string.
+    ///
+    /// This constructor creates a message with a single text content. It's the
+    /// most common way to create simple text-based messages for conversations
+    /// with AI models.
+    ///
+    /// # Arguments
+    ///
+    /// * `role` - The role of the message sender (e.g., "user", "assistant", "system")
+    /// * `message` - The text content of the message
+    ///
+    /// # Returns
+    ///
+    /// A new `Message` instance with the specified role and text content.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use openai_tools::common::Message;
+    ///
+    /// let user_message = Message::from_string(
+    ///     "user".to_string(),
+    ///     "What is the weather like today?".to_string()
+    /// );
+    ///
+    /// let system_message = Message::from_string(
+    ///     "system".to_string(),
+    ///     "You are a helpful weather assistant.".to_string()
+    /// );
+    /// ```
+    pub fn from_string(role: String, message: String) -> Self {
         Self {
             role: String::from(role),
-            content: String::from(message),
-            refusal: None,
+            content: Some(MessageContent::from_text(String::from(message))),
+            contents: None,
+        }
+    }
+
+    /// Creates a new `Message` from a role and an array of message contents.
+    ///
+    /// This constructor allows creating messages with multiple content types,
+    /// such as messages that contain both text and images. This is useful for
+    /// multimodal conversations where a single message may include various
+    /// types of content.
+    ///
+    /// # Arguments
+    ///
+    /// * `role` - The role of the message sender (e.g., "user", "assistant", "system")
+    /// * `contents` - A vector of `MessageContent` instances representing different content types
+    ///
+    /// # Returns
+    ///
+    /// A new `Message` instance with the specified role and multiple content elements.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use openai_tools::common::{Message, MessageContent};
+    ///
+    /// let contents = vec![
+    ///     MessageContent::from_text("Please analyze this image:".to_string()),
+    ///     MessageContent::from_image_url("https://example.com/image.jpg".to_string()),
+    /// ];
+    ///
+    /// let multimodal_message = Message::from_message_array(
+    ///     "user".to_string(),
+    ///     contents
+    /// );
+    /// ```
+    pub fn from_message_array(role: String, contents: Vec<MessageContent>) -> Self {
+        Self {
+            role: String::from(role),
+            content: None,
+            contents: Some(contents),
+        }
+    }
+
+    /// Calculates the number of input tokens for this message.
+    ///
+    /// This method uses the OpenAI tiktoken tokenizer (o200k_base) to count
+    /// the number of tokens in the text content of the message. This is useful
+    /// for estimating API costs and ensuring messages don't exceed token limits.
+    ///
+    /// # Returns
+    ///
+    /// The number of tokens in the message's text content. Returns 0 if:
+    /// - The message has no content
+    /// - The message content has no text (e.g., image-only messages)
+    ///
+    /// # Note
+    ///
+    /// This method only counts tokens for text content. Image content tokens
+    /// are not included in the count as they are calculated differently by
+    /// the OpenAI API.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use openai_tools::common::Message;
+    ///
+    /// let message = Message::from_string(
+    ///     "user".to_string(),
+    ///     "Hello, how are you today?".to_string()
+    /// );
+    ///
+    /// let token_count = message.get_input_token_count();
+    /// println!("Message contains {} tokens", token_count);
+    /// ```
+    pub fn get_input_token_count(&self) -> usize {
+        let bpe = tiktoken_rs::o200k_base().unwrap();
+        if let Some(content) = &self.content {
+            return bpe
+                .encode_with_special_tokens(&content.clone().text.unwrap())
+                .len();
+        } else if let Some(contents) = &self.contents {
+            let mut total_tokens = 0;
+            for content in contents {
+                if let Some(text) = &content.text {
+                    total_tokens += bpe.encode_with_special_tokens(text).len();
+                }
+            }
+            return total_tokens;
+        } else {
+            return 0; // No content to count tokens for
         }
     }
 }
