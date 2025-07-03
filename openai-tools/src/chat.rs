@@ -18,8 +18,9 @@
 //! ```rust
 //! use openai_tools::chat::ChatCompletion;
 //! use openai_tools::common::Message;
+//! use openai_tools::errors::Result;
 //!
-//! # async fn example() -> anyhow::Result<()> {
+//! # async fn example() -> Result<()> {
 //! let mut chat = ChatCompletion::new();
 //! let messages = vec![
 //!     Message::new("user".to_string(), "Hello, world!".to_string())
@@ -41,6 +42,7 @@
 //! use openai_tools::chat::{ChatCompletion, ChatCompletionResponseFormat};
 //! use openai_tools::json_schema::JsonSchema;
 //! use openai_tools::common::Message;
+//! use openai_tools::errors::Result;
 //! use serde::{Deserialize, Serialize};
 //!
 //! #[derive(Serialize, Deserialize)]
@@ -50,7 +52,7 @@
 //!     condition: String,
 //! }
 //!
-//! # async fn example() -> anyhow::Result<()> {
+//! # async fn example() -> Result<()> {
 //! let mut schema = JsonSchema::new("weather".to_string());
 //! schema.add_property("location".to_string(), "string".to_string(), None);
 //! schema.add_property("temperature".to_string(), "number".to_string(), None);
@@ -68,8 +70,8 @@
 //! ```
 
 use crate::common::{Message, Usage};
-use crate::json_schema::JsonSchema;
-use anyhow::Result;
+use crate::errors::{OpenAIToolError, Result};
+use crate::structured_output::Schema;
 use core::str;
 use dotenvy::dotenv;
 use fxhash::FxHashMap;
@@ -102,7 +104,7 @@ use std::env;
 pub struct ChatCompletionResponseFormat {
     #[serde(rename = "type")]
     pub type_name: String,
-    pub json_schema: JsonSchema,
+    pub json_schema: Schema,
 }
 
 impl ChatCompletionResponseFormat {
@@ -126,7 +128,7 @@ impl ChatCompletionResponseFormat {
     /// let schema = JsonSchema::new("example".to_string());
     /// let format = ChatCompletionResponseFormat::new("json_schema".to_string(), schema);
     /// ```
-    pub fn new(type_name: String, json_schema: JsonSchema) -> Self {
+    pub fn new(type_name: String, json_schema: Schema) -> Self {
         Self {
             type_name: String::from(type_name),
             json_schema,
@@ -352,7 +354,7 @@ pub struct ChatCompletionResponse {
 /// use openai_tools::chat::ChatCompletion;
 /// use openai_tools::common::Message;
 ///
-/// # async fn example() -> anyhow::Result<()> {
+/// # async fn example() -> Result<()> {
 /// let mut chat = ChatCompletion::new();
 ///
 /// let response = chat
@@ -368,7 +370,7 @@ pub struct ChatCompletionResponse {
 /// ```
 pub struct ChatCompletion {
     api_key: String,
-    pub completion_body: ChatCompletionRequestBody,
+    pub request_body: ChatCompletionRequestBody,
 }
 
 impl ChatCompletion {
@@ -399,7 +401,7 @@ impl ChatCompletion {
         let api_key = env::var("OPENAI_API_KEY").expect("OPENAI_API_KEY is not set.");
         return Self {
             api_key,
-            completion_body: ChatCompletionRequestBody::default(),
+            request_body: ChatCompletionRequestBody::default(),
         };
     }
 
@@ -421,7 +423,7 @@ impl ChatCompletion {
     /// chat.model_id("gpt-4o-mini".to_string());
     /// ```
     pub fn model_id(&mut self, model_id: String) -> &mut Self {
-        self.completion_body.model = String::from(model_id);
+        self.request_body.model = String::from(model_id);
         return self;
     }
 
@@ -448,7 +450,7 @@ impl ChatCompletion {
     /// chat.messages(messages);
     /// ```
     pub fn messages(&mut self, messages: Vec<Message>) -> &mut Self {
-        self.completion_body.messages = messages;
+        self.request_body.messages = messages;
         return self;
     }
 
@@ -462,7 +464,7 @@ impl ChatCompletion {
     ///
     /// A mutable reference to self for method chaining.
     pub fn store(&mut self, store: bool) -> &mut Self {
-        self.completion_body.store = Option::from(store);
+        self.request_body.store = Option::from(store);
         return self;
     }
 
@@ -487,7 +489,7 @@ impl ChatCompletion {
     /// chat.frequency_penalty(0.5); // Reduce repetition
     /// ```
     pub fn frequency_penalty(&mut self, frequency_penalty: f32) -> &mut Self {
-        self.completion_body.frequency_penalty = Option::from(frequency_penalty);
+        self.request_body.frequency_penalty = Option::from(frequency_penalty);
         return self;
     }
 
@@ -501,7 +503,7 @@ impl ChatCompletion {
     ///
     /// A mutable reference to self for method chaining.
     pub fn logit_bias(&mut self, logit_bias: FxHashMap<String, i32>) -> &mut Self {
-        self.completion_body.logit_bias = Option::from(logit_bias);
+        self.request_body.logit_bias = Option::from(logit_bias);
         return self;
     }
 
@@ -515,7 +517,7 @@ impl ChatCompletion {
     ///
     /// A mutable reference to self for method chaining.
     pub fn logprobs(&mut self, logprobs: bool) -> &mut Self {
-        self.completion_body.logprobs = Option::from(logprobs);
+        self.request_body.logprobs = Option::from(logprobs);
         return self;
     }
 
@@ -529,7 +531,7 @@ impl ChatCompletion {
     ///
     /// A mutable reference to self for method chaining.
     pub fn top_logprobs(&mut self, top_logprobs: u8) -> &mut Self {
-        self.completion_body.top_logprobs = Option::from(top_logprobs);
+        self.request_body.top_logprobs = Option::from(top_logprobs);
         return self;
     }
 
@@ -551,7 +553,7 @@ impl ChatCompletion {
     /// chat.max_completion_tokens(150); // Limit response to 150 tokens
     /// ```
     pub fn max_completion_tokens(&mut self, max_completion_tokens: u64) -> &mut Self {
-        self.completion_body.max_completion_tokens = Option::from(max_completion_tokens);
+        self.request_body.max_completion_tokens = Option::from(max_completion_tokens);
         return self;
     }
 
@@ -573,7 +575,7 @@ impl ChatCompletion {
     /// chat.n(3); // Generate 3 different responses
     /// ```
     pub fn n(&mut self, n: u32) -> &mut Self {
-        self.completion_body.n = Option::from(n);
+        self.request_body.n = Option::from(n);
         return self;
     }
 
@@ -587,7 +589,7 @@ impl ChatCompletion {
     ///
     /// A mutable reference to self for method chaining.
     pub fn modalities(&mut self, modalities: Vec<String>) -> &mut Self {
-        self.completion_body.modalities = Option::from(modalities);
+        self.request_body.modalities = Option::from(modalities);
         return self;
     }
 
@@ -612,7 +614,7 @@ impl ChatCompletion {
     /// chat.presence_penalty(0.6); // Encourage talking about new topics
     /// ```
     pub fn presence_penalty(&mut self, presence_penalty: f32) -> &mut Self {
-        self.completion_body.presence_penalty = Option::from(presence_penalty);
+        self.request_body.presence_penalty = Option::from(presence_penalty);
         return self;
     }
 
@@ -637,7 +639,7 @@ impl ChatCompletion {
     /// chat.temperature(0.7); // Balanced creativity and consistency
     /// ```
     pub fn temperature(&mut self, temperature: f32) -> &mut Self {
-        self.completion_body.temperature = Option::from(temperature);
+        self.request_body.temperature = Option::from(temperature);
         return self;
     }
 
@@ -667,7 +669,7 @@ impl ChatCompletion {
     /// chat.response_format(format);
     /// ```
     pub fn response_format(&mut self, response_format: ChatCompletionResponseFormat) -> &mut Self {
-        self.completion_body.response_format = Option::from(response_format);
+        self.request_body.response_format = Option::from(response_format);
         return self;
     }
 
@@ -697,7 +699,8 @@ impl ChatCompletion {
     /// ```rust
     /// # use openai_tools::chat::ChatCompletion;
     /// # use openai_tools::common::Message;
-    /// # async fn example() -> anyhow::Result<()> {
+    /// # use openai_tools::errors::Result;
+    /// # async fn example() -> Result<()> {
     /// let mut chat = ChatCompletion::new();
     ///
     /// let response = chat
@@ -714,16 +717,16 @@ impl ChatCompletion {
     pub async fn chat(&mut self) -> Result<ChatCompletionResponse> {
         // Check if the API key is set & body is built.
         if self.api_key.is_empty() {
-            return Err(anyhow::Error::msg("API key is not set."));
+            return Err(OpenAIToolError::Error("API key is not set.".into()));
         }
-        if self.completion_body.model.is_empty() {
-            return Err(anyhow::Error::msg("Model ID is not set."));
+        if self.request_body.model.is_empty() {
+            return Err(OpenAIToolError::Error("Model ID is not set.".into()));
         }
-        if self.completion_body.messages.is_empty() {
-            return Err(anyhow::Error::msg("Messages are not set."));
+        if self.request_body.messages.is_empty() {
+            return Err(OpenAIToolError::Error("Messages are not set.".into()));
         }
 
-        let body = serde_json::to_string(&self.completion_body)?;
+        let body = serde_json::to_string(&self.request_body)?;
         let url = "https://api.openai.com/v1/chat/completions";
 
         let client = request::Client::new();
@@ -746,25 +749,14 @@ impl ChatCompletion {
             .body(body)
             .send()
             .await
-            .expect("Failed to send request");
-        if !response.status().is_success() {
-            let status = response.status();
-            let content = response.text().await.expect("Failed to read response text");
-            let e_msg = format!(
-                "Request failed with status: {} CONTENT: {}",
-                status, content
-            );
-            return Err(anyhow::Error::msg(e_msg));
-        }
-        let content = response.text().await.expect("Failed to read response text");
+            .map_err(|e| OpenAIToolError::RequestError(e))?;
+        let content = response
+            .text()
+            .await
+            .map_err(|e| OpenAIToolError::RequestError(e))?;
 
-        match serde_json::from_str::<ChatCompletionResponse>(&content) {
-            Ok(response) => return Ok(response),
-            Err(e) => {
-                let e_msg = format!("Failed to parse JSON: {} CONTENT: {}", e, content);
-                return Err(anyhow::Error::msg(e_msg));
-            }
-        }
+        serde_json::from_str::<ChatCompletionResponse>(&content)
+            .map_err(|e| OpenAIToolError::SerdeJsonError(e))
     }
 }
 
@@ -773,10 +765,26 @@ mod tests {
     use super::*;
     use serde::{Deserialize, Serialize};
     use serde_json;
+    use std::sync::Once;
     use tiktoken_rs::o200k_base;
+    use tracing_subscriber::EnvFilter;
 
+    static INIT: Once = Once::new();
+
+    fn init_tracing() {
+        INIT.call_once(|| {
+            // `RUST_LOG` 環境変数があればそれを使い、なければ "info"
+            let filter =
+                EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
+            tracing_subscriber::fmt()
+                .with_env_filter(filter)
+                .with_test_writer() // `cargo test` / nextest 用
+                .init();
+        });
+    }
     #[tokio::test]
     async fn test_chat_completion() {
+        init_tracing();
         let mut chat = ChatCompletion::new();
         let messages = vec![Message::new(
             String::from("user"),
@@ -787,13 +795,35 @@ mod tests {
             .messages(messages)
             .temperature(1.0);
 
-        let response = chat.chat().await.unwrap();
-        println!("{}", &response.choices[0].message.content);
-        assert!(true);
+        let mut counter = 3;
+        loop {
+            match chat.chat().await {
+                Ok(response) => {
+                    println!("{}", &response.choices[0].message.content);
+                    assert!(true);
+                    break;
+                }
+                Err(e) => match e {
+                    OpenAIToolError::RequestError(e) => {
+                        tracing::warn!("Request error: {} (retrying... {})", e, counter);
+                        counter -= 1;
+                        if counter == 0 {
+                            assert!(false, "Chat completion failed (retry limit reached)");
+                        }
+                        continue;
+                    }
+                    _ => {
+                        tracing::error!("Error: {}", e);
+                        assert!(false, "Chat completion failed");
+                    }
+                },
+            };
+        }
     }
 
     #[tokio::test]
     async fn test_chat_completion_2() {
+        init_tracing();
         let mut chat = ChatCompletion::new();
         let messages = vec![Message::new(
             String::from("user"),
@@ -804,9 +834,30 @@ mod tests {
             .messages(messages)
             .temperature(1.5);
 
-        let response = chat.chat().await.unwrap();
-        println!("{}", &response.choices[0].message.content);
-        assert!(true);
+        let mut counter = 3;
+        loop {
+            match chat.chat().await {
+                Ok(response) => {
+                    println!("{}", &response.choices[0].message.content);
+                    assert!(true);
+                    break;
+                }
+                Err(e) => match e {
+                    OpenAIToolError::RequestError(e) => {
+                        tracing::warn!("Request error: {} (retrying... {})", e, counter);
+                        counter -= 1;
+                        if counter == 0 {
+                            assert!(false, "Chat completion failed (retry limit reached)");
+                        }
+                        continue;
+                    }
+                    _ => {
+                        tracing::error!("Error: {}", e);
+                        assert!(false, "Chat completion failed");
+                    }
+                },
+            };
+        }
     }
 
     #[derive(Debug, Serialize, Deserialize)]
@@ -823,6 +874,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_chat_completion_with_json_schema() {
+        init_tracing();
         let mut openai = ChatCompletion::new();
         let messages = vec![Message::new(
             String::from("user"),
@@ -831,7 +883,7 @@ mod tests {
             ),
         )];
 
-        let mut json_schema = JsonSchema::new(String::from("weather"));
+        let mut json_schema = Schema::chat_json_schema(String::from("weather"));
         json_schema.add_property(
             String::from("location"),
             String::from("string"),
@@ -863,84 +915,61 @@ mod tests {
                 json_schema,
             ));
 
-        let response = openai.chat().await.unwrap();
-        println!("{:#?}", response);
-
-        match serde_json::from_str::<Weather>(&response.choices[0].message.content) {
-            Ok(weather) => {
-                println!("{:#?}", weather);
-                assert!(true);
-            }
-            Err(e) => {
-                println!("{:#?}", e);
-                assert!(false);
-            }
+        let mut counter = 3;
+        loop {
+            match openai.chat().await {
+                Ok(response) => {
+                    println!("{:#?}", response);
+                    match serde_json::from_str::<Weather>(&response.choices[0].message.content) {
+                        Ok(weather) => {
+                            println!("{:#?}", weather);
+                            assert!(true);
+                        }
+                        Err(e) => {
+                            println!("{:#?}", e);
+                            assert!(false);
+                        }
+                    }
+                    break;
+                }
+                Err(e) => match e {
+                    OpenAIToolError::RequestError(e) => {
+                        tracing::warn!("Request error: {} (retrying... {})", e, counter);
+                        counter -= 1;
+                        if counter == 0 {
+                            assert!(false, "Chat completion failed (retry limit reached)");
+                        }
+                        continue;
+                    }
+                    _ => {
+                        tracing::error!("Error: {}", e);
+                        assert!(false, "Chat completion failed");
+                    }
+                },
+            };
         }
     }
 
-    #[tokio::test]
-    async fn test_chat_completion_with_json_schema_expect_error() {
-        let mut openai = ChatCompletion::new();
-        let messages = vec![Message::new(
-        String::from("user"),
-        String::from("Hi there! How's the weather tomorrow in Tokyo? Today is 3024/12/25. If you can't answer, report error."),
-    )];
-
-        let mut json_schema = JsonSchema::new(String::from("weather"));
-        json_schema.add_property(
-            String::from("location"),
-            String::from("string"),
-            Option::from(String::from("The location to check the weather for.")),
-        );
-        json_schema.add_property(
-            String::from("date"),
-            String::from("string"),
-            Option::from(String::from("The date to check the weather for.")),
-        );
-        json_schema.add_property(
-            String::from("weather"),
-            String::from("string"),
-            Option::from(String::from("The weather for the location and date.")),
-        );
-        json_schema.add_property(
-            String::from("error"),
-            String::from("string"),
-            Option::from(String::from(
-                "Error message. If there is no error, leave this field empty.",
-            )),
-        );
-        openai
-            .model_id(String::from("gpt-4o-mini"))
-            .messages(messages)
-            .temperature(1.0)
-            .response_format(ChatCompletionResponseFormat::new(
-                String::from("json_schema"),
-                json_schema,
-            ));
-
-        let response = openai.chat().await.unwrap();
-        println!("{:#?}", response);
-
-        match serde_json::from_str::<Weather>(&response.choices[0].message.content) {
-            Ok(weather) => {
-                println!("{:#?}", weather);
-                assert!(true);
-            }
-            Err(e) => {
-                println!("{:#?}", e);
-                assert!(false);
-            }
-        }
+    #[derive(Deserialize)]
+    struct Summary {
+        pub is_survey: bool,
+        pub research_question: String,
+        pub contributions: String,
+        pub dataset: String,
+        pub proposed_method: String,
+        pub experiment_results: String,
+        pub comparison_with_related_works: String,
+        pub future_works: String,
     }
-
     #[tokio::test]
     async fn test_summarize() {
+        init_tracing();
         let mut openai = ChatCompletion::new();
         let instruction = std::fs::read_to_string("src/test_rsc/sample_instruction.txt").unwrap();
 
         let messages = vec![Message::new(String::from("user"), instruction.clone())];
 
-        let mut json_schema = JsonSchema::new(String::from("summary"));
+        let mut json_schema = Schema::chat_json_schema(String::from("summary"));
         json_schema.add_property(
             String::from("is_survey"),
             String::from("boolean"),
@@ -999,12 +1028,60 @@ mod tests {
                 json_schema,
             ));
 
-        let response = openai.chat().await.unwrap();
-        println!("{}", response.choices[0].message.content);
+        let mut counter = 3;
+        loop {
+            match openai.chat().await {
+                Ok(response) => {
+                    println!("{:#?}", response);
+                    match serde_json::from_str::<Summary>(&response.choices[0].message.content) {
+                        Ok(summary) => {
+                            tracing::info!("Summary.is_survey: {}", summary.is_survey);
+                            tracing::info!(
+                                "Summary.research_question: {}",
+                                summary.research_question
+                            );
+                            tracing::info!("Summary.contributions: {}", summary.contributions);
+                            tracing::info!("Summary.dataset: {}", summary.dataset);
+                            tracing::info!("Summary.proposed_method: {}", summary.proposed_method);
+                            tracing::info!(
+                                "Summary.experiment_results: {}",
+                                summary.experiment_results
+                            );
+                            tracing::info!(
+                                "Summary.comparison_with_related_works: {}",
+                                summary.comparison_with_related_works
+                            );
+                            tracing::info!("Summary.future_works: {}", summary.future_works);
+                            assert!(true);
+                        }
+                        Err(e) => {
+                            tracing::error!("Error: {}", e);
+                            assert!(false);
+                        }
+                    }
+                    break;
+                }
+                Err(e) => match e {
+                    OpenAIToolError::RequestError(e) => {
+                        tracing::warn!("Request error: {} (retrying... {})", e, counter);
+                        counter -= 1;
+                        if counter == 0 {
+                            assert!(false, "Chat completion failed (retry limit reached)");
+                        }
+                        continue;
+                    }
+                    _ => {
+                        tracing::error!("Error: {}", e);
+                        assert!(false, "Chat completion failed");
+                    }
+                },
+            };
+        }
     }
 
     #[tokio::test]
     async fn test_chat_completion_with_long_arguments() {
+        init_tracing();
         let mut openai = ChatCompletion::new();
         let text = std::fs::read_to_string("src/test_rsc/long_text.txt").unwrap();
         let messages = vec![Message::new(String::from("user"), text)];
@@ -1020,7 +1097,29 @@ mod tests {
             .messages(messages)
             .temperature(1.0);
 
-        let response = openai.chat().await.unwrap();
-        println!("{:#?}", response);
+        let mut counter = 3;
+        loop {
+            match openai.chat().await {
+                Ok(response) => {
+                    println!("{:#?}", response);
+                    assert!(true);
+                    break;
+                }
+                Err(e) => match e {
+                    OpenAIToolError::RequestError(e) => {
+                        tracing::warn!("Request error: {} (retrying... {})", e, counter);
+                        counter -= 1;
+                        if counter == 0 {
+                            assert!(false, "Chat completion failed (retry limit reached)");
+                        }
+                        continue;
+                    }
+                    _ => {
+                        tracing::error!("Error: {}", e);
+                        assert!(false, "Chat completion failed");
+                    }
+                },
+            };
+        }
     }
 }

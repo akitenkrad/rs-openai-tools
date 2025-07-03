@@ -101,5 +101,6 @@
 //!
 pub mod chat;
 pub mod common;
-pub mod json_schema;
+pub mod errors;
 pub mod responses;
+pub mod structured_output;

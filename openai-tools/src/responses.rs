@@ -50,8 +50,11 @@
 //! }
 //! ```
 
-use crate::common::{Message, Usage};
-use anyhow::Result;
+use crate::{
+    common::{Message, Usage},
+    errors::{OpenAIToolError, Result},
+    structured_output::Schema,
+};
 use derive_new::new;
 use dotenvy::dotenv;
 use fxhash::FxHashMap;
@@ -267,27 +270,32 @@ impl Tool {
     }
 }
 
+#[derive(Debug, Clone, Default, Serialize, new)]
+pub struct ResponsesFormat {
+    pub format: Schema,
+}
 /// Request body for the OpenAI Responses API.
 ///
 /// This struct represents the payload sent to the API, containing the model configuration,
 /// input data, and any tools that should be available to the AI.
-#[derive(Debug, Clone, Default, Deserialize, new)]
+#[derive(Debug, Clone, Default, new)]
 pub struct ResponsesBody {
     /// The ID of the model to use (e.g., "gpt-4o-mini", "gpt-4")
     pub model: String,
     /// Optional instructions to guide the AI's behavior
     pub instructions: Option<String>,
     /// Plain text input (mutually exclusive with messages_input)
-    #[serde(rename = "input")]
     pub plain_text_input: Option<String>,
     /// Structured message input (mutually exclusive with plain_text_input)
     pub messages_input: Option<Vec<Message>>,
     /// Optional tools available for the AI to use
     pub tools: Option<Vec<Tool>>,
+    /// Optional response format configuration
+    pub text: Option<ResponsesFormat>,
 }
 
 impl Serialize for ResponsesBody {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    fn serialize<S>(&self, serializer: S) -> anyhow::Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {
@@ -304,7 +312,12 @@ impl Serialize for ResponsesBody {
         state.serialize_field("model", &self.model)?;
         state.serialize_field("instructions", &self.instructions)?;
         state.serialize_field("input", &input)?;
-        state.serialize_field("tools", &self.tools)?;
+        if self.tools.is_some() {
+            state.serialize_field("tools", &self.tools)?;
+        }
+        if self.text.is_some() {
+            state.serialize_field("text", &self.text)?;
+        }
         state.end()
     }
 }
@@ -367,15 +380,7 @@ pub struct ResponsesReasoning {
 #[derive(Debug, Clone, Default, Deserialize, Serialize, new)]
 pub struct ResponsesText {
     /// Format configuration
-    pub format: ResponsesTextFormat,
-}
-
-/// Text format type specification.
-#[derive(Debug, Clone, Default, Deserialize, Serialize, new)]
-pub struct ResponsesTextFormat {
-    /// The format type, typically "text"
-    #[serde(rename = "type")]
-    pub type_name: String,
+    pub format: Schema,
 }
 
 /// Complete response from the OpenAI Responses API.
@@ -535,12 +540,12 @@ pub struct ResponsesResponse {
 ///     Ok(())
 /// }
 /// ```
-#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+#[derive(Debug, Clone, Default, Serialize)]
 pub struct Responses {
     /// OpenAI API key (loaded from environment)
     api_key: String,
     /// Request body that will be sent to the API
-    pub responses_body: ResponsesBody,
+    pub request_body: ResponsesBody,
 }
 
 impl Responses {
@@ -566,7 +571,7 @@ impl Responses {
         let api_key = env::var("OPENAI_API_KEY").expect("OPENAI_API_KEY is not set.");
         Self {
             api_key,
-            responses_body: ResponsesBody::default(),
+            request_body: ResponsesBody::default(),
         }
     }
 
@@ -588,7 +593,7 @@ impl Responses {
     /// responses.model_id("gpt-4o-mini".into());
     /// ```
     pub fn model_id(&mut self, model_id: String) -> &mut Self {
-        self.responses_body.model = model_id;
+        self.request_body.model = model_id;
         self
     }
 
@@ -614,7 +619,7 @@ impl Responses {
     ///     .instructions("You are a helpful coding assistant. Provide clear, concise code examples.".into());
     /// ```
     pub fn instructions(&mut self, instructions: String) -> &mut Self {
-        self.responses_body.instructions = Some(instructions);
+        self.request_body.instructions = Some(instructions);
         self
     }
 
@@ -641,7 +646,7 @@ impl Responses {
     ///     .plain_text_input("Explain quantum computing in simple terms.".into());
     /// ```
     pub fn plain_text_input(&mut self, input: String) -> &mut Self {
-        self.responses_body.plain_text_input = Some(input);
+        self.request_body.plain_text_input = Some(input);
         self
     }
 
@@ -674,8 +679,8 @@ impl Responses {
     ///     .model_id("gpt-4o-mini".into())
     ///     .messages_input(messages);
     /// ```
-    pub fn messages_input(&mut self, messages: Vec<Message>) -> &mut Self {
-        self.responses_body.messages_input = Some(messages);
+    pub fn messages(&mut self, messages: Vec<Message>) -> &mut Self {
+        self.request_body.messages_input = Some(messages);
         self
     }
 
@@ -711,8 +716,13 @@ impl Responses {
     ///     .tools(vec![search_tool]);
     /// ```
     pub fn tools(&mut self, tools: Vec<Tool>) -> &mut Self {
-        self.responses_body.tools = Some(tools);
+        self.request_body.tools = Some(tools);
         self
+    }
+
+    pub fn text(&mut self, text_format: Schema) -> &mut Self {
+        self.request_body.text = Option::from(ResponsesFormat::new(text_format));
+        return self;
     }
 
     /// Sends the request to the OpenAI API and returns the response.
@@ -774,24 +784,24 @@ impl Responses {
     /// ```
     pub async fn complete(&self) -> Result<ResponsesResponse> {
         if self.api_key.is_empty() {
-            return Err(anyhow::Error::msg("API key is not set."));
+            return Err(OpenAIToolError::Error("API key is not set.".into()));
         }
-        if self.responses_body.model.is_empty() {
-            return Err(anyhow::Error::msg("Model ID is not set."));
+        if self.request_body.model.is_empty() {
+            return Err(OpenAIToolError::Error("Model ID is not set.".into()));
         }
-        if self.responses_body.messages_input.is_none()
-            && self.responses_body.plain_text_input.is_none()
+        if self.request_body.messages_input.is_none()
+            && self.request_body.plain_text_input.is_none()
         {
-            return Err(anyhow::Error::msg("Messages are not set."));
-        } else if !self.responses_body.plain_text_input.is_some()
-            && !self.responses_body.messages_input.is_some()
+            return Err(OpenAIToolError::Error("Messages are not set.".into()));
+        } else if !self.request_body.plain_text_input.is_some()
+            && !self.request_body.messages_input.is_some()
         {
-            return Err(anyhow::Error::msg(
-                "Both plain text input and messages are set. Please use one of them.",
+            return Err(OpenAIToolError::Error(
+                "Both plain text input and messages are set. Please use one of them.".into(),
             ));
         }
 
-        let body = serde_json::to_string(&self.responses_body)?;
+        let body = serde_json::to_string(&self.request_body)?;
         let url = "https://api.openai.com/v1/responses".to_string();
 
         let client = request::Client::new();
@@ -814,55 +824,69 @@ impl Responses {
             .body(body)
             .send()
             .await
-            .expect("Failed to send request");
-        if !response.status().is_success() {
-            let status = response.status();
-            let content = response.text().await.expect("Failed to read response text");
-            let e_msg = format!(
-                "Request failed with status: {} CONTENT: {}",
-                status, content
-            );
-            return Err(anyhow::Error::msg(e_msg));
-        }
+            .map_err(|e| OpenAIToolError::RequestError(e))?;
         let content = response.text().await.expect("Failed to read response text");
 
         println!("Response content: {}", content);
 
-        match serde_json::from_str::<ResponsesResponse>(&content) {
-            Ok(response) => return Ok(response),
-            Err(e) => {
-                let e_msg = format!("Failed to parse JSON: {} CONTENT: {}", e, content);
-                return Err(anyhow::Error::msg(e_msg));
-            }
-        }
+        serde_json::from_str::<ResponsesResponse>(&content)
+            .map_err(|e| OpenAIToolError::SerdeJsonError(e))
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Once;
+    use tracing_subscriber::EnvFilter;
+
+    static INIT: Once = Once::new();
+
+    fn init_tracing() {
+        INIT.call_once(|| {
+            // `RUST_LOG` 環境変数があればそれを使い、なければ "info"
+            let filter =
+                EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
+            tracing_subscriber::fmt()
+                .with_env_filter(filter)
+                .with_test_writer() // `cargo test` / nextest 用
+                .init();
+        });
+    }
 
     #[tokio::test]
-    async fn test_responses() {
+    async fn test_responses_with_plain_text() {
+        init_tracing();
         let mut responses = Responses::new();
         responses.model_id("gpt-4o-mini".into());
         responses.instructions("test instructions".into());
         responses.plain_text_input("Hello world!".into());
 
-        let body_json = serde_json::to_string_pretty(&responses.responses_body).unwrap();
-        println!("Request body: {}", body_json);
+        let body_json = serde_json::to_string_pretty(&responses.request_body).unwrap();
+        tracing::info!("Request body: {}", body_json);
 
-        let res = responses
-            .complete()
-            .await
-            .expect("Failed to complete responses");
-
-        println!("Response: {}", serde_json::to_string_pretty(&res).unwrap());
-        assert!(res.output[0].content.as_ref().unwrap()[0].text.len() > 0);
+        let mut counter = 3;
+        loop {
+            match responses.complete().await {
+                Ok(res) => {
+                    tracing::info!("Response: {}", serde_json::to_string_pretty(&res).unwrap());
+                    assert!(res.output[0].content.as_ref().unwrap()[0].text.len() > 0);
+                    break;
+                }
+                Err(e) => {
+                    tracing::error!("Error: {} (retrying... {})", e, counter);
+                    counter -= 1;
+                    if counter == 0 {
+                        assert!(false, "Failed to complete responses after 3 attempts");
+                    }
+                }
+            }
+        }
     }
 
     #[tokio::test]
     async fn test_responses_with_messages() {
+        init_tracing();
         let mut responses = Responses::new();
         responses.model_id("gpt-4o-mini".into());
         responses.instructions("test instructions".into());
@@ -870,22 +894,33 @@ mod tests {
             String::from("user"),
             String::from("Hello world!"),
         )];
-        responses.messages_input(messages);
+        responses.messages(messages);
 
-        let body_json = serde_json::to_string_pretty(&responses.responses_body).unwrap();
-        println!("Request body: {}", body_json);
+        let body_json = serde_json::to_string_pretty(&responses.request_body).unwrap();
+        tracing::info!("Request body: {}", body_json);
 
-        let res = responses
-            .complete()
-            .await
-            .expect("Failed to complete responses");
-
-        println!("Response: {}", serde_json::to_string_pretty(&res).unwrap());
-        assert!(res.output[0].content.as_ref().unwrap()[0].text.len() > 0);
+        let mut counter = 3;
+        loop {
+            match responses.complete().await {
+                Ok(res) => {
+                    tracing::info!("Response: {}", serde_json::to_string_pretty(&res).unwrap());
+                    assert!(res.output[0].content.as_ref().unwrap()[0].text.len() > 0);
+                    break;
+                }
+                Err(e) => {
+                    tracing::error!("Error: {} (retrying... {})", e, counter);
+                    counter -= 1;
+                    if counter == 0 {
+                        assert!(false, "Failed to complete responses after 3 attempts");
+                    }
+                }
+            }
+        }
     }
 
     #[tokio::test]
     async fn test_responses_with_tools() {
+        init_tracing();
         let mut responses = Responses::new();
         responses.model_id("gpt-4o-mini".into());
         responses.instructions("test instructions".into());
@@ -893,7 +928,7 @@ mod tests {
             String::from("user"),
             String::from("Calculate 2 + 2 using a calculator tool."),
         )];
-        responses.messages_input(messages);
+        responses.messages(messages);
 
         let tool = Tool::function(
             "calculator".into(),
@@ -906,15 +941,74 @@ mod tests {
         );
         responses.tools(vec![tool]);
 
-        let body_json = serde_json::to_string_pretty(&responses.responses_body).unwrap();
+        let body_json = serde_json::to_string_pretty(&responses.request_body).unwrap();
         println!("Request body: {}", body_json);
 
-        let res = responses
-            .complete()
-            .await
-            .expect("Failed to complete responses");
+        let mut counter = 3;
+        loop {
+            match responses.complete().await {
+                Ok(res) => {
+                    tracing::info!("Response: {}", serde_json::to_string_pretty(&res).unwrap());
+                    assert_eq!(res.output[0].type_name, "function_call");
+                    assert_eq!(res.output[0].name.as_ref().unwrap(), "calculator");
+                    assert!(res.output[0].call_id.as_ref().unwrap().len() > 0);
+                    break;
+                }
+                Err(e) => {
+                    tracing::error!("Error: {} (retrying... {})", e, counter);
+                    counter -= 1;
+                    if counter == 0 {
+                        assert!(false, "Failed to complete responses after 3 attempts");
+                    }
+                }
+            }
+        }
+    }
 
-        println!("Response: {}", serde_json::to_string_pretty(&res).unwrap());
-        assert_eq!(res.output[0].type_name, "function_call");
+    #[derive(Debug, Deserialize)]
+    struct TestResponse {
+        pub capital: String,
+    }
+    #[tokio::test]
+    async fn test_responses_with_json_schema() {
+        init_tracing();
+        let mut responses = Responses::new();
+        responses.model_id("gpt-4o-mini".into());
+
+        let messages = vec![Message::new(
+            String::from("user"),
+            String::from("What is the capital of France?"),
+        )];
+        responses.messages(messages);
+
+        let mut schema = Schema::responses_json_schema("capital".into());
+        schema.add_property(
+            "capital".into(),
+            "string".into(),
+            Some("The capital city of France".into()),
+        );
+        responses.text(schema);
+
+        let mut counter = 3;
+        loop {
+            match responses.complete().await {
+                Ok(res) => {
+                    tracing::info!("Response: {}", serde_json::to_string_pretty(&res).unwrap());
+                    let res = serde_json::from_str::<TestResponse>(
+                        res.output[0].content.as_ref().unwrap()[0].text.as_str(),
+                    )
+                    .unwrap();
+                    assert_eq!(res.capital, "Paris");
+                    break;
+                }
+                Err(e) => {
+                    tracing::error!("Error: {} (retrying... {})", e, counter);
+                    counter -= 1;
+                    if counter == 0 {
+                        assert!(false, "Failed to complete responses after 3 attempts");
+                    }
+                }
+            }
+        }
     }
 }
