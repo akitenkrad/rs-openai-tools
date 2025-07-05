@@ -4,27 +4,26 @@ description.workspace = true
 edition.workspace = true
 license.workspace = true
 name = "openai-tools"
+readme = "../README.md"
 repository.workspace = true
 version.workspace = true
-readme = "../README.md"
 
 [dependencies]
 anyhow.workspace = true
 base64.workspace = true
 derive-new.workspace = true
 dotenvy.workspace = true
-fxhash.workspace = true
 image.workspace = true
 request.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+strum.workspace = true
+strum_macros.workspace = true
 thiserror.workspace = true
 tiktoken-rs.workspace = true
 tokio.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
-strum.workspace = true
-strum_macros.workspace = true
 
 [package.metadata.release]
 tag = true
