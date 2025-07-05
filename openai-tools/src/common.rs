@@ -57,6 +57,9 @@ pub enum Role {
     #[serde(rename = "function")]
     #[strum(to_string = "function")]
     Function,
+    #[serde(rename = "tool")]
+    #[strum(to_string = "tool")]
+    Tool,
 }
 
 /// Token usage statistics for OpenAI API requests.
