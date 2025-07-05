@@ -25,18 +25,17 @@
 //!
 //! ```rust,no_run
 //! use openai_tools::responses::{Responses, Tool};
-//! use openai_tools::common::Message;
-//! use fxhash::FxHashMap;
+//! use openai_tools::common::{Message, Role};
 //!
 //! #[tokio::main]
 //! async fn main() -> anyhow::Result<()> {
 //!     let mut responses = Responses::new();
 //!     
-//!     let messages = vec![Message::from_string("user".to_string(), "Calculate 5 + 3".to_string())];
-//!     let mut params = FxHashMap::default();
-//!     params.insert("a".to_string(), "number".to_string());
-//!     params.insert("b".to_string(), "number".to_string());
-//!     
+//!     let messages = vec![Message::from_string(Role::User, "Calculate 5 + 3".to_string())];
+//!     let mut params = vec![
+//!         ("a".to_string(), "number".to_string()),
+//!         ("b".to_string(), "number".to_string()),
+//!     ];
 //!     let tool = Tool::function("calculator".into(), Some(params));
 //!     
 //!     responses
@@ -103,36 +102,6 @@ pub struct ToolParameters {
 /// There are two main types of tools:
 /// - **Function tools**: Direct function calls with defined parameters
 /// - **MCP tools**: Connections to external MCP servers
-///
-/// # Examples
-///
-/// ## Function Tool
-/// ```rust
-/// use openai_tools::responses::Tool;
-/// use fxhash::FxHashMap;
-///
-/// let mut params = FxHashMap::default();
-/// params.insert("query".to_string(), "string".to_string());
-///
-/// let search_tool = Tool::function("web_search".into(), Some(params));
-/// ```
-///
-/// ## MCP Tool
-/// ```rust
-/// use openai_tools::responses::Tool;
-/// use fxhash::FxHashMap;
-///
-/// let mut params = FxHashMap::default();
-/// params.insert("location".to_string(), "string".to_string());
-///
-/// let weather_tool = Tool::mcp(
-///     "weather-server".to_string(),
-///     "http://localhost:3000".to_string(),
-///     "always".to_string(),
-///     Some(vec!["get_weather".to_string()]),
-///     Some(params),
-/// );
-/// ```
 #[derive(Debug, Clone, Default, Deserialize, Serialize, new)]
 pub struct Tool {
     /// The type of tool: "function" for direct function calls, "mcp" for MCP servers
@@ -177,12 +146,13 @@ impl Tool {
     /// use openai_tools::responses::Tool;
     /// use fxhash::FxHashMap;
     ///
-    /// let mut params = FxHashMap::default();
-    /// params.insert("city".to_string(), "string".to_string());
-    /// params.insert("units".to_string(), "string".to_string());
+    /// let mut params = vec![
+    ///     ("city".to_string(), "string".to_string()),
+    ///     ("units".to_string(), "string".to_string()),
+    /// ];
     ///
     /// let weather_tool = Tool::mcp(
-    ///     "Weather API".to_string(),
+    ///     "weather_api".to_string(),
     ///     "https://weather.example.com/mcp".to_string(),
     ///     "never".to_string(),
     ///     Some(vec!["get_weather".to_string(), "get_forecast".to_string()]),
@@ -194,7 +164,7 @@ impl Tool {
         server_url: String,
         require_approval: String,
         allowed_tools: Option<Vec<String>>,
-        parameters: Option<FxHashMap<ParameterName, ParameterType>>,
+        parameters: Option<Vec<(ParameterName, ParameterType)>>,
     ) -> Self {
         Self {
             type_name: "mcp".into(),
@@ -211,7 +181,9 @@ impl Tool {
                             .map(|(k, v)| (k, ToolParameterType { type_name: v }))
                             .collect(),
                     ),
-                    required: parameters.as_ref().map(|p| p.keys().cloned().collect()),
+                    required: parameters
+                        .as_ref()
+                        .map(|p| p.iter().map(|(k, _)| k.clone()).collect()),
                     additional_properties: Some(false),
                 }),
                 None => None,
@@ -234,19 +206,16 @@ impl Tool {
     ///
     /// ```rust
     /// use openai_tools::responses::Tool;
-    /// use fxhash::FxHashMap;
     ///
-    /// let mut params = FxHashMap::default();
-    /// params.insert("a".to_string(), "number".to_string());
-    /// params.insert("b".to_string(), "number".to_string());
-    /// params.insert("operation".to_string(), "string".to_string());
+    /// let mut params = vec![
+    ///     ("a".to_string(), "number".to_string()),
+    ///     ("b".to_string(), "number".to_string()),
+    ///     ("operation".to_string(), "string".to_string()),
+    /// ];
     ///
     /// let calculator = Tool::function("calculator".to_string(), Some(params));
     /// ```
-    pub fn function(
-        name: String,
-        parameters: Option<FxHashMap<ParameterName, ParameterType>>,
-    ) -> Self {
+    pub fn function(name: String, parameters: Option<Vec<(ParameterName, ParameterType)>>) -> Self {
         Self {
             type_name: "function".into(),
             name: Some(name),
@@ -262,7 +231,9 @@ impl Tool {
                             .map(|(k, v)| (k, ToolParameterType { type_name: v }))
                             .collect(),
                     ),
-                    required: parameters.as_ref().map(|p| p.keys().cloned().collect()),
+                    required: parameters
+                        .as_ref()
+                        .map(|p| p.iter().map(|(k, _)| k.clone()).collect()),
                     additional_properties: Some(false),
                 }),
                 None => None,
@@ -271,6 +242,21 @@ impl Tool {
     }
 }
 
+/// Configuration for response formatting in OpenAI Responses API.
+///
+/// This struct specifies how the AI model should format its response output.
+/// It's primarily used for structured outputs where you want the response to follow
+/// a specific JSON schema or other formatting requirements.
+///
+/// # Fields
+///
+/// * `format` - The schema definition that specifies the expected response format
+///
+/// # Usage
+///
+/// This struct is typically used in conjunction with the `text()` method of the
+/// `Responses` client to enforce structured output formats. When provided, the AI
+/// model will attempt to format its response according to the specified schema.
 #[derive(Debug, Clone, Default, Serialize, new)]
 pub struct ResponsesFormat {
     pub format: Schema,
@@ -478,15 +464,15 @@ pub struct ResponsesResponse {
 ///
 /// ## Structured Messages
 /// ```rust,no_run
-/// use openai_tools::{responses::Responses, common::Message};
+/// use openai_tools::{responses::Responses, common::{Message, Role}};
 ///
 /// #[tokio::main]
 /// async fn main() -> anyhow::Result<()> {
 ///     let mut responses = Responses::new();
 ///     
 ///     let messages = vec![
-///         Message::from_string("system".to_string(), "You are a helpful assistant.".to_string()),
-///         Message::from_string("user".to_string(), "Hello!".to_string()),
+///         Message::from_string(Role::System, "You are a helpful assistant.".to_string()),
+///         Message::from_string(Role::User, "Hello!".to_string()),
 ///     ];
 ///     
 ///     responses
@@ -502,19 +488,19 @@ pub struct ResponsesResponse {
 /// ## Function Calling
 /// ```rust,no_run
 /// use openai_tools::responses::{Responses, Tool};
-/// use openai_tools::common::Message;
-/// use fxhash::FxHashMap;
+/// use openai_tools::common::{Message, Role};
 ///
 /// #[tokio::main]
 /// async fn main() -> anyhow::Result<()> {
 ///     let mut responses = Responses::new();
 ///     
-///     let messages = vec![Message::from_string("user".to_string(), "Calculate 15 * 8".to_string())];
+///     let messages = vec![Message::from_string(Role::User, "Calculate 15 * 8".to_string())];
 ///     
-///     let mut params = FxHashMap::default();
-///     params.insert("a".to_string(), "number".to_string());
-///     params.insert("b".to_string(), "number".to_string());
-///     
+///     let mut params = vec![
+///         ("a".to_string(), "number".to_string()),
+///         ("b".to_string(), "number".to_string()),
+///     ];
+///
 ///     let calculator = Tool::function("multiply".to_string(), Some(params));
 ///     
 ///     responses
@@ -558,15 +544,6 @@ impl Responses {
     /// # Panics
     ///
     /// Panics if the `OPENAI_API_KEY` environment variable is not set.
-    ///
-    /// # Example
-    ///
-    /// ```rust,no_run
-    /// use openai_tools::responses::Responses;
-    ///
-    /// // Make sure OPENAI_API_KEY is set in your environment
-    /// let responses = Responses::new();
-    /// ```
     pub fn new() -> Self {
         dotenv().ok();
         let api_key = env::var("OPENAI_API_KEY").expect("OPENAI_API_KEY is not set.");
@@ -609,16 +586,6 @@ impl Responses {
     /// # Returns
     ///
     /// A mutable reference to self for method chaining.
-    ///
-    /// # Example
-    ///
-    /// ```rust,no_run
-    /// # use openai_tools::responses::Responses;
-    /// let mut responses = Responses::new();
-    /// responses
-    ///     .model_id("gpt-4o-mini".into())
-    ///     .instructions("You are a helpful coding assistant. Provide clear, concise code examples.".into());
-    /// ```
     pub fn instructions(&mut self, instructions: String) -> &mut Self {
         self.request_body.instructions = Some(instructions);
         self
@@ -668,12 +635,12 @@ impl Responses {
     ///
     /// ```rust,no_run
     /// # use openai_tools::responses::Responses;
-    /// # use openai_tools::common::Message;
+    /// # use openai_tools::common::{Message, Role};
     /// let mut responses = Responses::new();
     ///
     /// let messages = vec![
-    ///     Message::from_string("system".to_string(), "You are a helpful assistant.".to_string()),
-    ///     Message::from_string("user".to_string(), "What's the weather like?".to_string()),
+    ///     Message::from_string(Role::System, "You are a helpful assistant.".to_string()),
+    ///     Message::from_string(Role::User, "What's the weather like?".to_string()),
     /// ];
     ///
     /// responses
@@ -702,13 +669,11 @@ impl Responses {
     ///
     /// ```rust,no_run
     /// # use openai_tools::responses::{Responses, Tool};
-    /// # use openai_tools::common::Message;
+    /// # use openai_tools::common::{Message, Role};
     /// # use fxhash::FxHashMap;
     /// let mut responses = Responses::new();
     ///
-    /// let mut params = FxHashMap::default();
-    /// params.insert("query".to_string(), "string".to_string());
-    ///
+    /// let mut params = vec![("query".to_string(), "string".to_string())];
     /// let search_tool = Tool::function("web_search".to_string(), Some(params));
     ///
     /// responses
@@ -721,6 +686,43 @@ impl Responses {
         self
     }
 
+    /// Sets the response text format using a JSON schema.
+    ///
+    /// This method configures the AI to return structured output that conforms to the
+    /// provided JSON schema. This is useful when you need the response in a specific
+    /// format for programmatic processing.
+    ///
+    /// # Parameters
+    ///
+    /// * `text_format` - A JSON schema that defines the expected structure of the response
+    ///
+    /// # Returns
+    ///
+    /// A mutable reference to self for method chaining.
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// # use openai_tools::responses::Responses;
+    /// # use openai_tools::structured_output::Schema;
+    /// let mut responses = Responses::new();
+    ///
+    /// let mut schema = Schema::responses_json_schema("weather_data".to_string());
+    /// schema.add_property("temperature".to_string(), "number".to_string(), Some("Temperature in Celsius".to_string()));
+    /// schema.add_property("humidity".to_string(), "number".to_string(), Some("Humidity percentage".to_string()));
+    /// schema.add_property("condition".to_string(), "string".to_string(), Some("Weather condition description".to_string()));
+    ///
+    /// responses
+    ///     .model_id("gpt-4o-mini".into())
+    ///     .plain_text_input("What's the current weather?".into())
+    ///     .text(schema);
+    /// ```
+    ///
+    /// # Note
+    ///
+    /// When this method is used, the AI will attempt to format its response according to
+    /// the provided schema. The response should be parseable as JSON that conforms to
+    /// the specified structure.
     pub fn text(&mut self, text_format: Schema) -> &mut Self {
         self.request_body.text = Option::from(ResponsesFormat::new(text_format));
         return self;
@@ -837,7 +839,7 @@ impl Responses {
 
 #[cfg(test)]
 mod tests {
-    use crate::common::MessageContent;
+    use crate::common::{MessageContent, Role};
 
     use super::*;
     use std::sync::Once;
@@ -894,7 +896,7 @@ mod tests {
         responses.model_id("gpt-4o-mini".into());
         responses.instructions("test instructions".into());
         let messages = vec![Message::from_string(
-            String::from("user"),
+            Role::User,
             String::from("Hello world!"),
         )];
         responses.messages(messages);
@@ -928,19 +930,17 @@ mod tests {
         responses.model_id("gpt-4o-mini".into());
         responses.instructions("test instructions".into());
         let messages = vec![Message::from_string(
-            String::from("user"),
+            Role::User,
             String::from("Calculate 2 + 2 using a calculator tool."),
         )];
         responses.messages(messages);
 
         let tool = Tool::function(
             "calculator".into(),
-            Some(
-                [("a".into(), "number".into()), ("b".into(), "number".into())]
-                    .iter()
-                    .cloned()
-                    .collect::<FxHashMap<String, String>>(),
-            ),
+            Some(vec![
+                ("a".into(), "number".into()),
+                ("b".into(), "number".into()),
+            ]),
         );
         responses.tools(vec![tool]);
 
@@ -979,7 +979,7 @@ mod tests {
         responses.model_id("gpt-4o-mini".into());
 
         let messages = vec![Message::from_string(
-            String::from("user"),
+            Role::User,
             String::from("What is the capital of France?"),
         )];
         responses.messages(messages);
@@ -1023,7 +1023,7 @@ mod tests {
         responses.instructions("test instructions".into());
 
         let message = Message::from_message_array(
-            "user".into(),
+            Role::User,
             vec![
                 MessageContent::from_text("Do you find a clock in this image?".into()),
                 MessageContent::from_image_file("src/test_rsc/sample_image.jpg".into()),

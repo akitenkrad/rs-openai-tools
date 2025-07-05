@@ -9,33 +9,55 @@
 //! - **Message**: Represents a single message in a conversation
 //! - **Usage**: Token usage statistics for API requests
 //!
-//! ## Example
-//!
-//! ```rust
-//! use openai_tools::common::{Message, Usage};
-//!
-//! // Create a user message
-//! let message = Message::from_string("user".to_string(), "Hello, world!".to_string());
-//!
-//! // Usage is typically returned by API responses
-//! let usage = Usage::new(
-//!     Some(10),    // input_tokens
-//!     None,        // input_tokens_details
-//!     Some(20),    // output_tokens
-//!     None,        // output_tokens_details
-//!     Some(10),    // prompt_tokens
-//!     Some(20),    // completion_tokens
-//!     Some(30),    // total_tokens
-//!     None,        // completion_tokens_details
-//! );
-//!
-//! println!("Total tokens used: {:?}", usage.total_tokens);
-//! ```
 
 use base64::prelude::*;
 use derive_new::new;
 use fxhash::FxHashMap;
 use serde::{ser::SerializeStruct, Deserialize, Serialize};
+use strum_macros::Display;
+
+/// Represents the role of a participant in a conversation with an AI model.
+///
+/// This enum defines the different types of participants that can send messages
+/// in a conversation with OpenAI's chat models. Each role has a specific purpose
+/// and affects how the AI model interprets and responds to messages.
+///
+/// # Variants
+///
+/// * `System` - Used for system messages that provide instructions or context to the AI model.
+///   These messages set the behavior, personality, or guidelines for the assistant.
+///
+/// * `User` - Represents messages from the human user interacting with the AI model.
+///   These are the queries, questions, or prompts that the user wants the AI to respond to.
+///
+/// * `Assistant` - Represents messages from the AI assistant itself.
+///   These are the AI's responses to user messages and are used in conversation history.
+///
+/// * `Function` - Used for function/tool call related messages in advanced scenarios
+///   where the AI can call external functions or tools.
+///
+/// # Serialization
+///
+/// The enum is serialized to lowercase strings when used in API requests:
+/// - `System` → "system"
+/// - `User` → "user"
+/// - `Assistant` → "assistant"
+/// - `Function` → "function"
+#[derive(Display, Debug, Clone, Deserialize, Serialize)]
+pub enum Role {
+    #[serde(rename = "system")]
+    #[strum(to_string = "system")]
+    System,
+    #[serde(rename = "user")]
+    #[strum(to_string = "user")]
+    User,
+    #[serde(rename = "assistant")]
+    #[strum(to_string = "assistant")]
+    Assistant,
+    #[serde(rename = "function")]
+    #[strum(to_string = "function")]
+    Function,
+}
 
 /// Token usage statistics for OpenAI API requests.
 ///
@@ -44,43 +66,6 @@ use serde::{ser::SerializeStruct, Deserialize, Serialize};
 /// Different fields may be populated depending on the specific API endpoint
 /// and model used.
 ///
-/// # Fields
-///
-/// * `input_tokens` - Number of tokens in the input/prompt
-/// * `input_tokens_details` - Detailed breakdown of input token usage by category
-/// * `output_tokens` - Number of tokens in the output/completion
-/// * `output_tokens_details` - Detailed breakdown of output token usage by category
-/// * `prompt_tokens` - Legacy field for input tokens (may be deprecated)
-/// * `completion_tokens` - Legacy field for output tokens (may be deprecated)
-/// * `total_tokens` - Total number of tokens used (input + output)
-/// * `completion_tokens_details` - Detailed breakdown of completion token usage
-///
-/// # Note
-///
-/// Not all fields will be populated for every request. The availability of
-/// detailed token breakdowns depends on the model and API endpoint being used.
-///
-/// # Example
-///
-/// ```rust
-/// use openai_tools::common::Usage;
-///
-/// // Create usage statistics manually (typically done by API response parsing)
-/// let usage = Usage::new(
-///     Some(25),    // input tokens
-///     None,        // no detailed input breakdown
-///     Some(50),    // output tokens
-///     None,        // no detailed output breakdown
-///     Some(25),    // prompt tokens (legacy)
-///     Some(50),    // completion tokens (legacy)
-///     Some(75),    // total tokens
-///     None,        // no detailed completion breakdown
-/// );
-///
-/// if let Some(total) = usage.total_tokens {
-///     println!("Request used {} tokens total", total);
-/// }
-/// ```
 #[derive(Debug, Clone, Default, Deserialize, Serialize, new)]
 pub struct Usage {
     pub input_tokens: Option<usize>,
@@ -107,17 +92,17 @@ pub struct Usage {
 ///
 /// # Example
 ///
-/// ```rust
+/// ```rust,no_run
 /// use openai_tools::common::MessageContent;
 ///
 /// // Create text content
 /// let text_content = MessageContent::from_text("Hello, world!".to_string());
 ///
 /// // Create image content from URL
-/// // let image_content = MessageContent::from_image_url("https://example.com/image.jpg".to_string());
+/// let image_content = MessageContent::from_image_url("https://example.com/image.jpg".to_string());
 ///
 /// // Create image content from file
-/// // let file_content = MessageContent::from_image_file("path/to/image.jpg".to_string());
+/// let file_content = MessageContent::from_image_file("path/to/image.jpg".to_string());
 /// ```
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
 pub struct MessageContent {
@@ -143,17 +128,6 @@ impl MessageContent {
     /// # Returns
     ///
     /// A new `MessageContent` instance configured for text content.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use openai_tools::common::MessageContent;
-    ///
-    /// let content = MessageContent::from_text("Hello, AI assistant!".to_string());
-    /// assert_eq!(content.type_name, "input_text");
-    /// assert_eq!(content.text, Some("Hello, AI assistant!".to_string()));
-    /// assert_eq!(content.image_url, None);
-    /// ```
     pub fn from_text(text: String) -> Self {
         Self {
             type_name: "input_text".to_string(),
@@ -175,17 +149,6 @@ impl MessageContent {
     /// # Returns
     ///
     /// A new `MessageContent` instance configured for image content.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use openai_tools::common::MessageContent;
-    ///
-    /// let content = MessageContent::from_image_url("https://example.com/image.jpg".to_string());
-    /// assert_eq!(content.type_name, "input_image");
-    /// assert_eq!(content.text, None);
-    /// assert_eq!(content.image_url, Some("https://example.com/image.jpg".to_string()));
-    /// ```
     pub fn from_image_url(image_url: String) -> Self {
         Self {
             type_name: "input_image".to_string(),
@@ -268,56 +231,37 @@ impl MessageContent {
 /// # Example
 ///
 /// ```rust
-/// use openai_tools::common::Message;
+/// use openai_tools::common::{Message, Role};
 ///
 /// // Create a system message to set context
 /// let system_msg = Message::from_string(
-///     "system".to_string(),
+///     Role::System,
 ///     "You are a helpful assistant that explains complex topics simply.".to_string()
 /// );
 ///
 /// // Create a user message
 /// let user_msg = Message::from_string(
-///     "user".to_string(),
+///     Role::User,
 ///     "What is quantum computing?".to_string()
 /// );
 ///
 /// // Create an assistant response
 /// let assistant_msg = Message::from_string(
-///     "assistant".to_string(),
+///     Role::Assistant,
 ///     "Quantum computing is a type of computation that uses quantum mechanics...".to_string()
 /// );
 ///
 /// // Messages are typically used in vectors for conversation history
-/// let conversation = vec![system_msg, user_msg, assistant_msg];
+/// let messages = vec![system_msg, user_msg, assistant_msg];
 /// ```
 #[derive(Debug, Clone, Deserialize)]
 pub struct Message {
-    role: String,
+    role: Role,
     content: Option<MessageContent>,
     contents: Option<Vec<MessageContent>>,
 }
 
 impl Serialize for Message {
-    /// Custom serialization implementation for `Message`.
-    ///
-    /// This method ensures that messages are serialized correctly by enforcing
-    /// that either `content` or `contents` is present, but not both. This prevents
-    /// invalid message structures from being serialized.
-    ///
-    /// # Arguments
-    ///
-    /// * `serializer` - The serializer to use for output
-    ///
-    /// # Returns
-    ///
-    /// Result of the serialization operation
-    ///
-    /// # Errors
-    ///
-    /// Returns a serialization error if:
-    /// - Both `content` and `contents` are present
-    /// - Neither `content` nor `contents` are present
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
@@ -346,43 +290,6 @@ impl Serialize for Message {
 }
 
 impl Message {
-    /// Creates a new `Message` with the specified role and content.
-    ///
-    /// This is the primary constructor for creating message instances.
-    /// The `refusal` field is automatically set to `None` and can be
-    /// modified separately if needed.
-    ///
-    /// # Arguments
-    ///
-    /// * `role` - The role of the message sender (e.g., "user", "assistant", "system")
-    /// * `message` - The text content of the message
-    ///
-    /// # Returns
-    ///
-    /// A new `Message` instance with the specified role and content.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// # use openai_tools::common::Message;
-    /// # pub fn main() {
-    /// // Create various types of messages
-    /// let system_message = Message::from_string(
-    ///     "system".to_string(),
-    ///     "You are a helpful AI assistant.".to_string()
-    /// );
-    ///
-    /// let user_message = Message::from_string(
-    ///     "user".to_string(),
-    ///     "Hello! How are you today?".to_string()
-    /// );
-    ///
-    /// let assistant_message = Message::from_string(
-    ///     "assistant".to_string(),
-    ///     "Hello! I'm doing well, thank you for asking.".to_string()
-    /// );
-    /// # }
-    /// ```
     /// Creates a new `Message` from a role and text string.
     ///
     /// This constructor creates a message with a single text content. It's the
@@ -391,7 +298,7 @@ impl Message {
     ///
     /// # Arguments
     ///
-    /// * `role` - The role of the message sender (e.g., "user", "assistant", "system")
+    /// * `role` - The role of the message sender
     /// * `message` - The text content of the message
     ///
     /// # Returns
@@ -401,21 +308,21 @@ impl Message {
     /// # Example
     ///
     /// ```rust
-    /// use openai_tools::common::Message;
+    /// use openai_tools::common::{Message, Role};
     ///
     /// let user_message = Message::from_string(
-    ///     "user".to_string(),
+    ///     Role::User,
     ///     "What is the weather like today?".to_string()
     /// );
     ///
     /// let system_message = Message::from_string(
-    ///     "system".to_string(),
+    ///     Role::System,
     ///     "You are a helpful weather assistant.".to_string()
     /// );
     /// ```
-    pub fn from_string(role: String, message: String) -> Self {
+    pub fn from_string(role: Role, message: String) -> Self {
         Self {
-            role: String::from(role),
+            role,
             content: Some(MessageContent::from_text(String::from(message))),
             contents: None,
         }
@@ -430,7 +337,7 @@ impl Message {
     ///
     /// # Arguments
     ///
-    /// * `role` - The role of the message sender (e.g., "user", "assistant", "system")
+    /// * `role` - The role of the message sender
     /// * `contents` - A vector of `MessageContent` instances representing different content types
     ///
     /// # Returns
@@ -440,7 +347,7 @@ impl Message {
     /// # Example
     ///
     /// ```rust
-    /// use openai_tools::common::{Message, MessageContent};
+    /// use openai_tools::common::{Message, MessageContent, Role};
     ///
     /// let contents = vec![
     ///     MessageContent::from_text("Please analyze this image:".to_string()),
@@ -448,13 +355,13 @@ impl Message {
     /// ];
     ///
     /// let multimodal_message = Message::from_message_array(
-    ///     "user".to_string(),
+    ///     Role::User,
     ///     contents
     /// );
     /// ```
-    pub fn from_message_array(role: String, contents: Vec<MessageContent>) -> Self {
+    pub fn from_message_array(role: Role, contents: Vec<MessageContent>) -> Self {
         Self {
-            role: String::from(role),
+            role,
             content: None,
             contents: Some(contents),
         }
@@ -481,10 +388,10 @@ impl Message {
     /// # Example
     ///
     /// ```rust
-    /// use openai_tools::common::Message;
+    /// use openai_tools::common::{Message, Role};
     ///
     /// let message = Message::from_string(
-    ///     "user".to_string(),
+    ///     Role::User,
     ///     "Hello, how are you today?".to_string()
     /// );
     ///

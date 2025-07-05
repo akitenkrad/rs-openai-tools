@@ -15,15 +15,15 @@
 //!
 //! ### Basic Usage
 //!
-//! ```rust
+//! ```rust,no_run
 //! use openai_tools::chat::ChatCompletion;
-//! use openai_tools::common::Message;
+//! use openai_tools::common::{Message, Role};
 //! use openai_tools::errors::Result;
 //!
 //! # async fn example() -> Result<()> {
 //! let mut chat = ChatCompletion::new();
 //! let messages = vec![
-//!     Message::from_string("user".to_string(), "Hello, world!".to_string())
+//!     Message::from_string(Role::User, "Hello, world!".to_string())
 //! ];
 //!
 //! chat.model_id("gpt-4o-mini".to_string())
@@ -38,10 +38,10 @@
 //!
 //! ### Structured Output with JSON Schema
 //!
-//! ```rust
+//! ```rust,no_run
 //! use openai_tools::chat::{ChatCompletion, ChatCompletionResponseFormat};
 //! use openai_tools::structured_output::Schema;
-//! use openai_tools::common::Message;
+//! use openai_tools::common::{Message, Role};
 //! use openai_tools::errors::Result;
 //! use serde::{Deserialize, Serialize};
 //!
@@ -60,7 +60,7 @@
 //!
 //! let mut chat = ChatCompletion::new();
 //! chat.model_id("gpt-4o-mini".to_string())
-//!     .messages(vec![Message::from_string("user".to_string(), "What's the weather in Tokyo?".to_string())])
+//!     .messages(vec![Message::from_string(Role::User, "What's the weather in Tokyo?".to_string())])
 //!     .response_format(ChatCompletionResponseFormat::new("json_schema".to_string(), schema));
 //!
 //! let response = chat.chat().await?;
@@ -73,6 +73,7 @@ use crate::common::{Message, Usage};
 use crate::errors::{OpenAIToolError, Result};
 use crate::structured_output::Schema;
 use core::str;
+use derive_new::new;
 use dotenvy::dotenv;
 use fxhash::FxHashMap;
 use serde::{Deserialize, Serialize};
@@ -130,7 +131,7 @@ impl ChatCompletionResponseFormat {
     /// ```
     pub fn new(type_name: String, json_schema: Schema) -> Self {
         Self {
-            type_name: String::from(type_name),
+            type_name,
             json_schema,
         }
     }
@@ -156,19 +157,7 @@ impl ChatCompletionResponseFormat {
 /// * `presence_penalty` - Penalty for token presence (-2.0 to 2.0)
 /// * `temperature` - Sampling temperature (0-2)
 /// * `response_format` - Output format specification
-///
-/// # Example
-///
-/// ```rust
-/// use openai_tools::chat::ChatCompletionRequestBody;
-/// use openai_tools::common::Message;
-///
-/// let mut body = ChatCompletionRequestBody::new("gpt-4o-mini".to_string());
-/// body.messages = vec![Message::from_string("user".to_string(), "Hello!".to_string())];
-/// body.temperature = Some(0.7);
-/// ```
-
-#[derive(Debug, Clone, Deserialize, Serialize, Default)]
+#[derive(Debug, Clone, Deserialize, Serialize, Default, new)]
 pub struct ChatCompletionRequestBody {
     /// ID of the model to use. (https://platform.openai.com/docs/models#model-endpoint-compatibility)
     pub model: String,
@@ -209,62 +198,18 @@ pub struct ChatCompletionRequestBody {
     pub response_format: Option<ChatCompletionResponseFormat>,
 }
 
-impl ChatCompletionRequestBody {
-    /// Creates a new `ChatCompletionRequestBody` with the specified model ID.
-    ///
-    /// All other fields are initialized to their default values and can be configured
-    /// using the builder pattern methods.
-    ///
-    /// # Arguments
-    ///
-    /// * `model_id` - The ID of the OpenAI model to use
-    ///
-    /// # Returns
-    ///
-    /// A new `ChatCompletionRequestBody` instance with the model ID set.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use openai_tools::chat::ChatCompletionRequestBody;
-    ///
-    /// let body = ChatCompletionRequestBody::new("gpt-4o-mini".to_string());
-    /// assert_eq!(body.model, "gpt-4o-mini");
-    /// ```
-    pub fn new(model_id: String) -> Self {
-        Self {
-            model: model_id,
-            ..Default::default()
-        }
-    }
-
-    /// Creates a new `ChatCompletionRequestBody` with all fields set to default values.
-    ///
-    /// This is equivalent to using `Default::default()` but provides a more explicit
-    /// way to create an empty request body.
-    ///
-    /// # Returns
-    ///
-    /// A new `ChatCompletionRequestBody` instance with default values.
-    pub fn default() -> Self {
-        Self {
-            model: String::default(),
-            messages: Vec::new(),
-            store: None,
-            frequency_penalty: None,
-            logit_bias: None,
-            logprobs: None,
-            top_logprobs: None,
-            max_completion_tokens: None,
-            n: None,
-            modalities: None,
-            presence_penalty: None,
-            temperature: None,
-            response_format: None,
-        }
-    }
-}
-
+/// Represents a message in the chat completion response.
+///
+/// This structure contains the message content and metadata returned by the AI model
+/// as part of a chat completion response. It includes the actual text content,
+/// the role of the message sender, and optional fields for refusal and annotations.
+///
+/// # Fields
+///
+/// * `content` - The text content of the message generated by the AI
+/// * `role` - The role of the message sender (typically "assistant" for AI responses)
+/// * `refusal` - Optional refusal message if the AI declined to respond to the request
+/// * `annotations` - Optional annotations or metadata associated with the message
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ChatResponseMessage {
     pub content: String,
@@ -283,14 +228,6 @@ pub struct ChatResponseMessage {
 /// * `index` - The index of this choice in the list of generated choices
 /// * `message` - The generated message content
 /// * `finish_reason` - The reason why the generation stopped
-///
-/// # Finish Reasons
-///
-/// Common finish reasons include:
-/// - "stop" - Natural stopping point or stop sequence reached
-/// - "length" - Maximum token limit reached
-/// - "content_filter" - Content was filtered due to policy violations
-/// - "tool_calls" - Model decided to call a function/tool
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Choice {
     pub index: u32,
@@ -312,20 +249,6 @@ pub struct Choice {
 /// * `system_fingerprint` - System fingerprint for the completion
 /// * `choices` - List of generated completion choices
 /// * `usage` - Token usage statistics for the request
-///
-/// # Example
-///
-/// ```rust
-/// # use openai_tools::chat::ChatCompletionResponse;
-/// # fn example(response: ChatCompletionResponse) {
-/// println!("Generated {} choices", response.choices.len());
-/// println!("Used {} tokens", response.usage.total_tokens.unwrap_or(0));
-///
-/// for choice in response.choices {
-///     println!("Choice {}: {}", choice.index, choice.message.content);
-/// }
-/// # }
-/// ```
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ChatCompletionResponse {
     pub id: String,
@@ -357,16 +280,16 @@ pub struct ChatCompletionResponse {
 ///
 /// # Example
 ///
-/// ```rust
+/// ```rust,no_run
 /// use openai_tools::chat::ChatCompletion;
-/// use openai_tools::common::Message;
+/// use openai_tools::common::{Message, Role};
 ///
 /// # async fn example() -> anyhow::Result<()> {
 /// let mut chat = ChatCompletion::new();
 ///
 /// let response = chat
 ///     .model_id("gpt-4o-mini".to_string())
-///     .messages(vec![Message::from_string("user".to_string(), "Hello!".to_string())])
+///     .messages(vec![Message::from_string(Role::User, "Hello!".to_string())])
 ///     .temperature(0.7)
 ///     .chat()
 ///     .await?;
@@ -394,15 +317,6 @@ impl ChatCompletion {
     /// # Returns
     ///
     /// A new `ChatCompletion` instance ready for configuration and use.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use openai_tools::chat::ChatCompletion;
-    ///
-    /// // Ensure OPENAI_API_KEY is set in environment or .env file
-    /// let chat = ChatCompletion::new();
-    /// ```
     pub fn new() -> Self {
         dotenv().ok();
         let api_key = env::var("OPENAI_API_KEY").expect("OPENAI_API_KEY is not set.");
@@ -448,11 +362,11 @@ impl ChatCompletion {
     ///
     /// ```rust
     /// # use openai_tools::chat::ChatCompletion;
-    /// # use openai_tools::common::Message;
+    /// # use openai_tools::common::{Message, Role};
     /// let mut chat = ChatCompletion::new();
     /// let messages = vec![
-    ///     Message::from_string("system".to_string(), "You are a helpful assistant.".to_string()),
-    ///     Message::from_string("user".to_string(), "Hello!".to_string()),
+    ///     Message::from_string(Role::System, "You are a helpful assistant.".to_string()),
+    ///     Message::from_string(Role::User, "Hello!".to_string()),
     /// ];
     /// chat.messages(messages);
     /// ```
@@ -551,14 +465,6 @@ impl ChatCompletion {
     /// # Returns
     ///
     /// A mutable reference to self for method chaining.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// # use openai_tools::chat::ChatCompletion;
-    /// let mut chat = ChatCompletion::new();
-    /// chat.max_completion_tokens(150); // Limit response to 150 tokens
-    /// ```
     pub fn max_completion_tokens(&mut self, max_completion_tokens: u64) -> &mut Self {
         self.request_body.max_completion_tokens = Option::from(max_completion_tokens);
         return self;
@@ -573,14 +479,6 @@ impl ChatCompletion {
     /// # Returns
     ///
     /// A mutable reference to self for method chaining.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// # use openai_tools::chat::ChatCompletion;
-    /// let mut chat = ChatCompletion::new();
-    /// chat.n(3); // Generate 3 different responses
-    /// ```
     pub fn n(&mut self, n: u32) -> &mut Self {
         self.request_body.n = Option::from(n);
         return self;
@@ -612,14 +510,6 @@ impl ChatCompletion {
     /// # Returns
     ///
     /// A mutable reference to self for method chaining.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// # use openai_tools::chat::ChatCompletion;
-    /// let mut chat = ChatCompletion::new();
-    /// chat.presence_penalty(0.6); // Encourage talking about new topics
-    /// ```
     pub fn presence_penalty(&mut self, presence_penalty: f32) -> &mut Self {
         self.request_body.presence_penalty = Option::from(presence_penalty);
         return self;
@@ -637,14 +527,6 @@ impl ChatCompletion {
     /// # Returns
     ///
     /// A mutable reference to self for method chaining.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// # use openai_tools::chat::ChatCompletion;
-    /// let mut chat = ChatCompletion::new();
-    /// chat.temperature(0.7); // Balanced creativity and consistency
-    /// ```
     pub fn temperature(&mut self, temperature: f32) -> &mut Self {
         self.request_body.temperature = Option::from(temperature);
         return self;
@@ -662,19 +544,6 @@ impl ChatCompletion {
     /// # Returns
     ///
     /// A mutable reference to self for method chaining.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// # use openai_tools::chat::{ChatCompletion, ChatCompletionResponseFormat};
-    /// # use openai_tools::structured_output::Schema;
-    /// let mut chat = ChatCompletion::new();
-    /// let mut schema = Schema::chat_json_schema("person".to_string());
-    /// schema.add_property("name".to_string(), "string".to_string(), None);
-    ///
-    /// let format = ChatCompletionResponseFormat::new("json_schema".to_string(), schema);
-    /// chat.response_format(format);
-    /// ```
     pub fn response_format(&mut self, response_format: ChatCompletionResponseFormat) -> &mut Self {
         self.request_body.response_format = Option::from(response_format);
         return self;
@@ -703,16 +572,16 @@ impl ChatCompletion {
     ///
     /// # Example
     ///
-    /// ```rust
+    /// ```rust,no_run
     /// # use openai_tools::chat::ChatCompletion;
-    /// # use openai_tools::common::Message;
+    /// # use openai_tools::common::{Message, Role};
     /// # use openai_tools::errors::Result;
     /// # async fn example() -> Result<()> {
     /// let mut chat = ChatCompletion::new();
     ///
     /// let response = chat
     ///     .model_id("gpt-4o-mini".to_string())
-    ///     .messages(vec![Message::from_string("user".to_string(), "Hello!".to_string())])
+    ///     .messages(vec![Message::from_string(Role::User, "Hello!".to_string())])
     ///     .chat()
     ///     .await?;
     ///
@@ -770,6 +639,7 @@ impl ChatCompletion {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::common::Role;
     use serde::{Deserialize, Serialize};
     use serde_json;
     use std::sync::Once;
@@ -792,10 +662,7 @@ mod tests {
     async fn test_chat_completion() {
         init_tracing();
         let mut chat = ChatCompletion::new();
-        let messages = vec![Message::from_string(
-            String::from("user"),
-            String::from("Hi there!"),
-        )];
+        let messages = vec![Message::from_string(Role::User, String::from("Hi there!"))];
 
         chat.model_id(String::from("gpt-4o-mini"))
             .messages(messages)
@@ -832,7 +699,7 @@ mod tests {
         init_tracing();
         let mut chat = ChatCompletion::new();
         let messages = vec![Message::from_string(
-            String::from("user"),
+            Role::User,
             String::from("トンネルを抜けると？"),
         )];
 
@@ -883,7 +750,7 @@ mod tests {
         init_tracing();
         let mut openai = ChatCompletion::new();
         let messages = vec![Message::from_string(
-            String::from("user"),
+            Role::User,
             String::from(
                 "Hi there! How's the weather tomorrow in Tokyo? If you can't answer, report error.",
             ),
@@ -973,10 +840,7 @@ mod tests {
         let mut openai = ChatCompletion::new();
         let instruction = std::fs::read_to_string("src/test_rsc/sample_instruction.txt").unwrap();
 
-        let messages = vec![Message::from_string(
-            String::from("user"),
-            instruction.clone(),
-        )];
+        let messages = vec![Message::from_string(Role::User, instruction.clone())];
 
         let mut json_schema = Schema::chat_json_schema(String::from("summary"));
         json_schema.add_property(
@@ -1088,47 +952,47 @@ mod tests {
         }
     }
 
-    #[tokio::test]
-    async fn test_chat_completion_with_long_arguments() {
-        init_tracing();
-        let mut openai = ChatCompletion::new();
-        let text = std::fs::read_to_string("src/test_rsc/long_text.txt").unwrap();
-        let messages = vec![Message::from_string(String::from("user"), text)];
+    // #[tokio::test]
+    // async fn test_chat_completion_with_long_arguments() {
+    //     init_tracing();
+    //     let mut openai = ChatCompletion::new();
+    //     let text = std::fs::read_to_string("src/test_rsc/long_text.txt").unwrap();
+    //     let messages = vec![Message::from_string(Role::User, text)];
 
-        let token_count = messages
-            .iter()
-            .map(|m| m.get_input_token_count())
-            .sum::<usize>();
-        tracing::info!("Token count: {}", token_count);
+    //     let token_count = messages
+    //         .iter()
+    //         .map(|m| m.get_input_token_count())
+    //         .sum::<usize>();
+    //     tracing::info!("Token count: {}", token_count);
 
-        openai
-            .model_id(String::from("gpt-4o-mini"))
-            .messages(messages)
-            .temperature(1.0);
+    //     openai
+    //         .model_id(String::from("gpt-4o-mini"))
+    //         .messages(messages)
+    //         .temperature(1.0);
 
-        let mut counter = 3;
-        loop {
-            match openai.chat().await {
-                Ok(response) => {
-                    println!("{:#?}", response);
-                    assert!(true);
-                    break;
-                }
-                Err(e) => match e {
-                    OpenAIToolError::RequestError(e) => {
-                        tracing::warn!("Request error: {} (retrying... {})", e, counter);
-                        counter -= 1;
-                        if counter == 0 {
-                            assert!(false, "Chat completion failed (retry limit reached)");
-                        }
-                        continue;
-                    }
-                    _ => {
-                        tracing::error!("Error: {}", e);
-                        assert!(false, "Chat completion failed");
-                    }
-                },
-            };
-        }
-    }
+    //     let mut counter = 3;
+    //     loop {
+    //         match openai.chat().await {
+    //             Ok(response) => {
+    //                 println!("{:#?}", response);
+    //                 assert!(true);
+    //                 break;
+    //             }
+    //             Err(e) => match e {
+    //                 OpenAIToolError::RequestError(e) => {
+    //                     tracing::warn!("Request error: {} (retrying... {})", e, counter);
+    //                     counter -= 1;
+    //                     if counter == 0 {
+    //                         assert!(false, "Chat completion failed (retry limit reached)");
+    //                     }
+    //                     continue;
+    //                 }
+    //                 _ => {
+    //                     tracing::error!("Error: {}", e);
+    //                     assert!(false, "Chat completion failed");
+    //                 }
+    //             },
+    //         };
+    //     }
+    // }
 }

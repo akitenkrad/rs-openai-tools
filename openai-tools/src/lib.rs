@@ -3,14 +3,14 @@
 //! # Example Usage
 //!
 //! ```rust
-//! # use openai_tools::common::Message;
+//! # use openai_tools::common::{Message, Role};
 //! # use openai_tools::chat::ChatCompletionResponse;
 //! # use openai_tools::chat::ChatCompletion;
 //! # #[tokio::main]
 //! # async fn main() {
 //!     let mut chat = ChatCompletion::new();
 //!     let messages = vec![
-//!         Message::from_string(String::from("user"), String::from("Hi there!"))
+//!         Message::from_string(Role::User, String::from("Hi there!"))
 //!     ];
 //!
 //!     chat
@@ -27,20 +27,20 @@
 //! ### Simple Chat Completion
 //!
 //! ```rust
-//! # use openai_tools::common::Message;
+//! # use openai_tools::common::{Message, Role};
 //! # use openai_tools::chat::{ChatCompletion, ChatCompletionResponse};
 //! # #[tokio::main]
 //! # async fn main() {
 //!     let mut chat = ChatCompletion::new();
 //!     let messages = vec![
-//!         Message::from_string(String::from("user"), String::from("Hi there!"))
+//!         Message::from_string(Role::User, String::from("Hi there!"))
 //!     ];
-//
+//!
 //!     chat
 //!         .model_id(String::from("gpt-4o-mini"))
 //!         .messages(messages)
 //!         .temperature(1.0);
-//
+//!
 //!     let response: ChatCompletionResponse = chat.chat().await.unwrap();
 //!     println!("{}", &response.choices[0].message.content);
 //!     // Hello! How can I assist you today?
@@ -51,7 +51,7 @@
 //
 //! ```rust
 //! # use openai_tools::structured_output::Schema;
-//! # use openai_tools::common::Message;
+//! # use openai_tools::common::{Message, Role};
 //! # use openai_tools::chat::{
 //! #   ChatCompletion, ChatCompletionResponse, ChatCompletionResponseFormat
 //! # };
@@ -70,7 +70,7 @@
 //
 //!     let mut chat = ChatCompletion::new();
 //!     let messages = vec![Message::from_string(
-//!         String::from("user"),
+//!         Role::User,
 //!         String::from("Hi there! How's the weather tomorrow in Tokyo? If you can't answer, report error."),
 //!     )];
 //

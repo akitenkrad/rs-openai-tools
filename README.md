@@ -27,85 +27,15 @@ Then, import the necesarry modules in your code:
 use openai_tools::OpenAI;
 ```
 
-## Usage
+# Features
 
-### Chat Completion
+| Feature Name                   | [Chat Completion](openai-tools/src/chat.rs) | [Responses](openai-tools/src/responses.rs) | Embedding | Realtime | Images | Audio | Eval |
+|--------------------------------|:--:|:--:|:--:|:--:|:--:|:--:|:--:|
+| Basic Features                 | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Structured Output              | ✅ | ✅ | - | - | - | - | - |
+| Function Calling / MCP Tools   | ✅ | ✅ | - | - | - | - | - |
+| Image Input                    | ✅ | ✅ | - | - | - | - | - |
 
-- Simple Chat
-
-    ```rust
-    let mut openai = OpenAI::new();
-    let messages = vec![
-        Message::new("user".to_string(), "Hi there!".to_string())
-    ];
-
-    openai
-        .model_id("gpt-4o-mini")
-        .messages(messages)
-        .temperature(1.0);
-
-    let response: Response = openai.chat().unwrap();
-    println!("{}", &response.choices[0].message.content);
-    // Hello! How can I assist you today?
-    ```
-
-- Chat with Json Schema
-
-    ```rust
-    #[derive(Debug, Serialize, Deserialize)]
-    struct Weather {
-        location: String,
-        date: String,
-        weather: String,
-        error: String,
-    }
-
-    let mut openai = OpenAI::new();
-    let messages = vec![Message::new(
-        "user".to_string(),
-        "Hi there! How's the weather tomorrow in Tokyo? If you can't answer, report error."
-            .to_string(),
-    )];
-
-    // build json schema
-    let mut json_schema = JsonSchema::new("weather".to_string());
-    json_schema.add_property(
-        "location".to_string(),
-        "string".to_string(),
-        Option::from("The location to check the weather for.".to_string()),
-    );
-    json_schema.add_property(
-        "date".to_string(),
-        "string".to_string(),
-        Option::from("The date to check the weather for.".to_string()),
-    );
-    json_schema.add_property(
-        "weather".to_string(),
-        "string".to_string(),
-        Option::from("The weather for the location and date.".to_string()),
-    );
-    json_schema.add_property(
-        "error".to_string(),
-        "string".to_string(),
-        Option::from("Error message. If there is no error, leave this field empty.".to_string()),
-    );
-
-    // configure chat completion model
-    openai
-        .model_id("gpt-4o-mini")
-        .messages(messages)
-        .temperature(1.0)
-        .response_format(ResponseFormat::new("json_schema".to_string(), json_schema));
-
-    // execute chat
-    let response = openai.chat().unwrap();
-
-    let answer: Weather = serde_json::from_str::<Weather>(&response.choices[0].message.content)
-    println!("{:?}", answer)
-    // Weather {
-    //     location: "Tokyo",
-    //     date: "2023-10-01",
-    //     weather: "Temperatures around 25°C with partly cloudy skies and a slight chance of rain.",
-    //     error: "",
-    // }
-    ```
+✅: Implemented  
+🔧: In Progress  
+❌: Not yet  

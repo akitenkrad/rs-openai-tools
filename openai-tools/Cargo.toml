@@ -6,6 +6,7 @@ license.workspace = true
 name = "openai-tools"
 repository.workspace = true
 version.workspace = true
+readme = "../README.md"
 
 [dependencies]
 anyhow.workspace = true
@@ -22,6 +23,8 @@ tiktoken-rs.workspace = true
 tokio.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
+strum.workspace = true
+strum_macros.workspace = true
 
 [package.metadata.release]
 tag = true
