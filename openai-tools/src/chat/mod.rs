@@ -32,7 +32,7 @@
 //!         .chat()
 //!         .await?;
 //!         
-//!     println!("{}", response.choices[0].message.content);
+//!     println!("{}", response.choices[0].message.content.clone().unwrap());
 //!     Ok(())
 //! }
 //! ```
@@ -78,7 +78,7 @@
 //!         .await?;
 //!         
 //!     // Parse structured response
-//!     let weather: WeatherInfo = serde_json::from_str(&response.choices[0].message.content)?;
+//!     let weather: WeatherInfo = serde_json::from_str(&response.choices[0].message.content.clone().unwrap())?;
 //!     println!("Weather in {}: {} on {}, Temperature: {}",
 //!              weather.location, weather.weather, weather.date, weather.temperature);
 //!     Ok(())
@@ -130,7 +130,7 @@
 //!             // and send the result back to continue the conversation
 //!         }
 //!     } else {
-//!         println!("{}", response.choices[0].message.content);
+//!         println!("{}", response.choices[0].message.content.clone().unwrap());
 //!     }
 //!     Ok(())
 //! }

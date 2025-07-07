@@ -1,3 +1,191 @@
+//! OpenAI Chat Completions API Request Module
+//!
+//! This module provides the functionality to build and send requests to the OpenAI Chat Completions API.
+//! It offers a builder pattern for constructing requests with various parameters and options,
+//! making it easy to interact with OpenAI's conversational AI models.
+//!
+//! # Key Features
+//!
+//! - **Builder Pattern**: Fluent API for constructing requests
+//! - **Structured Output**: Support for JSON schema-based responses
+//! - **Function Calling**: Tool integration for extended model capabilities
+//! - **Comprehensive Parameters**: Full support for all OpenAI API parameters
+//! - **Error Handling**: Robust error management and validation
+//!
+//! # Quick Start
+//!
+//! ```rust,no_run
+//! use openai_tools::chat::request::ChatCompletion;
+//! use openai_tools::common::message::Message;
+//! use openai_tools::common::role::Role;
+//!
+//! #[tokio::main]
+//! async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//!     // Initialize the chat completion client
+//!     let mut chat = ChatCompletion::new();
+//!     
+//!     // Create a simple conversation
+//!     let messages = vec![
+//!         Message::from_string(Role::User, "Hello! How are you?")
+//!     ];
+//!
+//!     // Send the request and get a response
+//!     let response = chat
+//!         .model_id("gpt-4o-mini")
+//!         .messages(messages)
+//!         .temperature(0.7)
+//!         .chat()
+//!         .await?;
+//!         
+//!     println!("AI Response: {}",
+//!              response.choices[0].message.content.as_ref().unwrap());
+//!     Ok(())
+//! }
+//! ```
+//!
+//! # Advanced Usage
+//!
+//! ## Structured Output with JSON Schema
+//!
+//! ```rust,no_run
+//! use openai_tools::chat::request::ChatCompletion;
+//! use openai_tools::common::message::Message;
+//! use openai_tools::common::role::Role;
+//! use openai_tools::common::structured_output::Schema;
+//! use serde::{Deserialize, Serialize};
+//!
+//! #[derive(Serialize, Deserialize)]
+//! struct PersonInfo {
+//!     name: String,
+//!     age: u32,
+//!     occupation: String,
+//! }
+//!
+//! #[tokio::main]
+//! async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//!     let mut chat = ChatCompletion::new();
+//!     
+//!     // Define JSON schema for structured output
+//!     let mut schema = Schema::chat_json_schema("person_info");
+//!     schema.add_property("name", "string", "Person's full name");
+//!     schema.add_property("age", "number", "Person's age in years");
+//!     schema.add_property("occupation", "string", "Person's job or profession");
+//!     
+//!     let messages = vec![
+//!         Message::from_string(Role::User,
+//!             "Extract information about: John Smith, 30 years old, software engineer")
+//!     ];
+//!
+//!     let response = chat
+//!         .model_id("gpt-4o-mini")
+//!         .messages(messages)
+//!         .json_schema(schema)
+//!         .chat()
+//!         .await?;
+//!         
+//!     // Parse structured response
+//!     let person: PersonInfo = serde_json::from_str(
+//!         &response.choices[0].message.content.clone().unwrap()
+//!     )?;
+//!     
+//!     println!("Extracted: {} (age: {}, job: {})",
+//!              person.name, person.age, person.occupation);
+//!     Ok(())
+//! }
+//! ```
+//!
+//! ## Function Calling with Tools
+//!
+//! ```rust,no_run
+//! use openai_tools::chat::request::ChatCompletion;
+//! use openai_tools::common::message::Message;
+//! use openai_tools::common::role::Role;
+//! use openai_tools::common::tool::{Tool, ParameterProp};
+//!
+//! #[tokio::main]
+//! async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//!     let mut chat = ChatCompletion::new();
+//!     
+//!     // Define a weather checking tool
+//!     let weather_tool = Tool::function(
+//!         "get_weather",
+//!         "Get current weather information for a location",
+//!         vec![
+//!             ("location", ParameterProp::string("The city and country")),
+//!             ("unit", ParameterProp::string("Temperature unit (celsius/fahrenheit)")),
+//!         ],
+//!         false,
+//!     );
+//!     
+//!     let messages = vec![
+//!         Message::from_string(Role::User,
+//!             "What's the weather like in Tokyo today?")
+//!     ];
+//!
+//!     let response = chat
+//!         .model_id("gpt-4o-mini")
+//!         .messages(messages)
+//!         .tools(vec![weather_tool])
+//!         .temperature(0.1)
+//!         .chat()
+//!         .await?;
+//!         
+//!     // Handle tool calls
+//!     if let Some(tool_calls) = &response.choices[0].message.tool_calls {
+//!         for call in tool_calls {
+//!             println!("Tool called: {}", call.function.name);
+//!             println!("Arguments: {}", call.function.arguments);
+//!             // Execute the function and continue the conversation...
+//!         }
+//!     }
+//!     Ok(())
+//! }
+//! ```
+//!
+//! # Environment Setup
+//!
+//! Before using this module, ensure you have set up your OpenAI API key:
+//!
+//! ```bash
+//! export OPENAI_API_KEY="your-api-key-here"
+//! ```
+//!
+//! Or create a `.env` file in your project root:
+//!
+//! ```text
+//! OPENAI_API_KEY=your-api-key-here
+//! ```
+//!
+//!
+//! # Error Handling
+//!
+//! All methods return a `Result` type for proper error handling:
+//!
+//! ```rust,no_run
+//! use openai_tools::chat::request::ChatCompletion;
+//! use openai_tools::common::errors::OpenAIToolError;
+//!
+//! #[tokio::main]
+//! async fn main() {
+//!     let mut chat = ChatCompletion::new();
+//!     
+//!     match chat.model_id("gpt-4o-mini").chat().await {
+//!         Ok(response) => {
+//!             println!("Success: {}", response.choices[0].message.content.clone().unwrap());
+//!         }
+//!         Err(OpenAIToolError::RequestError(e)) => {
+//!             eprintln!("Network error: {}", e);
+//!         }
+//!         Err(OpenAIToolError::SerdeJsonError(e)) => {
+//!             eprintln!("JSON parsing error: {}", e);
+//!         }
+//!         Err(e) => {
+//!             eprintln!("Other error: {}", e);
+//!         }
+//!     }
+//! }
+//! ```
+
 use crate::chat::response::Response;
 use crate::common::{
     errors::{OpenAIToolError, Result},
@@ -386,7 +574,7 @@ impl ChatCompletion {
     ///     .chat()
     ///     .await?;
     ///     
-    /// println!("{}", response.choices[0].message.content);
+    /// println!("{}", response.choices[0].message.content.clone().unwrap());
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// # }
     /// ```
