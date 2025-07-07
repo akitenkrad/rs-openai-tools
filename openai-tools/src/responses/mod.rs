@@ -4,7 +4,7 @@ pub mod response;
 #[cfg(test)]
 mod tests {
     use crate::common::{
-        message::{Message, MessageContent},
+        message::{Content, Message},
         role::Role,
         structured_output::Schema,
         tool::{ParameterProp, Tool},
@@ -176,7 +176,7 @@ mod tests {
 
         let message = Message::from_message_array(
             Role::User,
-            vec![MessageContent::from_text("Do you find a clock in this image?"), MessageContent::from_image_file("src/test_rsc/sample_image.jpg")],
+            vec![Content::from_text("Do you find a clock in this image?"), Content::from_image_file("src/test_rsc/sample_image.jpg")],
         );
         responses.messages(vec![message]);
 

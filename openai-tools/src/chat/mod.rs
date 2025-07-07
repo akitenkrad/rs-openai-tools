@@ -1,3 +1,141 @@
+//! # Chat Module
+//!
+//! This module provides functionality for interacting with the OpenAI Chat Completions API.
+//! It includes tools for building requests, sending them to OpenAI's chat completion endpoint,
+//! and processing the responses.
+//!
+//! ## Key Features
+//!
+//! - Chat completion request building and sending
+//! - Structured output support with JSON schema
+//! - Response parsing and processing
+//! - Support for various OpenAI models and parameters
+//!
+//! ## Usage Examples
+//!
+//! ### Basic Chat Completion
+//!
+//! ```rust,no_run
+//! use openai_tools::chat::request::ChatCompletion;
+//! use openai_tools::common::message::Message;
+//! use openai_tools::common::role::Role;
+//!
+//! #[tokio::main]
+//! async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//!     let mut chat = ChatCompletion::new();
+//!     let messages = vec![Message::from_string(Role::User, "Hello!")];
+//!     
+//!     let response = chat
+//!         .model_id("gpt-4o-mini")
+//!         .messages(messages)
+//!         .temperature(1.0)
+//!         .chat()
+//!         .await?;
+//!         
+//!     println!("{}", response.choices[0].message.content);
+//!     Ok(())
+//! }
+//! ```
+//!
+//! ### Using JSON Schema for Structured Output
+//!
+//! ```rust,no_run
+//! use openai_tools::chat::request::ChatCompletion;
+//! use openai_tools::common::message::Message;
+//! use openai_tools::common::role::Role;
+//! use openai_tools::common::structured_output::Schema;
+//! use serde::{Deserialize, Serialize};
+//!
+//! #[derive(Debug, Serialize, Deserialize)]
+//! struct WeatherInfo {
+//!     location: String,
+//!     date: String,
+//!     weather: String,
+//!     temperature: String,
+//! }
+//!
+//! #[tokio::main]
+//! async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//!     let mut chat = ChatCompletion::new();
+//!     let messages = vec![Message::from_string(
+//!         Role::User,
+//!         "What's the weather like tomorrow in Tokyo?"
+//!     )];
+//!     
+//!     // Create JSON schema for structured output
+//!     let mut json_schema = Schema::chat_json_schema("weather");
+//!     json_schema.add_property("location", "string", "The location for weather check");
+//!     json_schema.add_property("date", "string", "The date for weather forecast");
+//!     json_schema.add_property("weather", "string", "Weather condition description");
+//!     json_schema.add_property("temperature", "string", "Temperature information");
+//!     
+//!     let response = chat
+//!         .model_id("gpt-4o-mini")
+//!         .messages(messages)
+//!         .temperature(0.7)
+//!         .json_schema(json_schema)
+//!         .chat()
+//!         .await?;
+//!         
+//!     // Parse structured response
+//!     let weather: WeatherInfo = serde_json::from_str(&response.choices[0].message.content)?;
+//!     println!("Weather in {}: {} on {}, Temperature: {}",
+//!              weather.location, weather.weather, weather.date, weather.temperature);
+//!     Ok(())
+//! }
+//! ```
+//!
+//! ### Using Function Calling with Tools
+//!
+//! ```rust,no_run
+//! use openai_tools::chat::request::ChatCompletion;
+//! use openai_tools::common::message::Message;
+//! use openai_tools::common::role::Role;
+//! use openai_tools::common::tool::{Tool, ParameterProp};
+//!
+//! #[tokio::main]
+//! async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//!     let mut chat = ChatCompletion::new();
+//!     let messages = vec![Message::from_string(
+//!         Role::User,
+//!         "Please calculate 15 * 23 using the calculator tool"
+//!     )];
+//!     
+//!     // Define a calculator function tool
+//!     let calculator_tool = Tool::function(
+//!         "calculator",
+//!         "A calculator that can perform basic arithmetic operations",
+//!         vec![
+//!             ("operation", ParameterProp::string("The operation to perform (add, subtract, multiply, divide)")),
+//!             ("a", ParameterProp::number("The first number")),
+//!             ("b", ParameterProp::number("The second number")),
+//!         ],
+//!         false, // strict mode
+//!     );
+//!     
+//!     let response = chat
+//!         .model_id("gpt-4o-mini")
+//!         .messages(messages)
+//!         .temperature(0.1)
+//!         .tools(vec![calculator_tool])
+//!         .chat()
+//!         .await?;
+//!         
+//!     // Handle function calls in the response
+//!     if let Some(tool_calls) = &response.choices[0].message.tool_calls {
+//!         for tool_call in tool_calls {
+//!             println!("Function called: {}", tool_call.function.name);
+//!             println!("Arguments: {}", tool_call.function.arguments);
+//!             // In a real application, you would execute the function here
+//!             // and send the result back to continue the conversation
+//!         }
+//!     } else {
+//!         println!("{}", response.choices[0].message.content);
+//!     }
+//!     Ok(())
+//! }
+//! ```
+
 pub mod request;
 pub mod response;
 
@@ -34,7 +172,7 @@ mod tests {
         loop {
             match chat.chat().await {
                 Ok(response) => {
-                    tracing::info!("{}", &response.choices[0].message.content);
+                    tracing::info!("{}", &response.choices[0].message.content.clone().expect("Response content should not be empty"));
                     assert!(true);
                     break;
                 }
@@ -68,7 +206,7 @@ mod tests {
         loop {
             match chat.chat().await {
                 Ok(response) => {
-                    println!("{}", &response.choices[0].message.content);
+                    println!("{}", &response.choices[0].message.content.clone().expect("Response content should not be empty"));
                     assert!(true);
                     break;
                 }
@@ -120,7 +258,8 @@ mod tests {
             match openai.chat().await {
                 Ok(response) => {
                     println!("{:#?}", response);
-                    match serde_json::from_str::<Weather>(&response.choices[0].message.content) {
+                    match serde_json::from_str::<Weather>(&response.choices[0].message.content.clone().expect("Response content should not be empty"))
+                    {
                         Ok(weather) => {
                             println!("{:#?}", weather);
                             assert!(true);
@@ -171,7 +310,11 @@ mod tests {
 
         let mut json_schema = Schema::chat_json_schema("summary");
         json_schema.add_property("is_survey", "boolean", "この論文がサーベイ論文かどうかをtrue/falseで判定．");
-        json_schema.add_property("research_question", "string", "この論文のリサーチクエスチョンの説明．この論文の背景や既存研究との関連も含めて記述する．");
+        json_schema.add_property(
+            "research_question",
+            "string",
+            "この論文のリサーチクエスチョンの説明．この論文の背景や既存研究との関連も含めて記述する．",
+        );
         json_schema.add_property("contributions", "string", "この論文のコントリビューションをリスト形式で記述する．");
         json_schema.add_property("dataset", "string", "この論文で使用されているデータセットをリストアップする．");
         json_schema.add_property("proposed_method", "string", "提案手法の詳細な説明．");
@@ -190,7 +333,8 @@ mod tests {
             match openai.chat().await {
                 Ok(response) => {
                     println!("{:#?}", response);
-                    match serde_json::from_str::<Summary>(&response.choices[0].message.content) {
+                    match serde_json::from_str::<Summary>(&response.choices[0].message.content.clone().expect("Response content should not be empty"))
+                    {
                         Ok(summary) => {
                             tracing::info!("Summary.is_survey: {}", summary.is_survey);
                             tracing::info!("Summary.research_question: {}", summary.research_question);
@@ -221,6 +365,82 @@ mod tests {
                     _ => {
                         tracing::error!("Error: {}", e);
                         assert!(false, "Chat completion failed");
+                    }
+                },
+            };
+        }
+    }
+
+    #[tokio::test]
+    async fn test_chat_completion_with_function_calling() {
+        init_tracing();
+        let mut chat = ChatCompletion::new();
+        let messages = vec![Message::from_string(Role::User, "Please calculate 25 + 17 using the calculator tool.")];
+
+        // Define a calculator function tool
+        let calculator_tool = crate::common::tool::Tool::function(
+            "calculator",
+            "A calculator that can perform basic arithmetic operations",
+            vec![
+                ("operation", crate::common::tool::ParameterProp::string("The operation to perform (add, subtract, multiply, divide)")),
+                ("a", crate::common::tool::ParameterProp::number("The first number")),
+                ("b", crate::common::tool::ParameterProp::number("The second number")),
+            ],
+            false, // strict mode
+        );
+
+        chat.model_id("gpt-4o-mini").messages(messages).temperature(0.1).tools(vec![calculator_tool]);
+
+        let mut counter = 3;
+        loop {
+            match chat.chat().await {
+                Ok(response) => {
+                    tracing::info!("Response: {:#?}", response);
+
+                    // Check if the response contains tool calls
+                    if let Some(tool_calls) = &response.choices[0].message.tool_calls {
+                        assert!(!tool_calls.is_empty(), "Tool calls should not be empty");
+
+                        for tool_call in tool_calls {
+                            tracing::info!("Function called: {}", tool_call.function.name);
+                            tracing::info!("Arguments: {:?}", tool_call.function.arguments);
+
+                            // Verify that the calculator function was called
+                            assert_eq!(tool_call.function.name, "calculator");
+
+                            // Parse the arguments to verify they contain the expected operation
+                            let args = tool_call.function.arguments_as_map().unwrap();
+                            assert!(args.get("operation").is_some());
+                            assert!(args.get("a").is_some());
+                            assert!(args.get("b").is_some());
+
+                            tracing::info!("Function call validation passed");
+                        }
+                        assert!(true);
+                    } else {
+                        // If no tool calls, check if the content mentions function calling
+                        tracing::info!(
+                            "No tool calls found. Content: {}",
+                            response.choices[0].message.content.clone().expect("Response content should not be empty")
+                        );
+                        // This might happen if the model decides not to use the tool
+                        // We'll still consider this a valid response for testing purposes
+                        assert!(false, "Expected tool calls but none found in response");
+                    }
+                    break;
+                }
+                Err(e) => match e {
+                    OpenAIToolError::RequestError(e) => {
+                        tracing::warn!("Request error: {} (retrying... {})", e, counter);
+                        counter -= 1;
+                        if counter == 0 {
+                            assert!(false, "Function calling test failed (retry limit reached)");
+                        }
+                        continue;
+                    }
+                    _ => {
+                        tracing::error!("Error: {}", e);
+                        assert!(false, "Function calling test failed");
                     }
                 },
             };

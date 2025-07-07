@@ -1,45 +1,211 @@
+//! OpenAI Chat Completions API Response Types
+//!
+//! This module provides data structures for deserializing responses from the
+//! OpenAI Chat Completions API. It includes all the necessary types to handle
+//! complete API responses, including messages, choices, tool calls, log probabilities,
+//! and usage statistics.
+//!
+//! # Examples
+//!
+//! ```rust,no_run
+//! use serde_json;
+//! use openai_tools::chat::response::Response;
+//!
+//! // Deserialize a simple chat response
+//! let json = r#"{
+//!     "id": "chatcmpl-123",
+//!     "object": "chat.completion",
+//!     "created": 1677652288,
+//!     "model": "gpt-3.5-turbo-0613",
+//!     "choices": [{
+//!         "index": 0,
+//!         "message": {
+//!             "role": "assistant",
+//!             "content": "Hello! How can I help you today?"
+//!         },
+//!         "finish_reason": "stop"
+//!     }],
+//!     "usage": {
+//!         "prompt_tokens": 12,
+//!         "completion_tokens": 8,
+//!         "total_tokens": 20
+//!     }
+//! }"#;
+//!
+//! let response: Response = serde_json::from_str(json).unwrap();
+//! assert_eq!(response.choices[0].message.content.as_ref().unwrap(),
+//!            "Hello! How can I help you today?");
+//! ```
+//!
+//! # Tool Calls
+//!
+//! When the model makes function calls, the response will include tool calls:
+//!
+//! ```rust,no_run
+//! # use serde_json;
+//! # use openai_tools::chat::response::Response;
+//! let json_with_tools = r#"{
+//!     "id": "chatcmpl-456",
+//!     "object": "chat.completion",
+//!     "created": 1677652288,
+//!     "model": "gpt-3.5-turbo-0613",
+//!     "choices": [{
+//!         "index": 0,
+//!         "message": {
+//!             "role": "assistant",
+//!             "content": null,
+//!             "tool_calls": [{
+//!                 "id": "call_abc123",
+//!                 "type": "function",
+//!                 "function": {
+//!                     "name": "get_weather",
+//!                     "arguments": "{\"location\": \"Tokyo\"}"
+//!                 }
+//!             }]
+//!         },
+//!         "finish_reason": "tool_calls"
+//!     }],
+//!     "usage": {
+//!         "prompt_tokens": 25,
+//!         "completion_tokens": 15,
+//!         "total_tokens": 40
+//!     }
+//! }"#;
+//!
+//! let response: Response = serde_json::from_str(json_with_tools).unwrap();
+//! let tool_calls = response.choices[0].message.tool_calls.as_ref().unwrap();
+//! assert_eq!(tool_calls[0].function.name, "get_weather");
+//! ```
+
 use crate::common::usage::Usage;
 use core::str;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
+use std::collections::HashMap;
 
+/// Function call definition
+///
+/// Represents a function that can be called by the model, containing
+/// the function name and arguments as a JSON string.
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+pub struct Function {
+    /// The name of the function to call
+    pub name: String,
+    /// The arguments to pass to the function, encoded as a JSON string
+    pub arguments: String,
+}
+
+impl Function {
+    pub fn arguments_as_map(&self) -> Result<HashMap<String, Value>, serde_json::Error> {
+        serde_json::from_str(&self.arguments)
+    }
+}
+
+/// Tool call made by the model
+///
+/// Represents a request from the model to call a specific tool or function,
+/// containing an identifier, type, and the function details.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct ToolCall {
+    /// Unique identifier for this tool call
+    pub id: String,
+    /// The type of tool being called (e.g., "function")
+    #[serde(rename = "type")]
+    pub type_name: String,
+    /// The function call details
+    pub function: Function,
+}
+
+/// Message structure in the chat completion response
+///
+/// Represents a single message in the chat completion response, typically
+/// containing the assistant's reply to the user's input.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Message {
-    pub content: String,
+    /// The content of the message
+    pub content: Option<String>,
+    /// The role of the message sender (e.g., "assistant")
     pub role: String,
+    /// Optional refusal message if the request was declined
+    pub refusal: Option<String>,
+    /// Optional annotations for the message
+    pub annotations: Option<Vec<String>>,
+    /// Optional tool calls made by the model
+    pub tool_calls: Option<Vec<ToolCall>>,
+}
+
+/// Top log probability item for a token
+///
+/// Contains information about a high-probability token alternative.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct TopLogProbItem {
+    /// The token string
+    pub token: String,
+    /// The log probability of this token
+    pub logprob: f32,
+}
+
+/// Log probability item for a token
+///
+/// Contains detailed probability information for a single token,
+/// including alternatives.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct LogProbItem {
+    /// The token string
+    pub token: String,
+    /// The log probability of this token
+    pub logprob: f32,
+    /// Optional list of top alternative tokens with their probabilities
+    pub top_logprobs: Option<Vec<TopLogProbItem>>,
+}
+
+/// Log probabilities container
+///
+/// Contains log probability information for all tokens in the response.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct LogProbs {
+    /// List of log probability items for each token
+    pub content: Vec<LogProbItem>,
+}
+
+/// Choice structure representing a single response option
+///
+/// Each choice represents one possible completion generated by the model.
+/// When `n > 1` is specified in the request, multiple choices may be returned.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct Choice {
+    /// The index of this choice in the list of choices
+    pub index: u32,
+    /// The message content of this choice
+    pub message: Message,
+    /// Optional log probability information for this choice
+    pub logprobs: Option<LogProbs>,
+    /// The reason why the generation finished (e.g., "stop", "length")
+    pub finish_reason: String,
     pub refusal: Option<String>,
     pub annotations: Option<Vec<String>>,
 }
 
-pub struct TopLogProbItem {
-    pub token: String,
-    pub logprob: f32,
-}
-
-pub struct LogProbItem {
-    pub token: String,
-    pub logprob: f32,
-    pub top_logprobs: Option<Vec<TopLogProbItem>>,
-}
-
-pub struct LogProbs {
-    pub content: Vec<LogProbItem>,
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct Choice {
-    pub index: u32,
-    pub message: Message,
-    pub logprobs: Option<Vec<String>>,
-    pub finish_reason: String,
-}
-
+/// Complete response structure from OpenAI Chat Completions API
+///
+/// This structure contains all information returned by the OpenAI API,
+/// including generated choices, usage statistics, and metadata.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Response {
+    /// Unique identifier for the chat completion
     pub id: String,
+    /// Object type, typically "chat.completion"
     pub object: String,
+    /// Unix timestamp of when the completion was created
     pub created: u64,
+    /// The model used for the completion
     pub model: String,
-    pub system_fingerprint: String,
+    /// List of completion choices generated by the model
     pub choices: Vec<Choice>,
+    /// Token usage statistics for the request
     pub usage: Usage,
+    /// Optional service tier used for the request
+    pub service_tier: Option<String>,
+    /// Fingerprint representing the model configuration
+    pub system_fingerprint: Option<String>,
 }

@@ -7,8 +7,9 @@ pub type Name = String;
 pub struct ParameterProp {
     #[serde(rename = "type")]
     pub type_name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
-    #[serde(rename = "enum")]
+    #[serde(rename = "enum", skip_serializing_if = "Option::is_none")]
     pub enum_values: Option<Vec<String>>,
 }
 
@@ -32,8 +33,9 @@ pub struct Parameters {
     #[serde(rename = "type")]
     pub type_name: String,
     pub properties: HashMap<Name, ParameterProp>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub required: Option<Vec<Name>>,
-    #[serde(rename = "additionalProperties")]
+    #[serde(rename = "additionalProperties", skip_serializing_if = "Option::is_none")]
     pub additional_properties: Option<bool>,
 }
 

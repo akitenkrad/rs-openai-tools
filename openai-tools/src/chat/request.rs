@@ -3,6 +3,7 @@ use crate::common::{
     errors::{OpenAIToolError, Result},
     message::Message,
     structured_output::Schema,
+    tool::Tool,
 };
 use core::str;
 use dotenvy::dotenv;
@@ -10,6 +11,9 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::env;
 
+/// Response format structure for OpenAI API requests
+///
+/// This structure is used for structured output when JSON schema is specified.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 struct Format {
     #[serde(rename = "type")]
@@ -18,39 +22,93 @@ struct Format {
 }
 
 impl Format {
+    /// Creates a new Format structure
+    ///
+    /// # Arguments
+    ///
+    /// * `type_name` - The type name for the response format
+    /// * `json_schema` - The JSON schema definition
+    ///
+    /// # Returns
+    ///
+    /// A new Format structure instance
     pub fn new<T: AsRef<str>>(type_name: T, json_schema: Schema) -> Self {
         Self { type_name: type_name.as_ref().to_string(), json_schema }
     }
 }
 
+/// Request body structure for OpenAI Chat Completions API
+///
+/// This structure represents the parameters that will be sent in the request body
+/// to the OpenAI API. Each field corresponds to the API specification.
 #[derive(Debug, Clone, Deserialize, Serialize, Default)]
 struct Body {
     model: String,
     messages: Vec<Message>,
+    /// Whether to store the request and response at OpenAI
     #[serde(skip_serializing_if = "Option::is_none")]
     store: Option<bool>,
+    /// Frequency penalty parameter to reduce repetition (-2.0 to 2.0)
     #[serde(skip_serializing_if = "Option::is_none")]
     frequency_penalty: Option<f32>,
+    /// Logit bias to adjust the probability of specific tokens
     #[serde(skip_serializing_if = "Option::is_none")]
     logit_bias: Option<HashMap<String, i32>>,
+    /// Whether to include probability information for each token
     #[serde(skip_serializing_if = "Option::is_none")]
     logprobs: Option<bool>,
+    /// Number of top probabilities to return for each token (0-20)
     #[serde(skip_serializing_if = "Option::is_none")]
     top_logprobs: Option<u8>,
+    /// Maximum number of tokens to generate
     #[serde(skip_serializing_if = "Option::is_none")]
     max_completion_tokens: Option<u64>,
+    /// Number of responses to generate
     #[serde(skip_serializing_if = "Option::is_none")]
     n: Option<u32>,
+    /// Available modalities for the response (e.g., text, audio)
     #[serde(skip_serializing_if = "Option::is_none")]
     modalities: Option<Vec<String>>,
+    /// Presence penalty to encourage new topics (-2.0 to 2.0)
     #[serde(skip_serializing_if = "Option::is_none")]
     presence_penalty: Option<f32>,
+    /// Temperature parameter to control response randomness (0.0 to 2.0)
     #[serde(skip_serializing_if = "Option::is_none")]
     temperature: Option<f32>,
+    /// Response format specification (e.g., JSON schema)
     #[serde(skip_serializing_if = "Option::is_none")]
     response_format: Option<Format>,
+    /// Optional tools that can be used by the model
+    #[serde(skip_serializing_if = "Option::is_none")]
+    tools: Option<Vec<Tool>>,
 }
 
+/// OpenAI Chat Completions API client
+///
+/// This structure manages interactions with the OpenAI Chat Completions API.
+/// It handles API key management, request parameter configuration, and API calls.
+///
+/// # Example
+///
+/// ```rust
+/// use openai_tools::chat::request::ChatCompletion;
+/// use openai_tools::common::message::Message;
+/// use openai_tools::common::role::Role;
+///
+/// # #[tokio::main]
+/// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// let mut chat = ChatCompletion::new();
+/// let messages = vec![Message::from_string(Role::User, "Hello!")];
+///
+/// let response = chat
+///     .model_id("gpt-4o-mini")
+///     .messages(messages)
+///     .temperature(1.0)
+///     .chat()
+///     .await?;
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// # }
+/// ```
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
 pub struct ChatCompletion {
     api_key: String,
@@ -58,77 +116,280 @@ pub struct ChatCompletion {
 }
 
 impl ChatCompletion {
+    /// Creates a new ChatCompletion instance
+    ///
+    /// Loads the API key from the `OPENAI_API_KEY` environment variable.
+    /// If a `.env` file exists, it will also be loaded.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the `OPENAI_API_KEY` environment variable is not set.
+    ///
+    /// # Returns
+    ///
+    /// A new ChatCompletion instance
     pub fn new() -> Self {
         dotenv().ok();
         let api_key = env::var("OPENAI_API_KEY").expect("OPENAI_API_KEY is not set.");
         Self { api_key, request_body: Body::default() }
     }
 
+    /// Sets the model ID to use
+    ///
+    /// # Arguments
+    ///
+    /// * `model_id` - OpenAI model ID (e.g., `gpt-4o-mini`, `gpt-4o`)
+    ///
+    /// # Returns
+    ///
+    /// A mutable reference to self for method chaining
     pub fn model_id<T: AsRef<str>>(&mut self, model_id: T) -> &mut Self {
         self.request_body.model = model_id.as_ref().to_string();
         self
     }
 
+    /// Sets the chat message history
+    ///
+    /// # Arguments
+    ///
+    /// * `messages` - Vector of chat messages representing the conversation history
+    ///
+    /// # Returns
+    ///
+    /// A mutable reference to self for method chaining
     pub fn messages(&mut self, messages: Vec<Message>) -> &mut Self {
         self.request_body.messages = messages;
         self
     }
 
+    /// Sets whether to store the request and response at OpenAI
+    ///
+    /// # Arguments
+    ///
+    /// * `store` - `true` to store, `false` to not store
+    ///
+    /// # Returns
+    ///
+    /// A mutable reference to self for method chaining
     pub fn store(&mut self, store: bool) -> &mut Self {
         self.request_body.store = Option::from(store);
         self
     }
 
+    /// Sets the frequency penalty
+    ///
+    /// A parameter that penalizes based on word frequency to reduce repetition.
+    /// Positive values decrease repetition, negative values increase it.
+    ///
+    /// # Arguments
+    ///
+    /// * `frequency_penalty` - Frequency penalty value (range: -2.0 to 2.0)
+    ///
+    /// # Returns
+    ///
+    /// A mutable reference to self for method chaining
     pub fn frequency_penalty(&mut self, frequency_penalty: f32) -> &mut Self {
         self.request_body.frequency_penalty = Option::from(frequency_penalty);
         self
     }
 
+    /// Sets logit bias to adjust the probability of specific tokens
+    ///
+    /// # Arguments
+    ///
+    /// * `logit_bias` - A map of token IDs to adjustment values
+    ///
+    /// # Returns
+    ///
+    /// A mutable reference to self for method chaining
     pub fn logit_bias<T: AsRef<str>>(&mut self, logit_bias: HashMap<T, i32>) -> &mut Self {
-        self.request_body.logit_bias = Option::from(logit_bias.into_iter().map(|(k, v)| (k.as_ref().to_string(), v)).collect::<HashMap<String, i32>>());
+        self.request_body.logit_bias =
+            Option::from(logit_bias.into_iter().map(|(k, v)| (k.as_ref().to_string(), v)).collect::<HashMap<String, i32>>());
         self
     }
 
+    /// Sets whether to include probability information for each token
+    ///
+    /// # Arguments
+    ///
+    /// * `logprobs` - `true` to include probability information
+    ///
+    /// # Returns
+    ///
+    /// A mutable reference to self for method chaining
     pub fn logprobs(&mut self, logprobs: bool) -> &mut Self {
         self.request_body.logprobs = Option::from(logprobs);
         self
     }
 
+    /// Sets the number of top probabilities to return for each token
+    ///
+    /// # Arguments
+    ///
+    /// * `top_logprobs` - Number of top probabilities (range: 0-20)
+    ///
+    /// # Returns
+    ///
+    /// A mutable reference to self for method chaining
     pub fn top_logprobs(&mut self, top_logprobs: u8) -> &mut Self {
         self.request_body.top_logprobs = Option::from(top_logprobs);
         self
     }
 
+    /// Sets the maximum number of tokens to generate
+    ///
+    /// # Arguments
+    ///
+    /// * `max_completion_tokens` - Maximum number of tokens
+    ///
+    /// # Returns
+    ///
+    /// A mutable reference to self for method chaining
     pub fn max_completion_tokens(&mut self, max_completion_tokens: u64) -> &mut Self {
         self.request_body.max_completion_tokens = Option::from(max_completion_tokens);
         self
     }
 
+    /// Sets the number of responses to generate
+    ///
+    /// # Arguments
+    ///
+    /// * `n` - Number of responses to generate
+    ///
+    /// # Returns
+    ///
+    /// A mutable reference to self for method chaining
     pub fn n(&mut self, n: u32) -> &mut Self {
         self.request_body.n = Option::from(n);
         self
     }
 
+    /// Sets the available modalities for the response
+    ///
+    /// # Arguments
+    ///
+    /// * `modalities` - List of modalities (e.g., `["text", "audio"]`)
+    ///
+    /// # Returns
+    ///
+    /// A mutable reference to self for method chaining
     pub fn modalities<T: AsRef<str>>(&mut self, modalities: Vec<T>) -> &mut Self {
         self.request_body.modalities = Option::from(modalities.into_iter().map(|m| m.as_ref().to_string()).collect::<Vec<String>>());
         self
     }
 
+    /// Sets the presence penalty
+    ///
+    /// A parameter that controls the tendency to include new content in the document.
+    /// Positive values encourage talking about new topics, negative values encourage
+    /// staying on existing topics.
+    ///
+    /// # Arguments
+    ///
+    /// * `presence_penalty` - Presence penalty value (range: -2.0 to 2.0)
+    ///
+    /// # Returns
+    ///
+    /// A mutable reference to self for method chaining
     pub fn presence_penalty(&mut self, presence_penalty: f32) -> &mut Self {
         self.request_body.presence_penalty = Option::from(presence_penalty);
         self
     }
 
+    /// Sets the temperature parameter to control response randomness
+    ///
+    /// Higher values (e.g., 1.0) produce more creative and diverse outputs,
+    /// while lower values (e.g., 0.2) produce more deterministic and consistent outputs.
+    ///
+    /// # Arguments
+    ///
+    /// * `temperature` - Temperature parameter (range: 0.0 to 2.0)
+    ///
+    /// # Returns
+    ///
+    /// A mutable reference to self for method chaining
     pub fn temperature(&mut self, temperature: f32) -> &mut Self {
         self.request_body.temperature = Option::from(temperature);
         self
     }
 
+    /// Sets structured output using JSON schema
+    ///
+    /// Enables receiving responses in a structured JSON format according to the
+    /// specified JSON schema.
+    ///
+    /// # Arguments
+    ///
+    /// * `json_schema` - JSON schema defining the response structure
+    ///
+    /// # Returns
+    ///
+    /// A mutable reference to self for method chaining
     pub fn json_schema(&mut self, json_schema: Schema) -> &mut Self {
         self.request_body.response_format = Option::from(Format::new(String::from("json_schema"), json_schema));
         self
     }
 
+    /// Sets the tools that can be called by the model
+    ///
+    /// Enables function calling by providing a list of tools that the model can choose to call.
+    /// When tools are provided, the model may generate tool calls instead of or in addition to
+    /// regular text responses.
+    ///
+    /// # Arguments
+    ///
+    /// * `tools` - Vector of tools available for the model to use
+    ///
+    /// # Returns
+    ///
+    /// A mutable reference to self for method chaining
+    pub fn tools(&mut self, tools: Vec<Tool>) -> &mut Self {
+        self.request_body.tools = Option::from(tools);
+        self
+    }
+
+    /// Sends the chat completion request to OpenAI API
+    ///
+    /// This method validates the request parameters, constructs the HTTP request,
+    /// and sends it to the OpenAI Chat Completions endpoint.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing the API response on success, or an error on failure.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - API key is not set
+    /// - Model ID is not set
+    /// - Messages are empty
+    /// - Network request fails
+    /// - Response parsing fails
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// use openai_tools::chat::request::ChatCompletion;
+    /// use openai_tools::common::message::Message;
+    /// use openai_tools::common::role::Role;
+    ///
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>>
+    /// # {
+    /// let mut chat = ChatCompletion::new();
+    /// let messages = vec![Message::from_string(Role::User, "Hello!")];
+    ///
+    /// let response = chat
+    ///     .model_id("gpt-4o-mini")
+    ///     .messages(messages)
+    ///     .temperature(1.0)
+    ///     .chat()
+    ///     .await?;
+    ///     
+    /// println!("{}", response.choices[0].message.content);
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// # }
+    /// ```
     pub async fn chat(&mut self) -> Result<Response> {
         // Check if the API key is set & body is built.
         if self.api_key.is_empty() {
