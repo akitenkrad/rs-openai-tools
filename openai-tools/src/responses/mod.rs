@@ -163,7 +163,8 @@
 //! use openai_tools::responses::request::Responses;
 //! use openai_tools::common::message::Message;
 //! use openai_tools::common::role::Role;
-//! use openai_tools::common::tool::{Tool, ParameterProp};
+//! use openai_tools::common::tool::Tool;
+//! use openai_tools::common::parameters::{Parameters, ParameterProp};
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -267,9 +268,10 @@ pub mod response;
 mod tests {
     use crate::common::{
         message::{Content, Message},
+        parameters::ParameterProp,
         role::Role,
         structured_output::Schema,
-        tool::{ParameterProp, Tool},
+        tool::Tool,
     };
     use crate::responses::request::Responses;
 

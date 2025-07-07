@@ -32,7 +32,7 @@
 //!         .chat()
 //!         .await?;
 //!         
-//!     println!("{}", response.choices[0].message.content.clone().unwrap());
+//!     println!("{}", response.choices[0].message.content.as_ref().unwrap().text.as_ref().unwrap());
 //!     Ok(())
 //! }
 //! ```
@@ -78,7 +78,9 @@
 //!         .await?;
 //!         
 //!     // Parse structured response
-//!     let weather: WeatherInfo = serde_json::from_str(&response.choices[0].message.content.clone().unwrap())?;
+//!     let weather: WeatherInfo = serde_json::from_str(
+//!         response.choices[0].message.content.as_ref().unwrap().text.as_ref().unwrap()
+//!     )?;
 //!     println!("Weather in {}: {} on {}, Temperature: {}",
 //!              weather.location, weather.weather, weather.date, weather.temperature);
 //!     Ok(())
@@ -91,7 +93,8 @@
 //! use openai_tools::chat::request::ChatCompletion;
 //! use openai_tools::common::message::Message;
 //! use openai_tools::common::role::Role;
-//! use openai_tools::common::tool::{Tool, ParameterProp};
+//! use openai_tools::common::tool::Tool;
+//! use openai_tools::common::parameters::ParameterProp;
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -125,12 +128,16 @@
 //!     if let Some(tool_calls) = &response.choices[0].message.tool_calls {
 //!         for tool_call in tool_calls {
 //!             println!("Function called: {}", tool_call.function.name);
-//!             println!("Arguments: {}", tool_call.function.arguments);
+//!             if let Ok(args) = tool_call.function.arguments_as_map() {
+//!                 println!("Arguments: {:?}", args);
+//!             }
 //!             // In a real application, you would execute the function here
 //!             // and send the result back to continue the conversation
 //!         }
-//!     } else {
-//!         println!("{}", response.choices[0].message.content.clone().unwrap());
+//!     } else if let Some(content) = &response.choices[0].message.content {
+//!         if let Some(text) = &content.text {
+//!             println!("{}", text);
+//!         }
 //!     }
 //!     Ok(())
 //! }
@@ -142,7 +149,7 @@ pub mod response;
 #[cfg(test)]
 mod tests {
     use crate::chat::request::ChatCompletion;
-    use crate::common::{errors::OpenAIToolError, message::Message, role::Role, structured_output::Schema};
+    use crate::common::{errors::OpenAIToolError, message::Message, parameters::ParameterProp, role::Role, structured_output::Schema, tool::Tool};
     use serde::{Deserialize, Serialize};
     use serde_json;
     use std::sync::Once;
@@ -172,7 +179,7 @@ mod tests {
         loop {
             match chat.chat().await {
                 Ok(response) => {
-                    tracing::info!("{}", &response.choices[0].message.content.clone().expect("Response content should not be empty"));
+                    tracing::info!("{:?}", &response.choices[0].message.content.clone().expect("Response content should not be empty"));
                     assert!(true);
                     break;
                 }
@@ -206,7 +213,7 @@ mod tests {
         loop {
             match chat.chat().await {
                 Ok(response) => {
-                    println!("{}", &response.choices[0].message.content.clone().expect("Response content should not be empty"));
+                    println!("{:?}", &response.choices[0].message.content.clone().expect("Response content should not be empty"));
                     assert!(true);
                     break;
                 }
@@ -258,8 +265,15 @@ mod tests {
             match openai.chat().await {
                 Ok(response) => {
                     println!("{:#?}", response);
-                    match serde_json::from_str::<Weather>(&response.choices[0].message.content.clone().expect("Response content should not be empty"))
-                    {
+                    match serde_json::from_str::<Weather>(
+                        &response.choices[0]
+                            .message
+                            .content
+                            .clone()
+                            .expect("Response content should not be empty")
+                            .text
+                            .expect("Response content should not be empty"),
+                    ) {
                         Ok(weather) => {
                             println!("{:#?}", weather);
                             assert!(true);
@@ -333,8 +347,15 @@ mod tests {
             match openai.chat().await {
                 Ok(response) => {
                     println!("{:#?}", response);
-                    match serde_json::from_str::<Summary>(&response.choices[0].message.content.clone().expect("Response content should not be empty"))
-                    {
+                    match serde_json::from_str::<Summary>(
+                        &response.choices[0]
+                            .message
+                            .content
+                            .clone()
+                            .expect("Response content should not be empty")
+                            .text
+                            .expect("Response content should not be empty"),
+                    ) {
                         Ok(summary) => {
                             tracing::info!("Summary.is_survey: {}", summary.is_survey);
                             tracing::info!("Summary.research_question: {}", summary.research_question);
@@ -378,13 +399,13 @@ mod tests {
         let messages = vec![Message::from_string(Role::User, "Please calculate 25 + 17 using the calculator tool.")];
 
         // Define a calculator function tool
-        let calculator_tool = crate::common::tool::Tool::function(
+        let calculator_tool = Tool::function(
             "calculator",
             "A calculator that can perform basic arithmetic operations",
             vec![
-                ("operation", crate::common::tool::ParameterProp::string("The operation to perform (add, subtract, multiply, divide)")),
-                ("a", crate::common::tool::ParameterProp::number("The first number")),
-                ("b", crate::common::tool::ParameterProp::number("The second number")),
+                ("operation", ParameterProp::string("The operation to perform (add, subtract, multiply, divide)")),
+                ("a", ParameterProp::number("The first number")),
+                ("b", ParameterProp::number("The second number")),
             ],
             false, // strict mode
         );
@@ -421,7 +442,13 @@ mod tests {
                         // If no tool calls, check if the content mentions function calling
                         tracing::info!(
                             "No tool calls found. Content: {}",
-                            response.choices[0].message.content.clone().expect("Response content should not be empty")
+                            &response.choices[0]
+                                .message
+                                .content
+                                .clone()
+                                .expect("Response content should not be empty")
+                                .text
+                                .expect("Response content should not be empty")
                         );
                         // This might happen if the model decides not to use the tool
                         // We'll still consider this a valid response for testing purposes

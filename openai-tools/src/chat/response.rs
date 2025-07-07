@@ -33,8 +33,8 @@
 //! }"#;
 //!
 //! let response: Response = serde_json::from_str(json).unwrap();
-//! assert_eq!(response.choices[0].message.content.as_ref().unwrap(),
-//!            "Hello! How can I help you today?");
+//! let text = response.choices[0].message.content.as_ref().unwrap().text.clone().unwrap();
+//! assert_eq!(text, "Hello! How can I help you today?");
 //! ```
 //!
 //! # Tool Calls
@@ -77,62 +77,9 @@
 //! assert_eq!(tool_calls[0].function.name, "get_weather");
 //! ```
 
-use crate::common::usage::Usage;
+use crate::common::{message::Message, usage::Usage};
 use core::str;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
-use std::collections::HashMap;
-
-/// Function call definition
-///
-/// Represents a function that can be called by the model, containing
-/// the function name and arguments as a JSON string.
-#[derive(Debug, Clone, Default, Deserialize, Serialize)]
-pub struct Function {
-    /// The name of the function to call
-    pub name: String,
-    /// The arguments to pass to the function, encoded as a JSON string
-    pub arguments: String,
-}
-
-impl Function {
-    pub fn arguments_as_map(&self) -> Result<HashMap<String, Value>, serde_json::Error> {
-        serde_json::from_str(&self.arguments)
-    }
-}
-
-/// Tool call made by the model
-///
-/// Represents a request from the model to call a specific tool or function,
-/// containing an identifier, type, and the function details.
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct ToolCall {
-    /// Unique identifier for this tool call
-    pub id: String,
-    /// The type of tool being called (e.g., "function")
-    #[serde(rename = "type")]
-    pub type_name: String,
-    /// The function call details
-    pub function: Function,
-}
-
-/// Message structure in the chat completion response
-///
-/// Represents a single message in the chat completion response, typically
-/// containing the assistant's reply to the user's input.
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct Message {
-    /// The content of the message
-    pub content: Option<String>,
-    /// The role of the message sender (e.g., "assistant")
-    pub role: String,
-    /// Optional refusal message if the request was declined
-    pub refusal: Option<String>,
-    /// Optional annotations for the message
-    pub annotations: Option<Vec<String>>,
-    /// Optional tool calls made by the model
-    pub tool_calls: Option<Vec<ToolCall>>,
-}
 
 /// Top log probability item for a token
 ///

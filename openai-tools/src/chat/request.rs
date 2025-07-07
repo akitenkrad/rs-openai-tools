@@ -38,7 +38,7 @@
 //!         .await?;
 //!         
 //!     println!("AI Response: {}",
-//!              response.choices[0].message.content.as_ref().unwrap());
+//!              response.choices[0].message.content.as_ref().unwrap().text.as_ref().unwrap());
 //!     Ok(())
 //! }
 //! ```
@@ -85,7 +85,7 @@
 //!         
 //!     // Parse structured response
 //!     let person: PersonInfo = serde_json::from_str(
-//!         &response.choices[0].message.content.clone().unwrap()
+//!         response.choices[0].message.content.as_ref().unwrap().text.as_ref().unwrap()
 //!     )?;
 //!     
 //!     println!("Extracted: {} (age: {}, job: {})",
@@ -100,7 +100,8 @@
 //! use openai_tools::chat::request::ChatCompletion;
 //! use openai_tools::common::message::Message;
 //! use openai_tools::common::role::Role;
-//! use openai_tools::common::tool::{Tool, ParameterProp};
+//! use openai_tools::common::tool::Tool;
+//! use openai_tools::common::parameters::ParameterProp;
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -134,7 +135,9 @@
 //!     if let Some(tool_calls) = &response.choices[0].message.tool_calls {
 //!         for call in tool_calls {
 //!             println!("Tool called: {}", call.function.name);
-//!             println!("Arguments: {}", call.function.arguments);
+//!             if let Ok(args) = call.function.arguments_as_map() {
+//!                 println!("Arguments: {:?}", args);
+//!             }
 //!             // Execute the function and continue the conversation...
 //!         }
 //!     }
@@ -171,7 +174,11 @@
 //!     
 //!     match chat.model_id("gpt-4o-mini").chat().await {
 //!         Ok(response) => {
-//!             println!("Success: {}", response.choices[0].message.content.clone().unwrap());
+//!             if let Some(content) = &response.choices[0].message.content {
+//!                 if let Some(text) = &content.text {
+//!                     println!("Success: {}", text);
+//!                 }
+//!             }
 //!         }
 //!         Err(OpenAIToolError::RequestError(e)) => {
 //!             eprintln!("Network error: {}", e);
@@ -574,7 +581,7 @@ impl ChatCompletion {
     ///     .chat()
     ///     .await?;
     ///     
-    /// println!("{}", response.choices[0].message.content.clone().unwrap());
+    /// println!("{}", response.choices[0].message.content.as_ref().unwrap().text.as_ref().unwrap());
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// # }
     /// ```

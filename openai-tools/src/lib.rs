@@ -48,7 +48,7 @@
 //!         .chat()
 //!         .await?;
 //!
-//!     println!("AI: {}", response.choices[0].message.content.as_ref().unwrap());
+//!     println!("AI: {}", response.choices[0].message.content.as_ref().unwrap().text.as_ref().unwrap());
 //!     Ok(())
 //! }
 //! ```
@@ -90,7 +90,7 @@
 //!         .await?;
 //!
 //!     let person: PersonInfo = serde_json::from_str(
-//!         &response.choices[0].message.content.clone().unwrap()
+//!         response.choices[0].message.content.as_ref().unwrap().text.as_ref().unwrap()
 //!     )?;
 //!     
 //!     println!("Extracted: {} ({}), {}", person.name, person.age, person.occupation);
@@ -102,7 +102,7 @@
 //!
 //! ```rust,no_run
 //! use openai_tools::chat::request::ChatCompletion;
-//! use openai_tools::common::{message::Message, role::Role, tool::{Tool, ParameterProp}};
+//! use openai_tools::common::{message::Message, role::Role, tool::Tool, parameters::ParameterProp};
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -134,7 +134,9 @@
 //!     if let Some(tool_calls) = &response.choices[0].message.tool_calls {
 //!         for call in tool_calls {
 //!             println!("Tool: {}", call.function.name);
-//!             println!("Args: {}", call.function.arguments);
+//!             if let Ok(args) = call.function.arguments_as_map() {
+//!                 println!("Args: {:?}", args);
+//!             }
 //!             // Execute the function and continue conversation...
 //!         }
 //!     }
@@ -168,7 +170,10 @@
 //!     responses.messages(vec![message]);
 //!     
 //!     let response = responses.complete().await?;
-//!     println!("Analysis: {}", response.output[0].content.as_ref().unwrap()[0].text);
+//!     if let Some(content) = &response.output[0].content {
+//!         let text = &content[0].text;
+//!         println!("Analysis: {}", text);
+//!     }
 //!     Ok(())
 //! }
 //! ```
@@ -205,7 +210,13 @@
 //! # async fn main() {
 //! # let mut chat = ChatCompletion::new();
 //! match chat.chat().await {
-//!     Ok(response) => println!("Success: {}", response.choices[0].message.content.clone().unwrap()),
+//!     Ok(response) => {
+//!         if let Some(content) = &response.choices[0].message.content {
+//!             if let Some(text) = &content.text {
+//!                 println!("Success: {}", text);
+//!             }
+//!         }
+//!     },
 //!     Err(OpenAIToolError::RequestError(e)) => eprintln!("Network error: {}", e),
 //!     Err(OpenAIToolError::SerdeJsonError(e)) => eprintln!("JSON error: {}", e),
 //!     Err(e) => eprintln!("Other error: {}", e),
