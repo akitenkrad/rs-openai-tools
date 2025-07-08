@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::collections::HashMap;
 
 pub type Name = String;
@@ -25,6 +26,17 @@ impl ParameterProp {
     }
     pub fn integer<U: AsRef<str>>(description: U) -> Self {
         Self { type_name: "integer".to_string(), description: Some(description.as_ref().to_string()), ..Default::default() }
+    }
+}
+
+impl From<Value> for ParameterProp {
+    fn from(value: Value) -> Self {
+        let props = value.as_object().unwrap();
+        Self {
+            type_name: props.get("type").and_then(Value::as_str).unwrap_or_default().to_string(),
+            description: props.get("description").and_then(Value::as_str).map(|s| s.to_string()),
+            enum_values: props.get("enum").and_then(Value::as_array).map(|arr| arr.iter().filter_map(Value::as_str).map(|s| s.to_string()).collect()),
+        }
     }
 }
 
