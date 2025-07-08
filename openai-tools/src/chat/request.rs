@@ -543,6 +543,15 @@ impl ChatCompletion {
         self
     }
 
+    /// Gets the current message history
+    ///
+    /// # Returns
+    ///
+    /// A vector containing the message history
+    pub fn get_message_history(&self) -> Vec<Message> {
+        self.request_body.messages.clone()
+    }
+
     /// Sends the chat completion request to OpenAI API
     ///
     /// This method validates the request parameters, constructs the HTTP request,
