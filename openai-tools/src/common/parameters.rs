@@ -40,6 +40,20 @@ impl From<Value> for ParameterProp {
     }
 }
 
+impl From<ParameterProp> for Value {
+    fn from(prop: ParameterProp) -> Self {
+        let mut map = serde_json::Map::new();
+        map.insert("type".to_string(), Value::String(prop.type_name));
+        if let Some(desc) = prop.description {
+            map.insert("description".to_string(), Value::String(desc));
+        }
+        if let Some(enum_values) = prop.enum_values {
+            map.insert("enum".to_string(), Value::Array(enum_values.into_iter().map(Value::String).collect()));
+        }
+        Value::Object(map)
+    }
+}
+
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
 pub struct Parameters {
     #[serde(rename = "type")]
