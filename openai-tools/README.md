@@ -4,7 +4,7 @@
 
 API Wrapper for OpenAI API.
 
-<img src="LOGO.png" alt="LOGO" width="150" height="150"/>
+<img src="../LOGO.png" alt="LOGO" width="150" height="150"/>
 
 ## Installation
 
@@ -29,7 +29,7 @@ use openai_tools::OpenAI;
 
 # Features
 
-| Feature Name                   | [Chat Completion](openai-tools/src/chat/mod.rs) | [Responses](/openai-tools/src/responses/mod.rs) | Embedding | Realtime | Images | Audio | Eval |
+| Feature Name                   | [Chat Completion](src/chat/mod.rs) | [Responses](src/responses/mod.rs) | Embedding | Realtime | Images | Audio | Eval |
 |--------------------------------|:--:|:--:|:--:|:--:|:--:|:--:|:--:|
 | Basic Features                 | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | Structured Output              | ✅ | ✅ | - | - | - | - | - |
