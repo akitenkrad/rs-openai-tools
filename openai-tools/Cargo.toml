@@ -4,7 +4,6 @@ description.workspace = true
 edition.workspace = true
 license.workspace = true
 name = "openai-tools"
-readme = "../README.md"
 repository.workspace = true
 version.workspace = true
 
