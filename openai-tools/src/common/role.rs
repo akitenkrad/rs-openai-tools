@@ -20,16 +20,18 @@ pub enum Role {
     Tool,
 }
 
-impl From<&str> for Role {
-    fn from(role: &str) -> Self {
+impl TryFrom<&str> for Role {
+    type Error = &'static str;
+
+    fn try_from(role: &str) -> Result<Self, Self::Error> {
         let role = role.to_lowercase();
         match role.as_str() {
-            "system" => Role::System,
-            "user" => Role::User,
-            "assistant" => Role::Assistant,
-            "function" => Role::Function,
-            "tool" => Role::Tool,
-            _ => panic!("Unknown role: {}", role),
+            "system" => Ok(Role::System),
+            "user" => Ok(Role::User),
+            "assistant" => Ok(Role::Assistant),
+            "function" => Ok(Role::Function),
+            "tool" => Ok(Role::Tool),
+            _ => Err("Unknown role"),
         }
     }
 }
