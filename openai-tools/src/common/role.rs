@@ -19,3 +19,29 @@ pub enum Role {
     #[strum(to_string = "tool")]
     Tool,
 }
+
+impl From<&str> for Role {
+    fn from(role: &str) -> Self {
+        let role = role.to_lowercase();
+        match role.as_str() {
+            "system" => Role::System,
+            "user" => Role::User,
+            "assistant" => Role::Assistant,
+            "function" => Role::Function,
+            "tool" => Role::Tool,
+            _ => panic!("Unknown role: {}", role),
+        }
+    }
+}
+
+impl Role {
+    pub fn as_str(&self) -> &str {
+        match self {
+            Role::System => "system",
+            Role::User => "user",
+            Role::Assistant => "assistant",
+            Role::Function => "function",
+            Role::Tool => "tool",
+        }
+    }
+}
