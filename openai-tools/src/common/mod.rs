@@ -10,7 +10,7 @@ pub mod usage;
 pub use errors::{OpenAIToolError, Result};
 pub use function::Function;
 pub use message::{Content, Message, ToolCall};
-pub use parameters::{ParameterProp, Parameters};
+pub use parameters::{ParameterProperty, Parameters};
 pub use role::Role;
 pub use structured_output::Schema;
 pub use tool::Tool;

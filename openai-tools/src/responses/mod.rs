@@ -268,7 +268,7 @@ pub mod response;
 mod tests {
     use crate::common::{
         message::{Content, Message},
-        parameters::ParameterProp,
+        parameters::ParameterProperty,
         role::Role,
         structured_output::Schema,
         tool::Tool,
@@ -365,7 +365,7 @@ mod tests {
         let tool = Tool::function(
             "calculator",
             "A simple calculator tool",
-            vec![("a", ParameterProp::number("The first number")), ("b", ParameterProp::number("The second number"))],
+            vec![("a", ParameterProperty::new("The first number").add_number()), ("b", ParameterProperty::new("The second number").add_number())],
             false,
         );
         responses.tools(vec![tool]);

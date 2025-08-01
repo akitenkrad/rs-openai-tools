@@ -149,7 +149,9 @@ pub mod response;
 #[cfg(test)]
 mod tests {
     use crate::chat::request::ChatCompletion;
-    use crate::common::{errors::OpenAIToolError, message::Message, parameters::ParameterProp, role::Role, structured_output::Schema, tool::Tool};
+    use crate::common::{
+        errors::OpenAIToolError, message::Message, parameters::ParameterProperty, role::Role, structured_output::Schema, tool::Tool,
+    };
     use serde::{Deserialize, Serialize};
     use serde_json;
     use std::sync::Once;
@@ -403,9 +405,9 @@ mod tests {
             "calculator",
             "A calculator that can perform basic arithmetic operations",
             vec![
-                ("operation", ParameterProp::string("The operation to perform (add, subtract, multiply, divide)")),
-                ("a", ParameterProp::number("The first number")),
-                ("b", ParameterProp::number("The second number")),
+                ("operation", ParameterProperty::new("The operation to perform (add, subtract, multiply, divide)").add_string()),
+                ("a", ParameterProperty::new("The first number").add_number()),
+                ("b", ParameterProperty::new("The second number").add_number()),
             ],
             false, // strict mode
         );

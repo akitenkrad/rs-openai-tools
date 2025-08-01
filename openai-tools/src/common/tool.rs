@@ -1,6 +1,6 @@
 use crate::common::{
     function::Function,
-    parameters::{Name, ParameterProp, Parameters},
+    parameters::{Name, ParameterProperty, Parameters},
 };
 use serde::{Deserialize, Serialize};
 
@@ -30,7 +30,7 @@ impl Tool {
         server_url: String,
         require_approval: String,
         allowed_tools: Vec<String>,
-        parameters: Vec<(Name, ParameterProp)>,
+        parameters: Vec<(Name, ParameterProperty)>,
     ) -> Self {
         Self {
             type_name: "mcp".into(),
@@ -44,7 +44,12 @@ impl Tool {
         }
     }
 
-    pub fn function<T: AsRef<str>, U: AsRef<str>, V: AsRef<str>>(name: T, description: U, parameters: Vec<(V, ParameterProp)>, strict: bool) -> Self {
+    pub fn function<T: AsRef<str>, U: AsRef<str>, V: AsRef<str>>(
+        name: T,
+        description: U,
+        parameters: Vec<(V, ParameterProperty)>,
+        strict: bool,
+    ) -> Self {
         Self {
             type_name: "function".into(),
             name: Some(name.as_ref().to_string()),
