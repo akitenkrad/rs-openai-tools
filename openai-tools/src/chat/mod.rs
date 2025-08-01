@@ -405,9 +405,9 @@ mod tests {
             "calculator",
             "A calculator that can perform basic arithmetic operations",
             vec![
-                ("operation", ParameterProperty::new("The operation to perform (add, subtract, multiply, divide)").add_string()),
-                ("a", ParameterProperty::new("The first number").add_number()),
-                ("b", ParameterProperty::new("The second number").add_number()),
+                ("operation", ParameterProperty::from_string("The operation to perform (add, subtract, multiply, divide)")),
+                ("a", ParameterProperty::from_number("The first number")),
+                ("b", ParameterProperty::from_number("The second number")),
             ],
             false, // strict mode
         );
