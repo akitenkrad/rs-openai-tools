@@ -252,6 +252,7 @@ impl Content {
 /// * `content` - Optional single content item
 /// * `content_list` - Optional list of content items for multi-modal messages
 /// * `tool_calls` - Optional list of tool calls made by the assistant
+/// * `tool_call_id` - Optional tool call ID for tracking specific tool calls
 /// * `refusal` - Optional refusal message if the model declined to respond
 /// * `annotations` - Optional list of annotations or metadata
 ///
@@ -283,6 +284,8 @@ pub struct Message {
     pub tool_calls: Option<Vec<ToolCall>>,
     /// Optional refusal message if the model declined to respond
     pub refusal: Option<String>,
+    /// Optional tool call ID for tracking specific tool calls
+    pub tool_call_id: Option<String>,
     /// Optional list of annotations or metadata
     pub annotations: Option<Vec<String>>,
 }
@@ -292,6 +295,7 @@ pub struct Message {
 /// This implementation ensures that messages are serialized correctly for the OpenAI API,
 /// handling the mutually exclusive nature of `content` and `content_list` fields.
 /// Either `content` or `content_list` must be present, but not both.
+/// Additionally, it handles optional fields like `tool_call_id` for tool call responses.
 impl Serialize for Message {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -301,17 +305,26 @@ impl Serialize for Message {
         state.serialize_field("role", &self.role)?;
 
         // Ensure that either content or contents is present, but not both
-        if (self.content.is_none() && self.content_list.is_none()) || (self.content.is_some() && self.content_list.is_some()) {
-            return Err(serde::ser::Error::custom("Message must have either content or contents"));
+        if self.role != Role::Assistant {
+            if (self.content.is_none() && self.content_list.is_none()) || (self.content.is_some() && self.content_list.is_some()) {
+                return Err(serde::ser::Error::custom("Message must have either content or contents"));
+            }
         }
 
-        // Serialize content or contents based on which one is present
+        // Serialize optional fields
         if let Some(content) = &self.content {
             state.serialize_field("content", &content.text)?;
         }
         if let Some(contents) = &self.content_list {
             state.serialize_field("content", contents)?;
         }
+        if let Some(tool_call_id) = &self.tool_call_id {
+            state.serialize_field("tool_call_id", tool_call_id)?;
+        }
+        if let Some(tool_calls) = &self.tool_calls {
+            state.serialize_field("tool_calls", tool_calls)?;
+        }
+
         state.end()
     }
 }
@@ -319,7 +332,8 @@ impl Serialize for Message {
 /// Custom deserialization implementation for Message.
 ///
 /// This implementation handles the deserialization of messages from OpenAI API responses,
-/// converting string content to Content objects and handling optional fields.
+/// converting string content to Content objects and handling optional fields including
+/// `tool_call_id` for tool call tracking.
 impl<'de> Deserialize<'de> for Message {
     fn deserialize<D>(deserializer: D) -> Result<Message, D::Error>
     where
@@ -342,6 +356,7 @@ impl<'de> Deserialize<'de> for Message {
             content,
             content_list: None,
             tool_calls: data.tool_calls,
+            tool_call_id: None,
             refusal: data.refusal,
             annotations: data.annotations,
         })
@@ -371,7 +386,15 @@ impl Message {
     /// let message = Message::from_string(Role::User, "Hello, how are you?");
     /// ```
     pub fn from_string<T: AsRef<str>>(role: Role, message: T) -> Self {
-        Self { role, content: Some(Content::from_text(message.as_ref())), content_list: None, tool_calls: None, refusal: None, annotations: None }
+        Self {
+            role,
+            content: Some(Content::from_text(message.as_ref())),
+            content_list: None,
+            tool_calls: None,
+            tool_call_id: None,
+            refusal: None,
+            annotations: None,
+        }
     }
 
     /// Creates a new Message with multiple content items.
@@ -401,9 +424,45 @@ impl Message {
     /// let message = Message::from_message_array(Role::User, contents);
     /// ```
     pub fn from_message_array(role: Role, contents: Vec<Content>) -> Self {
-        Self { role, content: None, content_list: Some(contents), tool_calls: None, refusal: None, annotations: None }
+        Self { role, content: None, content_list: Some(contents), tool_calls: None, tool_call_id: None, refusal: None, annotations: None }
     }
 
+    /// Creates a new Message as a response to a specific tool call.
+    ///
+    /// This method is used to create messages that respond to tool calls made by
+    /// OpenAI models. The message will have the Assistant role and includes the
+    /// tool call ID for tracking purposes.
+    ///
+    /// # Arguments
+    ///
+    /// * `tool_call_response` - The response content for the tool call
+    /// * `tool_call_id` - The ID of the tool call this message is responding to
+    ///
+    /// # Returns
+    ///
+    /// A new Message instance with Assistant role, response content, and tool call ID
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use openai_tools::common::message::Message;
+    ///
+    /// let response = Message::from_tool_call_response(
+    ///     "The weather in Tokyo is 25°C and sunny",
+    ///     "tool_call_123"
+    /// );
+    /// ```
+    pub fn from_tool_call_response<T: AsRef<str>>(tool_call_response: T, tool_call_id: T) -> Self {
+        Self {
+            role: Role::Tool,
+            content: Some(Content::from_text(tool_call_response.as_ref())),
+            content_list: None,
+            tool_calls: None,
+            tool_call_id: Some(tool_call_id.as_ref().to_string()),
+            refusal: None,
+            annotations: None,
+        }
+    }
     /// Calculates the approximate token count for the message content.
     ///
     /// This method uses the tiktoken library to estimate the number of tokens

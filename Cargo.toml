@@ -18,14 +18,15 @@ dotenvy = "0.15.7"
 image = "0.25.6"
 request = { package = "reqwest", version = "0.12.22" }
 serde = { version = "1.0.219", features = ["derive"] }
-serde_json = "1.0.141"
-strum = { version = "0.27.1", features = ["derive"] }
-strum_macros = "0.27.1"
+serde_json = "1.0.142"
+strum = { version = "0.27.2", features = ["derive"] }
+strum_macros = "0.27.2"
 thiserror = "2.0.12"
 tiktoken-rs = "0.7.0"
-tokio = { version = "1.46.1", features = ["full"] }
+tokio = { version = "1.47.1", features = ["full"] }
 tracing = { version = "0.1.41", features = ["log"] }
 tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
+test-log = { version = "0.2.18", features = ["trace"] }
 
 [workspace.metadata.release]
 tag-prefix = ""

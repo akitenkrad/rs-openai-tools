@@ -102,7 +102,7 @@
 //!
 //! ```rust,no_run
 //! use openai_tools::chat::request::ChatCompletion;
-//! use openai_tools::common::{message::Message, role::Role, tool::Tool, parameters::ParameterProp};
+//! use openai_tools::common::{message::Message, role::Role, tool::Tool, parameters::ParameterProperty};
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -113,8 +113,8 @@
 //!         "get_weather",
 //!         "Get current weather for a location",
 //!         vec![
-//!             ("location", ParameterProp::string("City name")),
-//!             ("unit", ParameterProp::string("Temperature unit (celsius/fahrenheit)")),
+//!             ("location", ParameterProperty::from_string("City name")),
+//!             ("unit", ParameterProperty::from_string("Temperature unit (celsius/fahrenheit)")),
 //!         ],
 //!         false,
 //!     );

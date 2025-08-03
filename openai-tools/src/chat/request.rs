@@ -101,7 +101,7 @@
 //! use openai_tools::common::message::Message;
 //! use openai_tools::common::role::Role;
 //! use openai_tools::common::tool::Tool;
-//! use openai_tools::common::parameters::ParameterProp;
+//! use openai_tools::common::parameters::ParameterProperty;
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -112,8 +112,8 @@
 //!         "get_weather",
 //!         "Get current weather information for a location",
 //!         vec![
-//!             ("location", ParameterProp::string("The city and country")),
-//!             ("unit", ParameterProp::string("Temperature unit (celsius/fahrenheit)")),
+//!             ("location", ParameterProperty::from_string("The city and country")),
+//!             ("unit", ParameterProperty::from_string("Temperature unit (celsius/fahrenheit)")),
 //!         ],
 //!         false,
 //!     );
@@ -357,6 +357,35 @@ impl ChatCompletion {
         self
     }
 
+    /// Adds a single message to the conversation history
+    ///
+    /// This method appends a new message to the existing conversation history.
+    /// It's useful for building conversations incrementally.
+    ///
+    /// # Arguments
+    ///
+    /// * `message` - The message to add to the conversation
+    ///
+    /// # Returns
+    ///
+    /// A mutable reference to self for method chaining
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use openai_tools::chat::request::ChatCompletion;
+    /// use openai_tools::common::message::Message;
+    /// use openai_tools::common::role::Role;
+    ///
+    /// let mut chat = ChatCompletion::new();
+    /// chat.add_message(Message::from_string(Role::User, "Hello!"))
+    ///     .add_message(Message::from_string(Role::Assistant, "Hi there!"))
+    ///     .add_message(Message::from_string(Role::User, "How are you?"));
+    /// ```
+    pub fn add_message(&mut self, message: Message) -> &mut Self {
+        self.request_body.messages.push(message);
+        self
+    }
     /// Sets whether to store the request and response at OpenAI
     ///
     /// # Arguments

@@ -115,6 +115,12 @@ impl Serialize for Function {
             state.serialize_field("arguments", arguments)?;
         }
         state.serialize_field("strict", &self.strict)?;
+
+        if let Some(arguments) = &self.arguments {
+            if !arguments.is_empty() {
+                state.serialize_field("arguments", &serde_json::to_string(arguments).expect("Failed to serialize arguments in Function"))?;
+            }
+        }
         state.end()
     }
 }

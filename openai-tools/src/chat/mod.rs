@@ -94,14 +94,14 @@
 //! use openai_tools::common::message::Message;
 //! use openai_tools::common::role::Role;
 //! use openai_tools::common::tool::Tool;
-//! use openai_tools::common::parameters::ParameterProp;
+//! use openai_tools::common::parameters::ParameterProperty;
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     let mut chat = ChatCompletion::new();
 //!     let messages = vec![Message::from_string(
 //!         Role::User,
-//!         "Please calculate 15 * 23 using the calculator tool"
+//!         "Please calculate 25 + 17 using the calculator tool"
 //!     )];
 //!     
 //!     // Define a calculator function tool
@@ -109,9 +109,9 @@
 //!         "calculator",
 //!         "A calculator that can perform basic arithmetic operations",
 //!         vec![
-//!             ("operation", ParameterProp::string("The operation to perform (add, subtract, multiply, divide)")),
-//!             ("a", ParameterProp::number("The first number")),
-//!             ("b", ParameterProp::number("The second number")),
+//!             ("operation", ParameterProperty::from_string("The operation to perform (add, subtract, multiply, divide)")),
+//!             ("a", ParameterProperty::from_number("The first number")),
+//!             ("b", ParameterProperty::from_number("The second number")),
 //!         ],
 //!         false, // strict mode
 //!     );
@@ -126,13 +126,28 @@
 //!         
 //!     // Handle function calls in the response
 //!     if let Some(tool_calls) = &response.choices[0].message.tool_calls {
+//!         // Add the assistant's message with tool calls to conversation history
+//!         chat.add_message(response.choices[0].message.clone());
+//!         
 //!         for tool_call in tool_calls {
 //!             println!("Function called: {}", tool_call.function.name);
 //!             if let Ok(args) = tool_call.function.arguments_as_map() {
 //!                 println!("Arguments: {:?}", args);
 //!             }
-//!             // In a real application, you would execute the function here
-//!             // and send the result back to continue the conversation
+//!             
+//!             // Execute the function (in this example, we simulate the calculation)
+//!             let result = "42"; // This would be the actual calculation result
+//!             
+//!             // Add the tool call response to continue the conversation
+//!             chat.add_message(Message::from_tool_call_response(result, &tool_call.id));
+//!         }
+//!         
+//!         // Get the final response after tool execution
+//!         let final_response = chat.chat().await?;
+//!         if let Some(content) = &final_response.choices[0].message.content {
+//!             if let Some(text) = &content.text {
+//!                 println!("Final answer: {}", text);
+//!             }
 //!         }
 //!     } else if let Some(content) = &response.choices[0].message.content {
 //!         if let Some(text) = &content.text {
@@ -163,13 +178,15 @@ mod tests {
         INIT.call_once(|| {
             // `RUST_LOG` 環境変数があればそれを使い、なければ "info"
             let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
-            tracing_subscriber::fmt()
+            // try_init()を使用してsubscriberが既に設定されている場合はスキップ
+            let _ = tracing_subscriber::fmt()
                 .with_env_filter(filter)
                 .with_test_writer() // `cargo test` / nextest 用
-                .init();
+                .try_init();
         });
     }
     #[tokio::test]
+    #[test_log::test]
     async fn test_chat_completion() {
         init_tracing();
         let mut chat = ChatCompletion::new();
@@ -204,6 +221,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[test_log::test]
     async fn test_chat_completion_2() {
         init_tracing();
         let mut chat = ChatCompletion::new();
@@ -250,6 +268,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[test_log::test]
     async fn test_chat_completion_with_json_schema() {
         init_tracing();
         let mut openai = ChatCompletion::new();
@@ -317,6 +336,7 @@ mod tests {
         pub future_works: String,
     }
     #[tokio::test]
+    #[test_log::test]
     async fn test_summarize() {
         init_tracing();
         let mut openai = ChatCompletion::new();
@@ -395,6 +415,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[test_log::test]
     async fn test_chat_completion_with_function_calling() {
         init_tracing();
         let mut chat = ChatCompletion::new();
@@ -413,15 +434,18 @@ mod tests {
         );
 
         chat.model_id("gpt-4o-mini").messages(messages).temperature(0.1).tools(vec![calculator_tool]);
-
+        // First call
         let mut counter = 3;
         loop {
             match chat.chat().await {
                 Ok(response) => {
-                    tracing::info!("Response: {:#?}", response);
+                    tracing::info!("First Response: {:#?}", response);
+
+                    let message = response.choices[0].message.clone();
+                    chat.add_message(message.clone());
 
                     // Check if the response contains tool calls
-                    if let Some(tool_calls) = &response.choices[0].message.tool_calls {
+                    if let Some(tool_calls) = &message.tool_calls {
                         assert!(!tool_calls.is_empty(), "Tool calls should not be empty");
 
                         for tool_call in tool_calls {
@@ -438,6 +462,8 @@ mod tests {
                             assert!(args.get("b").is_some());
 
                             tracing::info!("Function call validation passed");
+
+                            chat.add_message(Message::from_tool_call_response("42", &tool_call.id));
                         }
                         assert!(true);
                     } else {
@@ -456,6 +482,46 @@ mod tests {
                         // We'll still consider this a valid response for testing purposes
                         assert!(false, "Expected tool calls but none found in response");
                     }
+                    break;
+                }
+                Err(e) => match e {
+                    OpenAIToolError::RequestError(e) => {
+                        tracing::warn!("Request error: {} (retrying... {})", e, counter);
+                        counter -= 1;
+                        if counter == 0 {
+                            assert!(false, "Function calling test failed (retry limit reached)");
+                        }
+                        continue;
+                    }
+                    _ => {
+                        tracing::error!("Error: {}", e);
+                        assert!(false, "Function calling test failed");
+                    }
+                },
+            };
+        }
+
+        // Second call to ensure the tool is still available
+        let messages = chat.get_message_history();
+        let mut chat = ChatCompletion::new();
+        chat.model_id("gpt-4o-mini").messages(messages).temperature(1.0);
+
+        let mut counter = 3;
+        loop {
+            match chat.chat().await {
+                Ok(response) => {
+                    tracing::info!("Second Response: {:#?}", response);
+                    assert!(!response.choices.is_empty(), "Response should contain at least one choice");
+                    let content = response.choices[0]
+                        .message
+                        .content
+                        .clone()
+                        .expect("Response content should not be empty")
+                        .text
+                        .expect("Response content should not be empty");
+                    tracing::info!("Content: {}", content);
+                    // Check if the content contains the expected result
+                    assert!(content.contains("42"), "Expected content to contain '42', found: {}", content);
                     break;
                 }
                 Err(e) => match e {

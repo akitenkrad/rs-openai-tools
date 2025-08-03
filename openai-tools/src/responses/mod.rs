@@ -164,7 +164,7 @@
 //! use openai_tools::common::message::Message;
 //! use openai_tools::common::role::Role;
 //! use openai_tools::common::tool::Tool;
-//! use openai_tools::common::parameters::{Parameters, ParameterProp};
+//! use openai_tools::common::parameters::{Parameters, ParameterProperty};
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -179,9 +179,9 @@
 //!         "calculator",
 //!         "Perform basic arithmetic operations",
 //!         vec![
-//!             ("operation", ParameterProp::string("add, subtract, multiply, or divide")),
-//!             ("a", ParameterProp::number("First number")),
-//!             ("b", ParameterProp::number("Second number")),
+//!             ("operation", ParameterProperty::from_string("add, subtract, multiply, or divide")),
+//!             ("a", ParameterProperty::from_number("First number")),
+//!             ("b", ParameterProperty::from_number("Second number")),
 //!         ],
 //!         false,
 //!     );
