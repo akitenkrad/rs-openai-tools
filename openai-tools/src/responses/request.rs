@@ -1081,16 +1081,91 @@ impl Responses {
         self
     }
 
+    /// Sets the maximum number of tokens to generate in the response
+    ///
+    /// Controls the maximum length of the generated response. The actual response
+    /// may be shorter if the model naturally concludes or hits other stopping conditions.
+    ///
+    /// # Arguments
+    ///
+    /// * `max_tokens` - Maximum number of tokens to generate (minimum: 1)
+    ///
+    /// # Returns
+    ///
+    /// A mutable reference to self for method chaining
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use openai_tools::responses::request::Responses;
+    ///
+    /// let mut client = Responses::new();
+    /// client.max_output_tokens(100);  // Limit response to 100 tokens
+    /// ```
     pub fn max_output_tokens(&mut self, max_tokens: usize) -> &mut Self {
         self.request_body.max_output_tokens = Some(max_tokens);
         self
     }
 
+    /// Sets the maximum number of tool calls allowed during response generation
+    ///
+    /// Limits how many tools the model can invoke during response generation.
+    /// This helps control cost and response time when using multiple tools.
+    ///
+    /// # Arguments
+    ///
+    /// * `max_tokens` - Maximum number of tool calls allowed (0 = no tool calls)
+    ///
+    /// # Returns
+    ///
+    /// A mutable reference to self for method chaining
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use openai_tools::responses::request::Responses;
+    ///
+    /// let mut client = Responses::new();
+    /// client.max_tool_calls(3);  // Allow up to 3 tool calls
+    /// client.max_tool_calls(0);  // Disable tool usage
+    /// ```
     pub fn max_tool_calls(&mut self, max_tokens: usize) -> &mut Self {
         self.request_body.max_tool_calls = Some(max_tokens);
         self
     }
 
+    /// Adds or updates a metadata key-value pair for the request
+    ///
+    /// Metadata provides arbitrary key-value pairs that can be attached to the request
+    /// for tracking, logging, or passing additional context that doesn't affect
+    /// the model's behavior.
+    ///
+    /// # Arguments
+    ///
+    /// * `key` - The metadata key (string identifier)
+    /// * `value` - The metadata value (can be string, number, boolean, etc.)
+    ///
+    /// # Behavior
+    ///
+    /// - If the key already exists, the old value is replaced with the new one
+    /// - If metadata doesn't exist yet, a new metadata map is created
+    /// - Values are stored as `serde_json::Value` for flexibility
+    ///
+    /// # Returns
+    ///
+    /// A mutable reference to self for method chaining
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use openai_tools::responses::request::Responses;
+    /// use serde_json::Value;
+    ///
+    /// let mut client = Responses::new();
+    /// client.metadata("user_id".to_string(), Value::String("user123".to_string()));
+    /// client.metadata("priority".to_string(), Value::Number(serde_json::Number::from(1)));
+    /// client.metadata("debug".to_string(), Value::Bool(true));
+    /// ```
     pub fn metadata(&mut self, key: String, value: serde_json::Value) -> &mut Self {
         if self.request_body.metadata.is_none() {
             self.request_body.metadata = Some(HashMap::new());
@@ -1102,71 +1177,564 @@ impl Responses {
         self
     }
 
+    /// Enables or disables parallel tool calls
+    ///
+    /// When enabled, the model can make multiple tool calls simultaneously
+    /// rather than sequentially. This can significantly improve response time
+    /// when multiple independent tools need to be used.
+    ///
+    /// # Arguments
+    ///
+    /// * `enable` - Whether to enable parallel tool calls
+    ///   - `true`: Tools can be called in parallel (faster for independent tools)
+    ///   - `false`: Tools are called sequentially (better for dependent operations)
+    ///
+    /// # Returns
+    ///
+    /// A mutable reference to self for method chaining
+    ///
+    /// # When to Use
+    ///
+    /// - **Enable (true)**: When tools are independent (e.g., weather + stock prices)
+    /// - **Disable (false)**: When tools have dependencies (e.g., read file → analyze content)
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use openai_tools::responses::request::Responses;
+    ///
+    /// let mut client = Responses::new();
+    /// client.parallel_tool_calls(true);   // Enable parallel execution
+    /// client.parallel_tool_calls(false);  // Force sequential execution
+    /// ```
     pub fn parallel_tool_calls(&mut self, enable: bool) -> &mut Self {
         self.request_body.parallel_tool_calls = Some(enable);
         self
     }
 
+    /// Specifies additional data to include in the response output
+    ///
+    /// Defines various types of additional information that can be included
+    /// in the API response output, such as web search results, code interpreter
+    /// outputs, image URLs, log probabilities, and reasoning traces.
+    ///
+    /// # Arguments
+    ///
+    /// * `includes` - A vector of `Include` enum values specifying what to include
+    ///
+    /// # Available Inclusions
+    ///
+    /// - `Include::WebSearchCall` - Web search results and sources
+    /// - `Include::CodeInterpreterCall` - Code execution outputs
+    /// - `Include::FileSearchCall` - File search operation results
+    /// - `Include::LogprobsInOutput` - Token log probabilities
+    /// - `Include::ReasoningEncryptedContent` - Reasoning process traces
+    /// - `Include::ImageUrlInInputMessages` - Image URLs from input
+    /// - `Include::ImageUrlInComputerCallOutput` - Computer interaction screenshots
+    ///
+    /// # Returns
+    ///
+    /// A mutable reference to self for method chaining
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use openai_tools::responses::request::{Responses, Include};
+    ///
+    /// let mut client = Responses::new();
+    /// client.include(vec![
+    ///     Include::WebSearchCall,
+    ///     Include::LogprobsInOutput,
+    ///     Include::ReasoningEncryptedContent,
+    /// ]);
+    /// ```
     pub fn include(&mut self, includes: Vec<Include>) -> &mut Self {
         self.request_body.include = Some(includes);
         self
     }
 
+    /// Enables or disables background processing for the request
+    ///
+    /// When enabled, allows the request to be processed in the background,
+    /// potentially improving throughput for non-urgent requests at the cost
+    /// of potentially higher latency.
+    ///
+    /// # Arguments
+    ///
+    /// * `enable` - Whether to enable background processing
+    ///   - `true`: Process in background (lower priority, potentially longer latency)
+    ///   - `false`: Process with standard priority (default behavior)
+    ///
+    /// # Trade-offs
+    ///
+    /// - **Background processing**: Better for batch operations, non-interactive requests
+    /// - **Standard processing**: Better for real-time, interactive applications
+    ///
+    /// # Returns
+    ///
+    /// A mutable reference to self for method chaining
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use openai_tools::responses::request::Responses;
+    ///
+    /// let mut client = Responses::new();
+    /// client.background(true);   // Enable background processing
+    /// client.background(false);  // Use standard processing
+    /// ```
     pub fn background(&mut self, enable: bool) -> &mut Self {
         self.request_body.background = Some(enable);
         self
     }
 
+    /// Sets the conversation ID for grouping related requests
+    ///
+    /// Identifier for grouping related requests as part of the same conversation
+    /// or session. This helps with context management, analytics, and conversation
+    /// tracking across multiple API calls.
+    ///
+    /// # Arguments
+    ///
+    /// * `conversation_id` - The conversation identifier
+    ///   - Must start with "conv-" prefix according to API requirements
+    ///   - Should be a unique identifier (UUID recommended)
+    ///
+    /// # Returns
+    ///
+    /// A mutable reference to self for method chaining
+    ///
+    /// # Format Requirements
+    ///
+    /// The conversation ID must follow the format: `conv-{identifier}`
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use openai_tools::responses::request::Responses;
+    ///
+    /// let mut client = Responses::new();
+    /// client.conversation("conv-123e4567-e89b-12d3-a456-426614174000");
+    /// client.conversation("conv-user123-session456");
+    /// ```
     pub fn conversation<T: AsRef<str>>(&mut self, conversation_id: T) -> &mut Self {
         self.request_body.conversation = Some(conversation_id.as_ref().to_string());
         self
     }
 
+    /// Sets the ID of the previous response for context continuation
+    ///
+    /// References a previous response in the same conversation to maintain
+    /// context and enable features like response chaining, follow-up handling,
+    /// or response refinement.
+    ///
+    /// # Arguments
+    ///
+    /// * `response_id` - The ID of the previous response to reference
+    ///
+    /// # Use Cases
+    ///
+    /// - **Multi-turn conversations**: Maintaining context across multiple exchanges
+    /// - **Follow-up questions**: Building on previous responses
+    /// - **Response refinement**: Iterating on or clarifying previous answers
+    /// - **Context chaining**: Creating connected sequences of responses
+    ///
+    /// # Returns
+    ///
+    /// A mutable reference to self for method chaining
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use openai_tools::responses::request::Responses;
+    ///
+    /// let mut client = Responses::new();
+    /// client.previous_response_id("resp_abc123def456");
+    /// client.previous_response_id("response-uuid-here");
+    /// ```
     pub fn previous_response_id<T: AsRef<str>>(&mut self, response_id: T) -> &mut Self {
         self.request_body.previous_response_id = Some(response_id.as_ref().to_string());
         self
     }
 
+    /// Configures reasoning behavior for complex problem-solving
+    ///
+    /// Controls how the model approaches complex reasoning tasks, including
+    /// the computational effort level and format of reasoning explanations.
+    /// This is particularly useful for mathematical, logical, or analytical tasks.
+    ///
+    /// # Arguments
+    ///
+    /// * `effort` - The level of reasoning effort to apply:
+    ///   - `ReasoningEffort::Minimal` - Fastest, for simple queries
+    ///   - `ReasoningEffort::Low` - Balanced, for moderate complexity
+    ///   - `ReasoningEffort::Medium` - Thorough, for complex queries
+    ///   - `ReasoningEffort::High` - Maximum analysis, for very complex problems
+    ///
+    /// * `summary` - The format for reasoning explanations:
+    ///   - `ReasoningSummary::Auto` - Let the model choose the format
+    ///   - `ReasoningSummary::Concise` - Brief, focused explanations
+    ///   - `ReasoningSummary::Detailed` - Comprehensive, step-by-step explanations
+    ///
+    /// # Returns
+    ///
+    /// A mutable reference to self for method chaining
+    ///
+    /// # Use Cases
+    ///
+    /// - Mathematical problem-solving with step-by-step explanations
+    /// - Complex logical reasoning tasks
+    /// - Analysis requiring deep consideration
+    /// - Tasks where understanding the reasoning process is important
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use openai_tools::responses::request::{Responses, ReasoningEffort, ReasoningSummary};
+    ///
+    /// let mut client = Responses::new();
+    ///
+    /// // High effort with detailed explanations for complex problems
+    /// client.reasoning(ReasoningEffort::High, ReasoningSummary::Detailed);
+    ///
+    /// // Medium effort with concise explanations for balanced approach
+    /// client.reasoning(ReasoningEffort::Medium, ReasoningSummary::Concise);
+    /// ```
     pub fn reasoning(&mut self, effort: ReasoningEffort, summary: ReasoningSummary) -> &mut Self {
         self.request_body.reasoning = Some(Reasoning { effort: Some(effort), summary: Some(summary) });
         self
     }
 
+    /// Sets the safety identifier for content filtering configuration
+    ///
+    /// Specifies which safety and content filtering policies should be applied
+    /// to the request. Different safety levels provide varying degrees of content
+    /// restriction and filtering.
+    ///
+    /// # Arguments
+    ///
+    /// * `safety_id` - The safety configuration identifier
+    ///
+    /// # Common Safety Levels
+    ///
+    /// - `"strict"` - Apply strict content filtering (highest safety)
+    /// - `"moderate"` - Apply moderate content filtering (balanced approach)
+    /// - `"permissive"` - Apply permissive content filtering (minimal restrictions)
+    /// - `"default"` - Use system default safety settings
+    ///
+    /// # Returns
+    ///
+    /// A mutable reference to self for method chaining
+    ///
+    /// # Use Cases
+    ///
+    /// - Educational content requiring strict filtering
+    /// - Business applications with moderate restrictions
+    /// - Research applications needing broader content access
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use openai_tools::responses::request::Responses;
+    ///
+    /// let mut client = Responses::new();
+    /// client.safety_identifier("strict");     // High safety for education
+    /// client.safety_identifier("moderate");   // Balanced for general use
+    /// client.safety_identifier("permissive"); // Minimal restrictions
+    /// ```
     pub fn safety_identifier<T: AsRef<str>>(&mut self, safety_id: T) -> &mut Self {
         self.request_body.safety_identifier = Some(safety_id.as_ref().to_string());
         self
     }
 
+    /// Sets the service tier for request processing priority and features
+    ///
+    /// Specifies the service tier for the request, which affects processing
+    /// priority, rate limits, pricing, and available features. Different tiers
+    /// provide different levels of service quality and capabilities.
+    ///
+    /// # Arguments
+    ///
+    /// * `tier` - The service tier identifier
+    ///
+    /// # Common Service Tiers
+    ///
+    /// - `"default"` - Standard service tier with regular priority
+    /// - `"scale"` - High-throughput tier optimized for bulk processing
+    /// - `"premium"` - Premium service tier with enhanced features and priority
+    /// - `"enterprise"` - Enterprise tier with dedicated resources
+    ///
+    /// # Returns
+    ///
+    /// A mutable reference to self for method chaining
+    ///
+    /// # Considerations
+    ///
+    /// - Higher tiers may have different pricing structures
+    /// - Some features may only be available in certain tiers
+    /// - Rate limits and quotas may vary by tier
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use openai_tools::responses::request::Responses;
+    ///
+    /// let mut client = Responses::new();
+    /// client.service_tier("default");   // Standard service
+    /// client.service_tier("scale");     // High-throughput processing
+    /// client.service_tier("premium");   // Premium features and priority
+    /// ```
     pub fn service_tier<T: AsRef<str>>(&mut self, tier: T) -> &mut Self {
         self.request_body.service_tier = Some(tier.as_ref().to_string());
         self
     }
 
+    /// Enables or disables conversation storage
+    ///
+    /// Controls whether the conversation may be stored for future reference,
+    /// training, or analytics purposes. This setting affects data retention
+    /// and privacy policies.
+    ///
+    /// # Arguments
+    ///
+    /// * `enable` - Whether to allow conversation storage
+    ///   - `true`: Allow storage for training, analytics, etc.
+    ///   - `false`: Explicitly opt-out of storage
+    ///
+    /// # Privacy Considerations
+    ///
+    /// - **Enabled storage**: Conversation may be retained according to service policies
+    /// - **Disabled storage**: Request explicit deletion after processing
+    /// - **Default behavior**: Varies by service configuration
+    ///
+    /// # Returns
+    ///
+    /// A mutable reference to self for method chaining
+    ///
+    /// # Use Cases
+    ///
+    /// - **Enable**: Contributing to model improvement, analytics
+    /// - **Disable**: Sensitive data, privacy-critical applications
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use openai_tools::responses::request::Responses;
+    ///
+    /// let mut client = Responses::new();
+    /// client.store(false);  // Opt-out of storage for privacy
+    /// client.store(true);   // Allow storage for improvement
+    /// ```
     pub fn store(&mut self, enable: bool) -> &mut Self {
         self.request_body.store = Some(enable);
         self
     }
 
+    /// Enables or disables streaming responses
+    ///
+    /// When enabled, the response will be streamed back in chunks as it's
+    /// generated, allowing for real-time display of partial results instead
+    /// of waiting for the complete response.
+    ///
+    /// # Arguments
+    ///
+    /// * `enable` - Whether to enable streaming
+    ///   - `true`: Stream response in real-time chunks
+    ///   - `false`: Wait for complete response before returning
+    ///
+    /// # Returns
+    ///
+    /// A mutable reference to self for method chaining
+    ///
+    /// # Use Cases
+    ///
+    /// - **Enable streaming**: Real-time chat interfaces, live text generation
+    /// - **Disable streaming**: Batch processing, when complete response is needed
+    ///
+    /// # Implementation Notes
+    ///
+    /// - Streaming responses require different handling in client code
+    /// - May affect some response features or formatting options
+    /// - Typically used with `stream_options()` for additional configuration
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use openai_tools::responses::request::Responses;
+    ///
+    /// let mut client = Responses::new();
+    /// client.stream(true);   // Enable real-time streaming
+    /// client.stream(false);  // Wait for complete response
+    /// ```
     pub fn stream(&mut self, enable: bool) -> &mut Self {
         self.request_body.stream = Some(enable);
         self
     }
 
+    /// Configures streaming response options
+    ///
+    /// Additional options for controlling streaming response behavior,
+    /// such as whether to include obfuscated placeholder content during
+    /// the streaming process.
+    ///
+    /// # Arguments
+    ///
+    /// * `include_obfuscation` - Whether to include obfuscated content
+    ///   - `true`: Include placeholder/obfuscated content in streams
+    ///   - `false`: Only include final, non-obfuscated content
+    ///
+    /// # Returns
+    ///
+    /// A mutable reference to self for method chaining
+    ///
+    /// # Relevance
+    ///
+    /// This setting is only meaningful when `stream(true)` is also set.
+    /// It has no effect on non-streaming responses.
+    ///
+    /// # Use Cases
+    ///
+    /// - **Include obfuscation**: Better user experience with placeholder content
+    /// - **Exclude obfuscation**: Cleaner streams with only final content
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use openai_tools::responses::request::Responses;
+    ///
+    /// let mut client = Responses::new();
+    /// client.stream(true);                    // Enable streaming
+    /// client.stream_options(true);            // Include placeholder content
+    /// client.stream_options(false);           // Only final content
+    /// ```
     pub fn stream_options(&mut self, include_obfuscation: bool) -> &mut Self {
         self.request_body.stream_options = Some(StreamOptions { include_obfuscation });
         self
     }
 
+    /// Sets the number of top log probabilities to include in the response
+    ///
+    /// Specifies how many of the most likely alternative tokens to include
+    /// with their log probabilities for each generated token. This provides
+    /// insight into the model's confidence and alternative choices.
+    ///
+    /// # Arguments
+    ///
+    /// * `n` - Number of top alternatives to include (typically 1-20)
+    ///   - `0`: No log probabilities included
+    ///   - `1-5`: Common range for most use cases
+    ///   - `>5`: Detailed analysis scenarios
+    ///
+    /// # Returns
+    ///
+    /// A mutable reference to self for method chaining
+    ///
+    /// # Use Cases
+    ///
+    /// - **Model analysis**: Understanding model decision-making
+    /// - **Confidence estimation**: Measuring response certainty
+    /// - **Alternative exploration**: Seeing what else the model considered
+    /// - **Debugging**: Analyzing unexpected model behavior
+    ///
+    /// # Performance Note
+    ///
+    /// Higher values increase response size and may affect latency.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use openai_tools::responses::request::Responses;
+    ///
+    /// let mut client = Responses::new();
+    /// client.top_logprobs(1);   // Include top alternative for each token
+    /// client.top_logprobs(5);   // Include top 5 alternatives (detailed analysis)
+    /// client.top_logprobs(0);   // No log probabilities
+    /// ```
     pub fn top_logprobs(&mut self, n: usize) -> &mut Self {
         self.request_body.top_logprobs = Some(n);
         self
     }
 
+    /// Sets the nucleus sampling parameter for controlling response diversity
+    ///
+    /// Controls the randomness of the model's responses by limiting the
+    /// cumulative probability of considered tokens. This is an alternative
+    /// to temperature-based sampling that can provide more stable results.
+    ///
+    /// # Arguments
+    ///
+    /// * `p` - The nucleus sampling parameter (0.0 to 1.0)
+    ///   - `0.1`: Very focused, deterministic responses
+    ///   - `0.7`: Balanced creativity and focus (good default)
+    ///   - `0.9`: More diverse and creative responses
+    ///   - `1.0`: Consider all possible tokens (no truncation)
+    ///
+    /// # Returns
+    ///
+    /// A mutable reference to self for method chaining
+    ///
+    /// # How It Works
+    ///
+    /// The model considers only the tokens whose cumulative probability
+    /// reaches the specified threshold, filtering out unlikely options.
+    ///
+    /// # Interaction with Temperature
+    ///
+    /// Can be used together with `temperature()` for fine-tuned control:
+    /// - Low top_p + Low temperature = Very focused responses
+    /// - High top_p + High temperature = Very creative responses
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use openai_tools::responses::request::Responses;
+    ///
+    /// let mut client = Responses::new();
+    /// client.top_p(0.1);   // Very focused responses
+    /// client.top_p(0.7);   // Balanced (recommended default)
+    /// client.top_p(0.95);  // High diversity
+    /// ```
     pub fn top_p(&mut self, p: f64) -> &mut Self {
         self.request_body.top_p = Some(p);
         self
     }
 
+    /// Sets the truncation behavior for handling long inputs
+    ///
+    /// Controls how the system handles inputs that exceed the maximum
+    /// context length supported by the model. This helps manage cases
+    /// where input content is too large to process entirely.
+    ///
+    /// # Arguments
+    ///
+    /// * `truncation` - The truncation mode to use:
+    ///   - `Truncation::Auto`: Automatically truncate long inputs to fit
+    ///   - `Truncation::Disabled`: Return error if input exceeds context length
+    ///
+    /// # Returns
+    ///
+    /// A mutable reference to self for method chaining
+    ///
+    /// # Use Cases
+    ///
+    /// - **Auto truncation**: When you want to handle long documents gracefully
+    /// - **Disabled truncation**: When you need to ensure complete input processing
+    ///
+    /// # Considerations
+    ///
+    /// - Auto truncation may remove important context from long inputs
+    /// - Disabled truncation ensures complete processing but may cause errors
+    /// - Consider breaking long inputs into smaller chunks when possible
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use openai_tools::responses::request::{Responses, Truncation};
+    ///
+    /// let mut client = Responses::new();
+    /// client.truncation(Truncation::Auto);      // Handle long inputs gracefully
+    /// client.truncation(Truncation::Disabled);  // Ensure complete processing
+    /// ```
     pub fn truncation(&mut self, truncation: Truncation) -> &mut Self {
         self.request_body.truncation = Some(truncation);
         self
