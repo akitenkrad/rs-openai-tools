@@ -18,8 +18,6 @@
 //!
 //! ```rust,no_run
 //! use openai_tools::responses::request::Responses;
-//! use openai_tools::common::message::Message;
-//! use openai_tools::common::role::Role;
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -28,11 +26,11 @@
 //!     
 //!     // Configure basic parameters
 //!     responses
-//!         .model_id("gpt-4o-mini")
+//!         .model_id("gpt-5-mini")
 //!         .instructions("You are a helpful assistant.");
 //!     
 //!     // Simple text input
-//!     responses.plain_text_input("Hello! How are you today?");
+//!     responses.str_message("Hello! How are you today?");
 //!
 //!     // Send the request
 //!     let response = responses.complete().await?;
@@ -57,7 +55,7 @@
 //!     let mut responses = Responses::new();
 //!     
 //!     responses
-//!         .model_id("gpt-4o-mini")
+//!         .model_id("gpt-5-mini")
 //!         .instructions("You are a knowledgeable assistant.");
 //!     
 //!     // Create a conversation with multiple messages
@@ -87,7 +85,7 @@
 //!     let mut responses = Responses::new();
 //!     
 //!     responses
-//!         .model_id("gpt-4o-mini")
+//!         .model_id("gpt-5-mini")
 //!         .instructions("You are an image analysis assistant.");
 //!     
 //!     // Create a message with both text and image content
@@ -128,7 +126,7 @@
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     let mut responses = Responses::new();
 //!     
-//!     responses.model_id("gpt-4o-mini");
+//!     responses.model_id("gpt-5-mini");
 //!     
 //!     let messages = vec![
 //!         Message::from_string(Role::User,
@@ -171,7 +169,7 @@
 //!     let mut responses = Responses::new();
 //!     
 //!     responses
-//!         .model_id("gpt-4o-mini")
+//!         .model_id("gpt-5-mini")
 //!         .instructions("You are a helpful calculator assistant.");
 //!     
 //!     // Define a calculator tool
@@ -244,7 +242,7 @@
 //! async fn main() {
 //!     let mut responses = Responses::new();
 //!     
-//!     match responses.model_id("gpt-4o-mini").complete().await {
+//!     match responses.model_id("gpt-5-mini").complete().await {
 //!         Ok(response) => {
 //!             println!("Success: {}", response.output[0].content.as_ref().unwrap()[0].text);
 //!         }
@@ -296,9 +294,9 @@ mod tests {
     async fn test_responses_with_plain_text() {
         init_tracing();
         let mut responses = Responses::new();
-        responses.model_id("gpt-4o-mini");
+        responses.model_id("gpt-5-mini");
         responses.instructions("test instructions");
-        responses.plain_text_input("Hello world!");
+        responses.str_message("Hello world!");
 
         let body_json = serde_json::to_string_pretty(&responses.request_body).unwrap();
         tracing::info!("Request body: {}", body_json);
@@ -308,7 +306,10 @@ mod tests {
             match responses.complete().await {
                 Ok(res) => {
                     tracing::info!("Response: {}", serde_json::to_string_pretty(&res).unwrap());
-                    assert!(res.output[0].content.as_ref().unwrap()[0].text.len() > 0);
+
+                    // Find the message output in the response
+                    let message_output = res.output.iter().find(|output| output.content.is_some()).unwrap();
+                    assert!(message_output.content.as_ref().unwrap()[0].text.len() > 0);
                     break;
                 }
                 Err(e) => {
@@ -326,7 +327,7 @@ mod tests {
     async fn test_responses_with_messages() {
         init_tracing();
         let mut responses = Responses::new();
-        responses.model_id("gpt-4o-mini");
+        responses.model_id("gpt-5-mini");
         responses.instructions("test instructions");
         let messages = vec![Message::from_string(Role::User, "Hello world!")];
         responses.messages(messages);
@@ -339,7 +340,10 @@ mod tests {
             match responses.complete().await {
                 Ok(res) => {
                     tracing::info!("Response: {}", serde_json::to_string_pretty(&res).unwrap());
-                    assert!(res.output[0].content.as_ref().unwrap()[0].text.len() > 0);
+
+                    // Find the message output in the response
+                    let message_output = res.output.iter().find(|output| output.content.is_some()).unwrap();
+                    assert!(message_output.content.as_ref().unwrap()[0].text.len() > 0);
                     break;
                 }
                 Err(e) => {
@@ -357,7 +361,7 @@ mod tests {
     async fn test_responses_with_tools() {
         init_tracing();
         let mut responses = Responses::new();
-        responses.model_id("gpt-4o-mini");
+        responses.model_id("gpt-5-mini");
         responses.instructions("test instructions");
         let messages = vec![Message::from_string(Role::User, "Calculate 2 + 2 using a calculator tool.")];
         responses.messages(messages);
@@ -378,9 +382,12 @@ mod tests {
             match responses.complete().await {
                 Ok(res) => {
                     tracing::info!("Response: {}", serde_json::to_string_pretty(&res).unwrap());
-                    assert_eq!(res.output[0].type_name, "function_call");
-                    assert_eq!(res.output[0].name.as_ref().unwrap(), "calculator");
-                    assert!(res.output[0].call_id.as_ref().unwrap().len() > 0);
+
+                    // Find the function_call output in the response
+                    let function_call_output = res.output.iter().find(|output| output.type_name == "function_call").unwrap();
+                    assert_eq!(function_call_output.type_name, "function_call");
+                    assert_eq!(function_call_output.name.as_ref().unwrap(), "calculator");
+                    assert!(function_call_output.call_id.as_ref().unwrap().len() > 0);
                     break;
                 }
                 Err(e) => {
@@ -402,7 +409,7 @@ mod tests {
     async fn test_responses_with_json_schema() {
         init_tracing();
         let mut responses = Responses::new();
-        responses.model_id("gpt-4o-mini");
+        responses.model_id("gpt-5-mini");
 
         let messages = vec![Message::from_string(Role::User, "What is the capital of France?")];
         responses.messages(messages);
@@ -416,7 +423,10 @@ mod tests {
             match responses.complete().await {
                 Ok(res) => {
                     tracing::info!("Response: {}", serde_json::to_string_pretty(&res).unwrap());
-                    let res = serde_json::from_str::<TestResponse>(res.output[0].content.as_ref().unwrap()[0].text.as_str()).unwrap();
+
+                    // Find the message output in the response
+                    let message_output = res.output.iter().find(|output| output.content.is_some()).unwrap();
+                    let res = serde_json::from_str::<TestResponse>(message_output.content.as_ref().unwrap()[0].text.as_str()).unwrap();
                     assert_eq!(res.capital, "Paris");
                     break;
                 }
@@ -435,7 +445,7 @@ mod tests {
     async fn test_responses_with_image_input() {
         init_tracing();
         let mut responses = Responses::new();
-        responses.model_id("gpt-4o-mini");
+        responses.model_id("gpt-5-mini");
         responses.instructions("test instructions");
 
         let message = Message::from_message_array(
@@ -451,8 +461,11 @@ mod tests {
         loop {
             match responses.complete().await {
                 Ok(res) => {
-                    tracing::info!("Response: {}", serde_json::to_string_pretty(&res).unwrap());
-                    assert!(res.output[0].content.as_ref().unwrap()[0].text.len() > 0);
+                    for output in res.output {
+                        if output.type_name == "message" {
+                            tracing::info!("Image URL: {}", output.content.as_ref().unwrap()[0].text);
+                        }
+                    }
                     break;
                 }
                 Err(e) => {
