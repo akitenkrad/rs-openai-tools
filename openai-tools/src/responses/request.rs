@@ -25,13 +25,15 @@ use strum::{Display, EnumString};
 ///
 /// Corresponds to the `include` parameter in the OpenAI Responses API:
 /// <https://platform.openai.com/docs/api-reference/responses/create>
-#[derive(Debug, Clone, EnumString, Display, Serialize)]
+#[derive(Debug, Clone, EnumString, Display, Serialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
 pub enum Include {
-    /// Include web search call sources in the output
+    /// Include web search call results in the output  
     ///
     /// When included, the response will contain information about web search
-    /// sources that were used during the response generation process.
-    #[strum(serialize = "web_search_call.action.sources")]
+    /// results that were used during the response generation process.
+    #[strum(serialize = "web_search_call.results")]
+    #[serde(rename = "web_search_call.results")]
     WebSearchCall,
 
     /// Include code interpreter call outputs in the output
@@ -39,6 +41,7 @@ pub enum Include {
     /// When included, the response will contain outputs from any code
     /// that was executed during the response generation process.
     #[strum(serialize = "code_interpreter_call.outputs")]
+    #[serde(rename = "code_interpreter_call.outputs")]
     CodeInterpreterCall,
 
     /// Include computer call output image URLs in the output
@@ -46,6 +49,7 @@ pub enum Include {
     /// When included, the response will contain image URLs from any
     /// computer interaction calls that were made.
     #[strum(serialize = "computer_call_output.output.image_url")]
+    #[serde(rename = "computer_call_output.output.image_url")]
     ImageUrlInComputerCallOutput,
 
     /// Include file search call results in the output
@@ -53,6 +57,7 @@ pub enum Include {
     /// When included, the response will contain results from any
     /// file search operations that were performed.
     #[strum(serialize = "file_search_call.results")]
+    #[serde(rename = "file_search_call.results")]
     FileSearchCall,
 
     /// Include image URLs from input messages in the output
@@ -60,6 +65,7 @@ pub enum Include {
     /// When included, the response will contain image URLs that were
     /// present in the input messages.
     #[strum(serialize = "message.input_image.image_url")]
+    #[serde(rename = "message.input_image.image_url")]
     ImageUrlInInputMessages,
 
     /// Include log probabilities in the output
@@ -67,6 +73,7 @@ pub enum Include {
     /// When included, the response will contain log probability information
     /// for the generated text tokens.
     #[strum(serialize = "message.output_text.logprobs")]
+    #[serde(rename = "message.output_text.logprobs")]
     LogprobsInOutput,
 
     /// Include reasoning encrypted content in the output
@@ -74,6 +81,7 @@ pub enum Include {
     /// When included, the response will contain encrypted reasoning
     /// content that shows the model's internal reasoning process.
     #[strum(serialize = "reasoning.encrypted_content")]
+    #[serde(rename = "reasoning.encrypted_content")]
     ReasoningEncryptedContent,
 }
 
@@ -85,30 +93,35 @@ pub enum Include {
 /// # API Reference
 ///
 /// Corresponds to the `reasoning.effort` parameter in the OpenAI Responses API.
-#[derive(Debug, Clone, Serialize, EnumString, Display)]
+#[derive(Debug, Clone, Serialize, EnumString, Display, PartialEq)]
+#[serde(rename_all = "snake_case")]
 pub enum ReasoningEffort {
     /// Minimal reasoning effort - fastest response time
     ///
     /// Use this for simple queries that don't require deep analysis.
     #[strum(serialize = "minimal")]
+    #[serde(rename = "minimal")]
     Minimal,
 
-    /// Low reasoning effort - balanced speed and analysis
+    /// Low reasoning effort - balanced performance
     ///
-    /// Use this for moderately complex queries.
+    /// Use this for moderately complex queries that benefit from some reasoning.
     #[strum(serialize = "low")]
+    #[serde(rename = "low")]
     Low,
 
-    /// Medium reasoning effort - more thorough analysis
+    /// Medium reasoning effort - comprehensive analysis
     ///
-    /// Use this for complex queries requiring careful consideration.
+    /// Use this for complex queries that require thorough consideration.
     #[strum(serialize = "medium")]
+    #[serde(rename = "medium")]
     Medium,
 
-    /// High reasoning effort - maximum analysis depth
+    /// High reasoning effort - maximum thoughtfulness
     ///
-    /// Use this for the most complex queries requiring deep reasoning.
+    /// Use this for very complex queries requiring deep, careful analysis.
     #[strum(serialize = "high")]
+    #[serde(rename = "high")]
     High,
 }
 
@@ -120,24 +133,28 @@ pub enum ReasoningEffort {
 /// # API Reference
 ///
 /// Corresponds to the `reasoning.summary` parameter in the OpenAI Responses API.
-#[derive(Debug, Clone, Serialize, EnumString, Display)]
+#[derive(Debug, Clone, Serialize, EnumString, Display, PartialEq)]
+#[serde(rename_all = "snake_case")]
 pub enum ReasoningSummary {
     /// Automatically determine the appropriate summary format
     ///
     /// The model will choose the most suitable summary format based on the query.
     #[strum(serialize = "auto")]
+    #[serde(rename = "auto")]
     Auto,
 
     /// Provide a concise summary of the reasoning process
     ///
     /// Use this for shorter, more focused reasoning explanations.
     #[strum(serialize = "concise")]
+    #[serde(rename = "concise")]
     Concise,
 
     /// Provide a detailed summary of the reasoning process
     ///
     /// Use this for comprehensive reasoning explanations with full detail.
     #[strum(serialize = "detailed")]
+    #[serde(rename = "detailed")]
     Detailed,
 }
 
@@ -165,13 +182,15 @@ pub struct Reasoning {
 /// # API Reference
 ///
 /// Corresponds to the `tool_choice` parameter in the OpenAI Responses API.
-#[derive(Debug, Clone, Serialize, EnumString, Display)]
+#[derive(Debug, Clone, Serialize, EnumString, Display, PartialEq)]
+#[serde(rename_all = "snake_case")]
 pub enum ToolChoiceMode {
     /// Disable tool usage completely
     ///
     /// The model will not use any tools and will generate responses
     /// based solely on its training data.
     #[strum(serialize = "none")]
+    #[serde(rename = "none")]
     None,
 
     /// Automatically decide when to use tools
@@ -179,12 +198,14 @@ pub enum ToolChoiceMode {
     /// The model will automatically determine when tools are needed
     /// and which tools to use based on the query context.
     #[strum(serialize = "auto")]
+    #[serde(rename = "auto")]
     Auto,
 
     /// Require the use of tools
     ///
     /// The model must use at least one of the provided tools in its response.
     #[strum(serialize = "required")]
+    #[serde(rename = "required")]
     Required,
 }
 
@@ -196,13 +217,15 @@ pub enum ToolChoiceMode {
 /// # API Reference
 ///
 /// Corresponds to the `truncation` parameter in the OpenAI Responses API.
-#[derive(Debug, Clone, Serialize, EnumString, Display)]
+#[derive(Debug, Clone, Serialize, EnumString, Display, PartialEq)]
+#[serde(rename_all = "snake_case")]
 pub enum Truncation {
     /// Automatically truncate inputs to fit context length
     ///
     /// The system will automatically trim inputs to ensure they fit
     /// within the model's context window.
     #[strum(serialize = "auto")]
+    #[serde(rename = "auto")]
     Auto,
 
     /// Disable truncation - return error if input is too long
@@ -210,6 +233,7 @@ pub enum Truncation {
     /// The system will return an error rather than truncating
     /// inputs that exceed the context length.
     #[strum(serialize = "disabled")]
+    #[serde(rename = "disabled")]
     Disabled,
 }
 
@@ -411,6 +435,68 @@ pub struct Body {
     /// let format = Format::new(Schema::responses_json_schema("response_schema"));
     /// ```
     pub structured_output: Option<Format>,
+
+    /// Optional sampling temperature for controlling response randomness
+    ///
+    /// Controls the randomness and creativity of the model's responses.
+    /// Higher values make the output more random and creative, while lower
+    /// values make it more focused, deterministic, and consistent.
+    ///
+    /// # Range
+    ///
+    /// - **Range**: 0.0 to 2.0
+    /// - **Default**: 1.0 (if not specified)
+    /// - **Minimum**: 0.0 (most deterministic, least creative)
+    /// - **Maximum**: 2.0 (most random, most creative)
+    ///
+    /// # Recommended Values
+    ///
+    /// - **0.0 - 0.3**: Highly focused and deterministic
+    ///   - Best for: Factual questions, code generation, translations
+    ///   - Behavior: Very consistent, predictable responses
+    ///
+    /// - **0.3 - 0.7**: Balanced creativity and consistency
+    ///   - Best for: General conversation, explanations, analysis
+    ///   - Behavior: Good balance between creativity and reliability
+    ///
+    /// - **0.7 - 1.2**: More creative and varied responses
+    ///   - Best for: Creative writing, brainstorming, ideation
+    ///   - Behavior: More diverse and interesting outputs
+    ///
+    /// - **1.2 - 2.0**: Highly creative and unpredictable
+    ///   - Best for: Experimental creative tasks, humor, unconventional ideas
+    ///   - Behavior: Very diverse but potentially less coherent
+    ///
+    /// # Usage Guidelines
+    ///
+    /// - **Start with 0.7** for most applications as a good default
+    /// - **Use 0.0-0.3** when you need consistent, reliable responses
+    /// - **Use 0.8-1.2** for creative tasks that still need coherence
+    /// - **Avoid values above 1.5** unless you specifically want very random outputs
+    ///
+    /// # API Reference
+    ///
+    /// Corresponds to the `temperature` parameter in the OpenAI Responses API:
+    /// <https://platform.openai.com/docs/api-reference/responses/create>
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use openai_tools::responses::request::Responses;
+    ///
+    /// // Deterministic, factual responses
+    /// let mut client_factual = Responses::new();
+    /// client_factual.temperature(0.2);
+    ///
+    /// // Balanced creativity and consistency
+    /// let mut client_balanced = Responses::new();
+    /// client_balanced.temperature(0.7);
+    ///
+    /// // High creativity for brainstorming
+    /// let mut client_creative = Responses::new();
+    /// client_creative.temperature(1.1);
+    /// ```
+    pub temperature: Option<f64>,
 
     /// Optional maximum number of tokens to generate in the response
     ///
@@ -748,7 +834,9 @@ impl Serialize for Body {
         state.serialize_field("input", &input)?;
 
         // Optional fields
-
+        if self.temperature.is_some() {
+            state.serialize_field("temperature", &self.temperature)?;
+        }
         if self.instructions.is_some() {
             state.serialize_field("instructions", &self.instructions)?;
         }
@@ -949,6 +1037,47 @@ impl Responses {
     /// A mutable reference to self for method chaining
     pub fn structured_output(&mut self, text_format: Schema) -> &mut Self {
         self.request_body.structured_output = Option::from(Format::new(text_format));
+        self
+    }
+
+    /// Sets the sampling temperature for controlling response randomness
+    ///
+    /// Controls the randomness and creativity of the model's responses.
+    /// Higher values make the output more random and creative, while lower
+    /// values make it more focused and deterministic.
+    ///
+    /// # Arguments
+    ///
+    /// * `temperature` - The temperature value (0.0 to 2.0)
+    ///   - 0.0: Most deterministic and focused responses
+    ///   - 1.0: Default balanced behavior
+    ///   - 2.0: Most random and creative responses
+    ///
+    /// # Panics
+    ///
+    /// This method will panic if the temperature value is outside the valid
+    /// range of 0.0 to 2.0, as this would result in an API error.
+    ///
+    /// # Returns
+    ///
+    /// A mutable reference to self for method chaining
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use openai_tools::responses::request::Responses;
+    ///
+    /// // Deterministic responses for factual queries
+    /// let mut client = Responses::new();
+    /// client.temperature(0.2);
+    ///
+    /// // Creative responses for brainstorming
+    /// let mut client = Responses::new();
+    /// client.temperature(1.1);
+    /// ```
+    pub fn temperature(&mut self, temperature: f64) -> &mut Self {
+        assert!((0.0..=2.0).contains(&temperature), "Temperature must be between 0.0 and 2.0, got {}", temperature);
+        self.request_body.temperature = Some(temperature);
         self
     }
 

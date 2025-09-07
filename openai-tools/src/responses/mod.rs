@@ -271,7 +271,7 @@ mod tests {
         structured_output::Schema,
         tool::Tool,
     };
-    use crate::responses::request::Responses;
+    use crate::responses::request::{Include, ReasoningEffort, ReasoningSummary, Responses, Truncation};
 
     use serde::Deserialize;
     use std::sync::Once;
@@ -450,7 +450,7 @@ mod tests {
 
         let message = Message::from_message_array(
             Role::User,
-            vec![Content::from_text("Do you find a clock in this image?"), Content::from_image_file("src/test_rsc/sample_image.jpg")],
+            vec![Content::from_text("What do you see in this image?"), Content::from_image_file("src/test_rsc/sample_image.jpg")],
         );
         responses.messages(vec![message]);
 
@@ -478,4 +478,105 @@ mod tests {
             }
         }
     }
+
+    #[test]
+    fn test_optional_parameters() {
+        init_tracing();
+
+        let mut responses = Responses::new();
+
+        // Set basic required parameters
+        responses.model_id("gpt-4o-mini");
+        responses.str_message("Write a short poem about programming in exactly 50 words.");
+
+        // Test various optional parameters
+        responses.temperature(0.7); // Creativity control
+        responses.max_output_tokens(100); // Output length limit
+        responses.max_tool_calls(2); // Tool call limit
+        responses.parallel_tool_calls(true); // Parallel tool execution
+        responses.store(false); // Storage preference
+        responses.stream(false); // Streaming disabled
+        responses.top_logprobs(3); // Log probabilities
+        responses.top_p(0.9); // Nucleus sampling
+        responses.truncation(Truncation::Auto); // Input truncation
+
+        // Add metadata for tracking
+        responses.metadata("test_type".to_string(), serde_json::Value::String("optional_params".to_string()));
+        responses.metadata("version".to_string(), serde_json::Value::String("1".to_string()));
+        responses.metadata("debug".to_string(), serde_json::Value::String("true".to_string()));
+
+        // Set conversation tracking
+        responses.conversation("conv-test-conversation-123");
+        responses.safety_identifier("moderate");
+        responses.service_tier("default");
+
+        // Add reasoning configuration
+        responses.reasoning(ReasoningEffort::Medium, ReasoningSummary::Concise);
+
+        // Set background processing and includes (using valid API values)
+        responses.background(false);
+        responses.include(vec![
+            Include::WebSearchCall,             // "web_search_call.results"
+            Include::ReasoningEncryptedContent, // "reasoning.encrypted_content"
+        ]);
+
+        let body_json = serde_json::to_string_pretty(&responses.request_body).unwrap();
+        tracing::info!("Request body with optional parameters: {}", body_json);
+
+        // Verify that all optional parameters are set correctly in the request body
+        assert_eq!(responses.request_body.temperature, Some(0.7));
+        assert_eq!(responses.request_body.max_output_tokens, Some(100));
+        assert_eq!(responses.request_body.max_tool_calls, Some(2));
+        assert_eq!(responses.request_body.parallel_tool_calls, Some(true));
+        assert_eq!(responses.request_body.store, Some(false));
+        assert_eq!(responses.request_body.stream, Some(false));
+        assert_eq!(responses.request_body.top_logprobs, Some(3));
+        assert_eq!(responses.request_body.top_p, Some(0.9));
+        assert!(matches!(responses.request_body.truncation, Some(Truncation::Auto)));
+        assert_eq!(responses.request_body.conversation, Some("conv-test-conversation-123".to_string()));
+        assert_eq!(responses.request_body.safety_identifier, Some("moderate".to_string()));
+        assert_eq!(responses.request_body.service_tier, Some("default".to_string()));
+        assert_eq!(responses.request_body.background, Some(false));
+        assert!(responses.request_body.metadata.is_some());
+        assert!(responses.request_body.reasoning.is_some());
+        assert!(responses.request_body.include.is_some());
+
+        // Verify metadata content
+        let metadata = responses.request_body.metadata.as_ref().unwrap();
+        assert_eq!(metadata.get("test_type"), Some(&serde_json::Value::String("optional_params".to_string())));
+        assert_eq!(metadata.get("version"), Some(&serde_json::Value::String("1".to_string())));
+        assert_eq!(metadata.get("debug"), Some(&serde_json::Value::String("true".to_string())));
+
+        // Verify reasoning configuration
+        let reasoning = responses.request_body.reasoning.as_ref().unwrap();
+        assert!(matches!(reasoning.effort, Some(ReasoningEffort::Medium)));
+        assert!(matches!(reasoning.summary, Some(ReasoningSummary::Concise)));
+
+        // Verify include fields
+        let includes = responses.request_body.include.as_ref().unwrap();
+        assert!(includes.contains(&Include::WebSearchCall));
+        assert!(includes.contains(&Include::ReasoningEncryptedContent));
+
+        // Execute the request to ensure it works with all parameters
+        // Note: For testing purposes, we'll verify the request body is properly formatted
+        // instead of making an actual API call which would require valid API keys and usage costs
+
+        // Verify that the request body can be serialized to JSON without errors
+        let json_result = serde_json::to_string_pretty(&responses.request_body);
+        assert!(json_result.is_ok(), "Failed to serialize request body to JSON: {:?}", json_result.err());
+
+        let json_body = json_result.unwrap();
+        tracing::info!("Successfully serialized request body with all optional parameters");
+
+        // Verify key fields are present in the JSON
+        assert!(json_body.contains("\"temperature\": 0.7"));
+        assert!(json_body.contains("\"max_output_tokens\": 100"));
+        assert!(json_body.contains("\"reasoning\""));
+        assert!(json_body.contains("\"include\""));
+        assert!(json_body.contains("\"metadata\""));
+
+        tracing::info!("All optional parameters test passed successfully");
+    }
+
+    // TODO: Test whether optional parameters are correctly reflected in the actual API response
 }
