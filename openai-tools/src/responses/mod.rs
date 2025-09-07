@@ -143,7 +143,7 @@
 //!     schema.add_property("category", "string", "Product category");
 //!     schema.add_property("in_stock", "boolean", "Availability status");
 //!     
-//!     responses.text(schema);
+//!     responses.structured_output(schema);
 //!     
 //!     let response = responses.complete().await?;
 //!     
@@ -409,7 +409,7 @@ mod tests {
 
         let mut schema = Schema::responses_json_schema("capital");
         schema.add_property("capital", "string", "The capital city of France");
-        responses.text(schema);
+        responses.structured_output(schema);
 
         let mut counter = 3;
         loop {
