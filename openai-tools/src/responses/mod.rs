@@ -326,6 +326,7 @@ mod tests {
             }
         }
     }
+
     #[test_log::test(tokio::test)]
     async fn test_responses_with_plain_text() {
         init_tracing();
@@ -370,6 +371,77 @@ mod tests {
 
         let body_json = serde_json::to_string_pretty(&responses.request_body).unwrap();
         tracing::info!("Request body: {}", body_json);
+
+        let mut counter = 3;
+        loop {
+            match responses.complete().await {
+                Ok(res) => {
+                    tracing::info!("Response: {}", serde_json::to_string_pretty(&res).unwrap());
+
+                    // Find the message output in the response
+                    let message_output = res.output.as_ref().unwrap().iter().find(|output| output.content.is_some()).unwrap();
+                    assert!(message_output.content.as_ref().unwrap()[0].text.as_ref().unwrap().len() > 0);
+                    break;
+                }
+                Err(e) => {
+                    tracing::error!("Error: {} (retrying... {})", e, counter);
+                    counter -= 1;
+                    if counter == 0 {
+                        assert!(false, "Failed to complete responses after 3 attempts");
+                    }
+                }
+            }
+        }
+    }
+
+    #[test_log::test(tokio::test)]
+    async fn test_responses_with_multi_turn_conversations() {
+        init_tracing();
+
+        // First interaction
+        let mut responses = Responses::new();
+        responses.model_id("gpt-5-mini");
+        let messages = vec![Message::from_string(Role::User, "Hello!")];
+        responses.messages(messages);
+
+        let body_json = serde_json::to_string_pretty(&responses.request_body).unwrap();
+        tracing::info!("Request body: {}", body_json);
+
+        let mut conversation_id: String;
+        let mut counter = 3;
+        loop {
+            match responses.complete().await {
+                Ok(res) => {
+                    tracing::info!("Response: {}", serde_json::to_string_pretty(&res).unwrap());
+
+                    // Find the message output in the response
+                    let message_output = res.output.as_ref().unwrap().iter().find(|output| output.content.is_some()).unwrap();
+                    assert!(message_output.content.as_ref().unwrap()[0].text.as_ref().unwrap().len() > 0);
+
+                    // Save the conversation ID for the next turn
+                    conversation_id = res.id.as_ref().unwrap().clone();
+
+                    break;
+                }
+                Err(e) => {
+                    tracing::error!("Error: {} (retrying... {})", e, counter);
+                    counter -= 1;
+                    if counter == 0 {
+                        assert!(false, "Failed to complete responses after 3 attempts");
+                    }
+                }
+            }
+        }
+
+        // Second interaction in the same conversation
+        let mut responses = Responses::new();
+        responses.model_id("gpt-5-mini");
+        let messages = vec![Message::from_string(Role::User, "What's the weather like today?")];
+        responses.messages(messages);
+        responses.previous_response_id(conversation_id);
+
+        let body_json = serde_json::to_string_pretty(&responses.request_body).unwrap();
+        tracing::info!("Request body for second turn: {}", body_json);
 
         let mut counter = 3;
         loop {
