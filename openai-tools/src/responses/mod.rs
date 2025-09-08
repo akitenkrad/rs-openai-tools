@@ -312,8 +312,8 @@ mod tests {
                     tracing::info!("Response: {}", serde_json::to_string_pretty(&res).unwrap());
 
                     // Find the message output in the response
-                    let message_output = res.output.iter().find(|output| output.content.is_some()).unwrap();
-                    assert!(message_output.content.as_ref().unwrap()[0].text.len() > 0);
+                    let message_output = res.output.as_ref().unwrap().iter().find(|output| output.content.is_some()).unwrap();
+                    assert!(message_output.content.as_ref().unwrap()[0].text.as_ref().unwrap().len() > 0);
                     break;
                 }
                 Err(e) => {
@@ -344,8 +344,8 @@ mod tests {
                     tracing::info!("Response: {}", serde_json::to_string_pretty(&res).unwrap());
 
                     // Find the message output in the response
-                    let message_output = res.output.iter().find(|output| output.content.is_some()).unwrap();
-                    assert!(message_output.content.as_ref().unwrap()[0].text.len() > 0);
+                    let message_output = res.output.as_ref().unwrap().iter().find(|output| output.content.is_some()).unwrap();
+                    assert!(message_output.content.as_ref().unwrap()[0].text.as_ref().unwrap().len() > 0);
                     break;
                 }
                 Err(e) => {
@@ -378,8 +378,8 @@ mod tests {
                     tracing::info!("Response: {}", serde_json::to_string_pretty(&res).unwrap());
 
                     // Find the message output in the response
-                    let message_output = res.output.iter().find(|output| output.content.is_some()).unwrap();
-                    assert!(message_output.content.as_ref().unwrap()[0].text.len() > 0);
+                    let message_output = res.output.as_ref().unwrap().iter().find(|output| output.content.is_some()).unwrap();
+                    assert!(message_output.content.as_ref().unwrap()[0].text.as_ref().unwrap().len() > 0);
                     break;
                 }
                 Err(e) => {
@@ -420,8 +420,9 @@ mod tests {
                     tracing::info!("Response: {}", serde_json::to_string_pretty(&res).unwrap());
 
                     // Find the function_call output in the response
-                    let function_call_output = res.output.iter().find(|output| output.type_name == "function_call").unwrap();
-                    assert_eq!(function_call_output.type_name, "function_call");
+                    let function_call_output =
+                        res.output.as_ref().unwrap().iter().find(|output| output.type_name.as_ref().unwrap() == "function_call").unwrap();
+                    assert_eq!(function_call_output.type_name.as_ref().unwrap(), "function_call");
                     assert_eq!(function_call_output.name.as_ref().unwrap(), "calculator");
                     assert!(function_call_output.call_id.as_ref().unwrap().len() > 0);
                     break;
@@ -457,8 +458,9 @@ mod tests {
                     tracing::info!("Response: {}", serde_json::to_string_pretty(&res).unwrap());
 
                     // Find the message output in the response
-                    let message_output = res.output.iter().find(|output| output.content.is_some()).unwrap();
-                    let res = serde_json::from_str::<TestResponse>(message_output.content.as_ref().unwrap()[0].text.as_str()).unwrap();
+                    let message_output = res.output.as_ref().unwrap().iter().find(|output| output.content.is_some()).unwrap();
+                    let res =
+                        serde_json::from_str::<TestResponse>(message_output.content.as_ref().unwrap()[0].text.as_ref().unwrap().as_str()).unwrap();
                     assert_eq!(res.capital, "Paris");
                     break;
                 }
@@ -492,9 +494,9 @@ mod tests {
         loop {
             match responses.complete().await {
                 Ok(res) => {
-                    for output in res.output {
-                        if output.type_name == "message" {
-                            tracing::info!("Image URL: {}", output.content.as_ref().unwrap()[0].text);
+                    for output in res.output.unwrap().iter() {
+                        if output.type_name.as_ref().unwrap() == "message" {
+                            tracing::info!("Image URL: {}", output.content.as_ref().unwrap()[0].text.as_ref().unwrap());
                         }
                     }
                     break;

@@ -9,13 +9,13 @@ use std::collections::HashMap;
 pub struct Content {
     /// The type of content, typically "text"
     #[serde(rename = "type")]
-    pub type_name: String,
+    pub type_name: Option<String>,
     /// The actual text content
-    pub text: String,
+    pub text: Option<String>,
     /// Any annotations associated with the content
-    pub annotations: Vec<String>,
+    pub annotations: Option<Vec<String>>,
     /// Log probabilities for the content tokens
-    pub logprobs: Vec<String>,
+    pub logprobs: Option<Vec<String>>,
 }
 
 /// Individual output item from the AI response.
@@ -27,10 +27,10 @@ pub struct Content {
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
 pub struct Output {
     /// Unique identifier for this output
-    pub id: String,
+    pub id: Option<String>,
     /// The type of output: "text", "function_call", etc.
     #[serde(rename = "type")]
-    pub type_name: String,
+    pub type_name: Option<String>,
     /// The role (e.g., "assistant") for text outputs
     pub role: Option<String>,
     /// Status of the output
@@ -70,15 +70,15 @@ pub struct Text {
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
 pub struct Response {
     /// Unique identifier for this response
-    pub id: String,
+    pub id: Option<String>,
     /// Object type, typically "response"
-    pub object: String,
+    pub object: Option<String>,
     /// Unix timestamp when the response was created
-    pub created_at: usize,
+    pub created_at: Option<usize>,
     /// Status of the response processing
-    pub status: String,
+    pub status: Option<String>,
     /// Whether the response was processed in the background
-    pub background: bool,
+    pub background: Option<bool>,
     /// Error message if the request failed
     pub error: Option<String>,
     /// Details about incomplete responses
@@ -90,15 +90,15 @@ pub struct Response {
     /// Maximum number of tool calls that were allowed
     pub max_tool_calls: Option<usize>,
     /// The model that was used to generate the response
-    pub model: String,
+    pub model: Option<String>,
     /// List of outputs from the AI (text, function calls, etc.)
-    pub output: Vec<Output>,
+    pub output: Option<Vec<Output>>,
     /// Whether parallel tool calls were enabled
-    pub parallel_tool_calls: bool,
+    pub parallel_tool_calls: Option<bool>,
     /// ID of the previous response in a conversation chain
     pub previous_response_id: Option<String>,
     /// Reasoning information from the AI
-    pub reasoning: Reasoning,
+    pub reasoning: Option<Reasoning>,
     /// Service tier used for processing
     pub service_tier: Option<String>,
     /// Whether the response should be stored
@@ -106,7 +106,7 @@ pub struct Response {
     /// Temperature setting used for generation
     pub temperature: Option<f64>,
     /// Text formatting configuration
-    pub text: Text,
+    pub text: Option<Text>,
     /// Tool choice configuration that was used
     pub tool_choice: Option<String>,
     /// Tools that were available during generation
@@ -122,5 +122,5 @@ pub struct Response {
     /// User identifier associated with the request
     pub user: Option<String>,
     /// Additional metadata as key-value pairs
-    pub metadata: HashMap<String, String>,
+    pub metadata: Option<HashMap<String, String>>,
 }
