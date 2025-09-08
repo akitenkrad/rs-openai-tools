@@ -824,14 +824,13 @@ impl Serialize for Body {
         state.serialize_field("model", &self.model)?;
 
         // Set input
-        let input = if self.plain_text_input.is_some() {
-            self.plain_text_input.clone().unwrap()
+        if self.plain_text_input.is_some() {
+            state.serialize_field("input", &self.plain_text_input.clone().unwrap())?;
         } else if self.messages_input.is_some() {
-            serde_json::to_string(&self.messages_input).unwrap()
+            state.serialize_field("input", &self.messages_input.clone().unwrap())?;
         } else {
             return Err(serde::ser::Error::custom("Either plain_text_input or messages_input must be set."));
         };
-        state.serialize_field("input", &input)?;
 
         // Optional fields
         if self.temperature.is_some() {
@@ -925,8 +924,12 @@ impl Serialize for Body {
 /// ```
 #[derive(Debug, Clone, Default, Serialize)]
 pub struct Responses {
+    /// The API endpoint for the OpenAI Responses service
+    endpoint: String,
     /// The OpenAI API key used for authentication
     api_key: String,
+    /// The User-Agent string to include in requests
+    user_agent: String,
     /// The request body containing all parameters for the API call
     pub request_body: Body,
 }
@@ -944,7 +947,14 @@ impl Responses {
     pub fn new() -> Self {
         dotenv().ok();
         let api_key = env::var("OPENAI_API_KEY").expect("OPENAI_API_KEY is not set.");
-        Self { api_key, request_body: Body::default() }
+        Self { endpoint: "https://api.openai.com/v1/responses".into(), api_key, user_agent: "".into(), request_body: Body::default() }
+    }
+
+    /// Creates a new instance of the Responses client with a custom endpoint
+    pub fn from_endpoint<T: AsRef<str>>(endpoint: T) -> Self {
+        dotenv().ok();
+        let api_key = env::var("OPENAI_API_KEY").expect("OPENAI_API_KEY is not set.");
+        Self { endpoint: endpoint.as_ref().to_string(), api_key, user_agent: "".into(), request_body: Body::default() }
     }
 
     /// Sets the model ID for the request
@@ -958,6 +968,20 @@ impl Responses {
     /// A mutable reference to self for method chaining
     pub fn model_id<T: AsRef<str>>(&mut self, model_id: T) -> &mut Self {
         self.request_body.model = model_id.as_ref().to_string();
+        self
+    }
+
+    /// Sets the User-Agent string for the request
+    ///
+    /// # Arguments
+    ///
+    /// * `user_agent` - The User-Agent string to include in the request headers
+    ///
+    /// # Returns
+    ///
+    /// A mutable reference to self for method chaining
+    pub fn user_agent<T: AsRef<str>>(&mut self, user_agent: T) -> &mut Self {
+        self.user_agent = user_agent.as_ref().to_string();
         self
     }
 
@@ -1789,28 +1813,48 @@ impl Responses {
         }
 
         let body = serde_json::to_string(&self.request_body)?;
-        let url = "https://api.openai.com/v1/responses".to_string();
+        let url = self.endpoint.clone();
 
         let client = request::Client::new();
+
+        // Set up headers
         let mut header = request::header::HeaderMap::new();
         header.insert("Content-Type", request::header::HeaderValue::from_static("application/json"));
         header.insert("Authorization", request::header::HeaderValue::from_str(&format!("Bearer {}", self.api_key)).unwrap());
-        header.insert("User-Agent", request::header::HeaderValue::from_static("openai-tools-rust/0.1.0"));
+        if !self.user_agent.is_empty() {
+            header.insert("User-Agent", request::header::HeaderValue::from_str(&self.user_agent).unwrap());
+        }
 
-        if cfg!(debug_assertions) {
+        if cfg!(test) {
+            tracing::info!("Endpoint: {}", self.endpoint);
             // Replace API key with a placeholder for security
             let body_for_debug = serde_json::to_string_pretty(&self.request_body).unwrap().replace(&self.api_key, "*************");
             // Log the request body for debugging purposes
             tracing::info!("Request body: {}", body_for_debug);
         }
 
-        let response = client.post(url).headers(header).body(body).send().await.map_err(OpenAIToolError::RequestError)?;
-        let content = response.text().await.map_err(OpenAIToolError::RequestError)?;
+        // Send the request and handle the response
+        match client.post(url).headers(header).body(body).send().await.map_err(OpenAIToolError::RequestError) {
+            Err(e) => {
+                tracing::error!("Request error: {}", e);
+                return Err(e);
+            }
+            Ok(response) if !response.status().is_success() => {
+                let status = response.status();
+                let error_text = response.text().await.unwrap_or_else(|_| "Failed to read error response".to_string());
+                tracing::error!("API error (status: {}): {}", status, error_text);
+                return Err(OpenAIToolError::Error(format!("API request failed with status {}: {}", status, error_text)));
+            }
+            Ok(response) => {
+                let content = response.text().await.map_err(OpenAIToolError::RequestError)?;
 
-        if cfg!(debug_assertions) {
-            tracing::info!("Response content: {}", content);
+                if cfg!(test) {
+                    tracing::info!("Response content: {}", content);
+                }
+
+                let data = serde_json::from_str::<Response>(&content).map_err(OpenAIToolError::SerdeJsonError);
+                return data;
+            }
         }
-
-        serde_json::from_str::<Response>(&content).map_err(OpenAIToolError::SerdeJsonError)
     }
 }

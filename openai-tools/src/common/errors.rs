@@ -1,3 +1,4 @@
+use serde::Deserialize;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -13,3 +14,16 @@ pub enum OpenAIToolError {
 }
 
 pub type Result<T> = std::result::Result<T, OpenAIToolError>;
+
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct ErrorMessage {
+    pub message: Option<String>,
+    pub type_name: Option<String>,
+    pub param: Option<String>,
+    pub code: Option<String>,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct ErrorResponse {
+    pub error: ErrorMessage,
+}

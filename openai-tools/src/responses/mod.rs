@@ -272,25 +272,61 @@ mod tests {
         tool::Tool,
     };
     use crate::responses::request::{Include, ReasoningEffort, ReasoningSummary, Responses, Truncation};
-
     use serde::Deserialize;
     use std::sync::Once;
     use tracing_subscriber::EnvFilter;
 
     static INIT: Once = Once::new();
-
     fn init_tracing() {
         INIT.call_once(|| {
             // `RUST_LOG` 環境変数があればそれを使い、なければ "info"
             let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
-            tracing_subscriber::fmt()
+            // try_init()を使用してsubscriberが既に設定されている場合はスキップ
+            let _ = tracing_subscriber::fmt()
                 .with_env_filter(filter)
                 .with_test_writer() // `cargo test` / nextest 用
-                .init();
+                .try_init();
         });
     }
 
-    #[tokio::test]
+    #[derive(Debug, Deserialize)]
+    struct TestResponse {
+        pub capital: String,
+    }
+
+    #[test_log::test(tokio::test)]
+    async fn test_init_with_endpoint() {
+        init_tracing();
+        let mut responses = Responses::from_endpoint("https://api.openai.com/v1/responses");
+        responses.model_id("gpt-5-mini");
+        responses.instructions("test instructions");
+        responses.str_message("Hello world!");
+
+        let body_json = serde_json::to_string_pretty(&responses.request_body).unwrap();
+        tracing::info!("Request body: {}", body_json);
+
+        let mut counter = 3;
+        loop {
+            match responses.complete().await {
+                Ok(res) => {
+                    tracing::info!("Response: {}", serde_json::to_string_pretty(&res).unwrap());
+
+                    // Find the message output in the response
+                    let message_output = res.output.iter().find(|output| output.content.is_some()).unwrap();
+                    assert!(message_output.content.as_ref().unwrap()[0].text.len() > 0);
+                    break;
+                }
+                Err(e) => {
+                    tracing::error!("Error: {} (retrying... {})", e, counter);
+                    counter -= 1;
+                    if counter == 0 {
+                        assert!(false, "Failed to complete responses after 3 attempts");
+                    }
+                }
+            }
+        }
+    }
+    #[test_log::test(tokio::test)]
     async fn test_responses_with_plain_text() {
         init_tracing();
         let mut responses = Responses::new();
@@ -323,7 +359,7 @@ mod tests {
         }
     }
 
-    #[tokio::test]
+    #[test_log::test(tokio::test)]
     async fn test_responses_with_messages() {
         init_tracing();
         let mut responses = Responses::new();
@@ -357,7 +393,7 @@ mod tests {
         }
     }
 
-    #[tokio::test]
+    #[test_log::test(tokio::test)]
     async fn test_responses_with_tools() {
         init_tracing();
         let mut responses = Responses::new();
@@ -401,11 +437,7 @@ mod tests {
         }
     }
 
-    #[derive(Debug, Deserialize)]
-    struct TestResponse {
-        pub capital: String,
-    }
-    #[tokio::test]
+    #[test_log::test(tokio::test)]
     async fn test_responses_with_json_schema() {
         init_tracing();
         let mut responses = Responses::new();
@@ -441,21 +473,20 @@ mod tests {
         }
     }
 
-    #[tokio::test]
+    #[test_log::test(tokio::test)]
     async fn test_responses_with_image_input() {
         init_tracing();
+
         let mut responses = Responses::new();
-        responses.model_id("gpt-5-mini");
-        responses.instructions("test instructions");
-
-        let message = Message::from_message_array(
+        responses.model_id("gpt-5-mini").messages(vec![Message::from_message_array(
             Role::User,
-            vec![Content::from_text("What do you see in this image?"), Content::from_image_file("src/test_rsc/sample_image.jpg")],
-        );
-        responses.messages(vec![message]);
-
-        let body_json = serde_json::to_string_pretty(&responses.request_body).unwrap();
-        tracing::info!("Request body: {}", body_json);
+            vec![
+                Content::from_text("What do you see in this image?"),
+                Content::from_image_url(
+                    "https://images.ctfassets.net/kftzwdyauwt9/1cFVP33AOU26mMJmCGDo1S/0029938b700b84cd7caed52124ed508d/OAI_BrandPage_11.png",
+                ),
+            ],
+        )]);
 
         let mut counter = 3;
         loop {
@@ -479,8 +510,36 @@ mod tests {
         }
     }
 
-    #[test]
+    #[test_log::test(tokio::test)]
+    async fn test_error_handling_missing_messages() {
+        init_tracing();
+
+        let mut responses = Responses::new();
+
+        // Set basic required parameters without messages
+        responses.model_id("gpt-4o-mini");
+        let response = responses.complete().await;
+        tracing::info!("Response result: {:?}", response);
+        assert!(response.is_err(), "Expected error due to missing messages");
+    }
+
+    #[test_log::test(tokio::test)]
+    async fn test_error_handling_empty_messages() {
+        init_tracing();
+
+        let mut responses = Responses::new();
+
+        // Set basic required parameters without messages
+        responses.model_id("gpt-4o-mini");
+        responses.messages(vec![]); // Empty messages
+        let response = responses.complete().await;
+        tracing::info!("Response result: {:?}", response);
+        assert!(response.is_err(), "Expected error due to empty messages");
+    }
+
+    #[test_log::test]
     fn test_optional_parameters() {
+        // TODO: Test whether optional parameters are correctly reflected in the actual API response
         init_tracing();
 
         let mut responses = Responses::new();
@@ -577,6 +636,4 @@ mod tests {
 
         tracing::info!("All optional parameters test passed successfully");
     }
-
-    // TODO: Test whether optional parameters are correctly reflected in the actual API response
 }
