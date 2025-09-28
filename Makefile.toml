@@ -30,9 +30,15 @@ extend = "set-env"
 dependencies = ["build-tools"]
 description = "Run all tests in the project."
 install_crate = "cargo-nextest"
-script = "cargo nextest run --workspace --status-level all --test-threads=1 ${@}"
+script = '''
+#!/bin/bash
+cargo nextest run --workspace --status-level all --test-threads=1 ${@}
+'''
 
 [tasks.doctest]
 dependencies = ["build-tools"]
 description = "Run doctests in the project."
-script = "cargo test --doc"
+script = '''
+#!/bin/bash
+cargo test --doc
+'''

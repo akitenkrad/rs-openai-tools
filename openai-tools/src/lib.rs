@@ -170,10 +170,8 @@
 //!     responses.messages(vec![message]);
 //!     
 //!     let response = responses.complete().await?;
-//!     if let Some(content) = &response.output[0].content {
-//!         let text = &content[0].text;
-//!         println!("Analysis: {}", text);
-//!     }
+//!     let text = response.output_text().unwrap();
+//!     println!("Response: {}", text);
 //!     Ok(())
 //! }
 //! ```

@@ -35,8 +35,7 @@
 //!     // Send the request
 //!     let response = responses.complete().await?;
 //!     
-//!     println!("AI Response: {}",
-//!              response.output[0].content.as_ref().unwrap()[0].text);
+//!     println!("AI Response: {}", response.output_text().unwrap());
 //!     Ok(())
 //! }
 //! ```
@@ -68,7 +67,7 @@
 //!     responses.messages(messages);
 //!     
 //!     let response = responses.complete().await?;
-//!     println!("Response: {}", response.output_text());
+//!     println!("Response: {}", response.output_text().unwrap());
 //!     Ok(())
 //! }
 //! ```
@@ -100,7 +99,7 @@
 //!     responses.messages(vec![message]);
 //!     
 //!     let response = responses.complete().await?;
-//!     println!("Image analysis: {}", response.output_text());
+//!     println!("Image analysis: {}", response.output_text().unwrap());
 //!     Ok(())
 //! }
 //! ```
@@ -146,7 +145,7 @@
 //!     let response = responses.complete().await?;
 //!     
 //!     // Parse structured response
-//!     let product: ProductInfo = serde_json::from_str(&response.output_text())?;
+//!     let product: ProductInfo = serde_json::from_str(&response.output_text().unwrap())?;
 //!     
 //!     println!("Product: {} - ${} ({})", product.name, product.price, product.category);
 //!     Ok(())
@@ -193,13 +192,8 @@
 //!     let response = responses.complete().await?;
 //!     
 //!     // Check if the model made a function call
-//!     if response.output[0].type_name == "function_call" {
-//!         println!("Function called: {}", response.output[0].name.as_ref().unwrap());
-//!         println!("Call ID: {}", response.output[0].call_id.as_ref().unwrap());
-//!         // Handle the function call and continue the conversation...
-//!     } else {
-//!         println!("Text response: {}", response.output[0].content.as_ref().unwrap()[0].text);
-//!     }
+//!     println!("Response: {}", response.output_text().unwrap());
+//!
 //!     Ok(())
 //! }
 //! ```
@@ -242,7 +236,7 @@
 //!     
 //!     match responses.model_id("gpt-5-mini").complete().await {
 //!         Ok(response) => {
-//!             println!("Success: {}", response.output_text());
+//!             println!("Success: {}", response.output_text().unwrap());
 //!         }
 //!         Err(OpenAIToolError::RequestError(e)) => {
 //!             eprintln!("Network error: {}", e);
@@ -285,11 +279,6 @@ mod tests {
                 .with_test_writer() // `cargo test` / nextest 用
                 .try_init();
         });
-    }
-
-    #[derive(Debug, Deserialize)]
-    struct TestResponse {
-        pub capital: String,
     }
 
     #[test_log::test(tokio::test)]
@@ -408,7 +397,7 @@ mod tests {
         let body_json = serde_json::to_string_pretty(&responses.request_body).unwrap();
         tracing::info!("Request body: {}", body_json);
 
-        let mut conversation_id: String;
+        let conversation_id: String;
         let mut counter = 3;
         loop {
             match responses.complete().await {
@@ -515,15 +504,27 @@ mod tests {
 
     #[test_log::test(tokio::test)]
     async fn test_responses_with_json_schema() {
+        #[derive(Debug, Deserialize)]
+        struct Country {
+            pub name: String,
+            pub population: String,
+        }
+        #[derive(Debug, Deserialize)]
+        struct TestResponse {
+            pub capital: String,
+            pub countries: Vec<Country>,
+        }
+
         init_tracing();
         let mut responses = Responses::new();
         responses.model_id("gpt-5-mini");
 
-        let messages = vec![Message::from_string(Role::User, "What is the capital of France?")];
+        let messages = vec![Message::from_string(Role::User, "What is the capital of France? Also, list some countries with their population.")];
         responses.messages(messages);
 
         let mut schema = Schema::responses_json_schema("capital");
         schema.add_property("capital", "string", "The capital city of France");
+        schema.add_array("countries", vec![("name", "string"), ("population", "string")]);
         responses.structured_output(schema);
 
         let mut counter = 3;
@@ -533,10 +534,13 @@ mod tests {
                     tracing::info!("Response: {}", serde_json::to_string_pretty(&res).unwrap());
 
                     // Find the message output in the response
-                    let message_output = res.output.as_ref().unwrap().iter().find(|output| output.content.is_some()).unwrap();
-                    let res =
-                        serde_json::from_str::<TestResponse>(message_output.content.as_ref().unwrap()[0].text.as_ref().unwrap().as_str()).unwrap();
+                    let res = serde_json::from_str::<TestResponse>(&res.output_text().unwrap()).unwrap();
                     assert_eq!(res.capital, "Paris");
+                    assert!(res.countries.len() > 0);
+                    for country in res.countries.iter() {
+                        assert!(country.name.len() > 0);
+                        assert!(country.population.len() > 0);
+                    }
                     break;
                 }
                 Err(e) => {

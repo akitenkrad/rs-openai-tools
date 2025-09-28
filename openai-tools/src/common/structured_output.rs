@@ -36,7 +36,11 @@ impl ItemType {
             items.additional_properties = item.additional_properties;
         }
 
-        Self { type_name: self.type_name.clone(), description: self.description.clone(), items: if self.items.is_some() { Option::from(Box::new(items)) } else { None } }
+        Self {
+            type_name: self.type_name.clone(),
+            description: self.description.clone(),
+            items: if self.items.is_some() { Option::from(Box::new(items)) } else { None },
+        }
     }
 }
 
@@ -55,19 +59,19 @@ impl JsonItem {
     fn add_property<T: AsRef<str>>(&mut self, prop_name: T, item: ItemType) {
         self.properties.insert(prop_name.as_ref().to_string(), item.clone());
         if self.required.is_none() {
-            self.required = Option::from(vec![prop_name.as_ref().to_string()]);
-        } else {
-            let mut required = self.required.clone().unwrap();
-            required.push(prop_name.as_ref().to_string());
-            self.required = Option::from(required);
+            self.required = Some(vec![]);
         }
+        self.required.as_mut().unwrap().push(prop_name.as_ref().to_string());
     }
 
     fn add_array<T: AsRef<str>>(&mut self, prop_name: T, items: JsonItem) {
         let mut prop = ItemType::new("array", "");
         prop.items = Option::from(Box::new(items));
         self.properties.insert(prop_name.as_ref().to_string(), prop);
-        self.required = Option::from(vec![prop_name.as_ref().to_string()]);
+        if self.required.is_none() {
+            self.required = Some(vec![]);
+        }
+        self.required.as_mut().unwrap().push(prop_name.as_ref().to_string());
     }
 }
 
