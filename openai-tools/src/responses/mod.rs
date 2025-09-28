@@ -68,7 +68,7 @@
 //!     responses.messages(messages);
 //!     
 //!     let response = responses.complete().await?;
-//!     println!("Response: {}", response.output[0].content.as_ref().unwrap()[0].text);
+//!     println!("Response: {}", response.output_text());
 //!     Ok(())
 //! }
 //! ```
@@ -100,7 +100,7 @@
 //!     responses.messages(vec![message]);
 //!     
 //!     let response = responses.complete().await?;
-//!     println!("Image analysis: {}", response.output[0].content.as_ref().unwrap()[0].text);
+//!     println!("Image analysis: {}", response.output_text());
 //!     Ok(())
 //! }
 //! ```
@@ -146,9 +146,7 @@
 //!     let response = responses.complete().await?;
 //!     
 //!     // Parse structured response
-//!     let product: ProductInfo = serde_json::from_str(
-//!         &response.output[0].content.as_ref().unwrap()[0].text
-//!     )?;
+//!     let product: ProductInfo = serde_json::from_str(&response.output_text())?;
 //!     
 //!     println!("Product: {} - ${} ({})", product.name, product.price, product.category);
 //!     Ok(())
@@ -244,7 +242,7 @@
 //!     
 //!     match responses.model_id("gpt-5-mini").complete().await {
 //!         Ok(response) => {
-//!             println!("Success: {}", response.output[0].content.as_ref().unwrap()[0].text);
+//!             println!("Success: {}", response.output_text());
 //!         }
 //!         Err(OpenAIToolError::RequestError(e)) => {
 //!             eprintln!("Network error: {}", e);
@@ -312,8 +310,9 @@ mod tests {
                     tracing::info!("Response: {}", serde_json::to_string_pretty(&res).unwrap());
 
                     // Find the message output in the response
-                    let message_output = res.output.as_ref().unwrap().iter().find(|output| output.content.is_some()).unwrap();
-                    assert!(message_output.content.as_ref().unwrap()[0].text.as_ref().unwrap().len() > 0);
+                    let message_output = res.output_text().unwrap();
+                    tracing::info!("Message output: {}", message_output);
+                    assert!(message_output.len() > 0);
                     break;
                 }
                 Err(e) => {
@@ -345,8 +344,9 @@ mod tests {
                     tracing::info!("Response: {}", serde_json::to_string_pretty(&res).unwrap());
 
                     // Find the message output in the response
-                    let message_output = res.output.as_ref().unwrap().iter().find(|output| output.content.is_some()).unwrap();
-                    assert!(message_output.content.as_ref().unwrap()[0].text.as_ref().unwrap().len() > 0);
+                    let message_output = res.output_text().unwrap();
+                    tracing::info!("Message output: {}", message_output);
+                    assert!(message_output.len() > 0);
                     break;
                 }
                 Err(e) => {
@@ -379,8 +379,9 @@ mod tests {
                     tracing::info!("Response: {}", serde_json::to_string_pretty(&res).unwrap());
 
                     // Find the message output in the response
-                    let message_output = res.output.as_ref().unwrap().iter().find(|output| output.content.is_some()).unwrap();
-                    assert!(message_output.content.as_ref().unwrap()[0].text.as_ref().unwrap().len() > 0);
+                    let message_output = res.output_text().unwrap();
+                    tracing::info!("Message output: {}", message_output);
+                    assert!(message_output.len() > 0);
                     break;
                 }
                 Err(e) => {
@@ -415,8 +416,9 @@ mod tests {
                     tracing::info!("Response: {}", serde_json::to_string_pretty(&res).unwrap());
 
                     // Find the message output in the response
-                    let message_output = res.output.as_ref().unwrap().iter().find(|output| output.content.is_some()).unwrap();
-                    assert!(message_output.content.as_ref().unwrap()[0].text.as_ref().unwrap().len() > 0);
+                    let message_output = res.output_text().unwrap();
+                    tracing::info!("Message output: {}", message_output);
+                    assert!(message_output.len() > 0);
 
                     // Save the conversation ID for the next turn
                     conversation_id = res.id.as_ref().unwrap().clone();
@@ -450,8 +452,9 @@ mod tests {
                     tracing::info!("Response: {}", serde_json::to_string_pretty(&res).unwrap());
 
                     // Find the message output in the response
-                    let message_output = res.output.as_ref().unwrap().iter().find(|output| output.content.is_some()).unwrap();
-                    assert!(message_output.content.as_ref().unwrap()[0].text.as_ref().unwrap().len() > 0);
+                    let message_output = res.output_text().unwrap();
+                    tracing::info!("Message output: {}", message_output);
+                    assert!(message_output.len() > 0);
                     break;
                 }
                 Err(e) => {
