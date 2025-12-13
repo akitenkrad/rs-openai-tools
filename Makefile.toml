@@ -25,7 +25,7 @@ description = "Reformat the code using rustfmt."
 script = "cargo fmt -- --emit files"
 
 # ============ TEST TASKS ============
-[tasks.nextest]
+[tasks.nextest-run]
 extend = "set-env"
 dependencies = ["build-tools"]
 description = "Run all tests in the project."

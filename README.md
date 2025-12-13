@@ -29,9 +29,9 @@ use openai_tools::OpenAI;
 
 # Features
 
-| Feature Name                   | [Chat Completion](openai-tools/src/chat/mod.rs) | [Responses](/openai-tools/src/responses/mod.rs) | Embedding | Realtime | Images | Audio | Eval |
+| Feature Name                   | [Chat Completion](openai-tools/src/chat/mod.rs) | [Responses](/openai-tools/src/responses/mod.rs) | [Embedding](/openai-tools/src/embedding/mod.rs) | Realtime | Images | Audio | Eval |
 |--------------------------------|:--:|:--:|:--:|:--:|:--:|:--:|:--:|
-| Basic Features                 | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Basic Features                 | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
 | Structured Output              | ✅ | ✅ | - | - | - | - | - |
 | Function Calling / MCP Tools   | ✅ | ✅ | - | - | - | - | - |
 | Image Input                    | ✅ | ✅ | - | - | - | - | - |

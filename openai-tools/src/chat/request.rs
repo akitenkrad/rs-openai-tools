@@ -325,7 +325,8 @@ impl ChatCompletion {
     /// A new ChatCompletion instance
     pub fn new() -> Self {
         dotenv().ok();
-        let api_key = env::var("OPENAI_API_KEY").expect("OPENAI_API_KEY is not set.");
+        let api_key =
+            env::var("OPENAI_API_KEY").map_err(|e| OpenAIToolError::Error(format!("OPENAI_API_KEY not set in environment: {}", e))).unwrap();
         Self { api_key, request_body: Body::default() }
     }
 
@@ -642,7 +643,7 @@ impl ChatCompletion {
         let mut header = request::header::HeaderMap::new();
         header.insert("Content-Type", request::header::HeaderValue::from_static("application/json"));
         header.insert("Authorization", request::header::HeaderValue::from_str(&format!("Bearer {}", self.api_key)).unwrap());
-        header.insert("User-Agent", request::header::HeaderValue::from_static("openai-tools-rust/0.1.0"));
+        header.insert("User-Agent", request::header::HeaderValue::from_static("openai-tools-rust"));
 
         if cfg!(debug_assertions) {
             // Replace API key with a placeholder in debug mode

@@ -8,25 +8,25 @@ description = "Tools for OpenAI API"
 edition = "2021"
 license = "Apache-2.0"
 repository = "https://github.com/akitenkrad/rs-openai-tools"
-version = "0.6.0"
+version = "0.7.0"
 
 [workspace.dependencies]
 anyhow = "1.0.100"
 base64 = "0.22.1"
 derive-new = "0.7.0"
 dotenvy = "0.15.7"
-image = "0.25.8"
-request = { package = "reqwest", version = "0.12.23" }
+image = "0.25.9"
+request = { package = "reqwest", version = "0.12.25" }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.145"
 strum = { version = "0.27.2", features = ["derive"] }
 strum_macros = "0.27.2"
-thiserror = "2.0.16"
-tiktoken-rs = "0.7.0"
-tokio = { version = "1.47.1", features = ["full"] }
-tracing = { version = "0.1.41", features = ["log"] }
-tracing-subscriber = { version = "0.3.20", features = ["env-filter"] }
-test-log = { version = "0.2.18", features = ["trace"] }
+thiserror = "2.0.17"
+tiktoken-rs = "0.9.1"
+tokio = { version = "1.48.0", features = ["full"] }
+tracing = { version = "0.1.43", features = ["log"] }
+tracing-subscriber = { version = "0.3.22", features = ["env-filter"] }
+test-log = { version = "0.2.19", features = ["trace"] }
 
 [workspace.metadata.release]
 tag-prefix = ""
