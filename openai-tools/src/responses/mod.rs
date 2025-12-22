@@ -508,6 +508,7 @@ mod tests {
         struct Country {
             pub name: String,
             pub population: String,
+            pub big_or_small: bool,
         }
         #[derive(Debug, Deserialize)]
         struct TestResponse {
@@ -524,7 +525,7 @@ mod tests {
 
         let mut schema = Schema::responses_json_schema("capital");
         schema.add_property("capital", "string", "The capital city of France");
-        schema.add_array("countries", vec![("name", "string"), ("population", "string")]);
+        schema.add_array("countries", vec![("name", "string"), ("population", "string"), ("big_or_small", "boolean")]);
         responses.structured_output(schema);
 
         let mut counter = 3;
@@ -540,6 +541,7 @@ mod tests {
                     for country in res.countries.iter() {
                         assert!(country.name.len() > 0);
                         assert!(country.population.len() > 0);
+                        assert!(country.big_or_small == true || country.big_or_small == false);
                     }
                     break;
                 }

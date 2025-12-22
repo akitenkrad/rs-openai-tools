@@ -111,8 +111,8 @@ impl Schema {
 
     pub fn add_array<T: AsRef<str>, U: AsRef<str>>(&mut self, prop_name: T, items: Vec<(U, U)>) {
         let mut array_item = JsonItem::default();
-        for (name, description) in items.iter() {
-            let item = ItemType::new("string", description.as_ref());
+        for (name, type_name) in items.iter() {
+            let item = ItemType::new(type_name.as_ref(), name.as_ref());
             array_item.add_property(name.as_ref(), item);
         }
         self.schema.as_mut().unwrap().add_array(prop_name, array_item);
