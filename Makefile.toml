@@ -25,10 +25,37 @@ description = "Reformat the code using rustfmt."
 script = "cargo fmt -- --emit files"
 
 # ============ TEST TASKS ============
+[tasks.test]
+extend = "set-env"
+dependencies = ["build-tools"]
+description = "Run all tests (unit + integration). Requires OPENAI_API_KEY."
+install_crate = "cargo-nextest"
+script = '''
+#!/bin/bash
+cargo nextest run --workspace --status-level all --test-threads=1 ${@}
+'''
+
+[tasks.test-unit]
+description = "Run unit tests only. No API key required."
+script = '''
+#!/bin/bash
+cargo test --lib ${@}
+'''
+
+[tasks.test-integration]
+extend = "set-env"
+dependencies = ["build-tools"]
+description = "Run integration tests only. Requires OPENAI_API_KEY."
+install_crate = "cargo-nextest"
+script = '''
+#!/bin/bash
+cargo nextest run --workspace --status-level all --test-threads=1 -E 'binary(/integration/)' ${@}
+'''
+
 [tasks.nextest-run]
 extend = "set-env"
 dependencies = ["build-tools"]
-description = "Run all tests in the project."
+description = "Run all tests in the project. (alias for 'test')"
 install_crate = "cargo-nextest"
 script = '''
 #!/bin/bash

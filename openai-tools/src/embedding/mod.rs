@@ -141,109 +141,58 @@ pub mod response;
 
 #[cfg(test)]
 mod tests {
-    use crate::common::errors::OpenAIToolError;
     use crate::embedding::request::Embedding;
-    use std::sync::Once;
-    use tracing_subscriber::EnvFilter;
 
-    static TRACING_INIT: Once = Once::new();
-
-    fn init_tracing() {
-        TRACING_INIT.call_once(|| {
-            let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
-            let _ = tracing_subscriber::fmt().with_env_filter(filter).with_test_writer().try_init();
-        });
+    #[test]
+    fn test_embedding_builder_model() {
+        let mut embedding = Embedding::new().expect("Embedding initialization should succeed");
+        embedding.model("text-embedding-3-small");
+        // Model is set internally, we can verify by serialization
     }
 
-    #[tokio::test]
-    #[test_log::test]
-    async fn test_embedding_with_text() {
-        init_tracing();
-
+    #[test]
+    fn test_embedding_builder_input_text() {
         let mut embedding = Embedding::new().expect("Embedding initialization should succeed");
-        embedding.model("text-embedding-3-small").input_text("Hello, world!");
-
-        let mut counter = 3;
-        loop {
-            match embedding.embed().await {
-                Ok(response) => {
-                    tracing::info!("Embedding model: {}", &response.model);
-                    tracing::info!("Embedding data count: {}", response.data.len());
-                    tracing::info!("Embedding usage: {:?}", &response.usage);
-
-                    assert_eq!(response.object, "list");
-                    assert_eq!(response.data.len(), 1);
-                    assert!(response.data[0].embedding.is_1d());
-
-                    let embedding_vec = response.data[0].embedding.as_1d().expect("Embedding should be 1D");
-                    tracing::info!("Embedding dimension: {}", embedding_vec.len());
-                    assert_eq!(embedding_vec.len(), 1536); // text-embedding-3-small outputs 1536 dimensions
-
-                    break;
-                }
-                Err(e) => match e {
-                    OpenAIToolError::RequestError(e) => {
-                        tracing::warn!("Request error: {} (retrying... {})", e, counter);
-                        counter -= 1;
-                        if counter == 0 {
-                            panic!("Embedding request failed (retry limit reached)");
-                        }
-                        continue;
-                    }
-                    _ => {
-                        tracing::error!("Error: {}", e);
-                        panic!("Embedding request failed: {}", e);
-                    }
-                },
-            };
-        }
+        embedding.input_text("Hello, world!");
+        // Input is set internally
     }
 
-    #[tokio::test]
-    #[test_log::test]
-    async fn test_embedding_with_text_array() {
-        init_tracing();
-
+    #[test]
+    fn test_embedding_builder_input_text_array() {
         let mut embedding = Embedding::new().expect("Embedding initialization should succeed");
-        let texts = vec!["Hello, world!", "こんにちは、世界！", "Bonjour le monde!"];
-        embedding.model("text-embedding-3-small").input_text_array(texts.clone());
+        let texts = vec!["Text 1", "Text 2", "Text 3"];
+        embedding.input_text_array(texts);
+        // Input array is set internally
+    }
 
-        let mut counter = 3;
-        loop {
-            match embedding.embed().await {
-                Ok(response) => {
-                    tracing::info!("Embedding model: {}", &response.model);
-                    tracing::info!("Embedding data count: {}", response.data.len());
-                    tracing::info!("Embedding usage: {:?}", &response.usage);
+    #[test]
+    fn test_embedding_builder_encoding_format_float() {
+        let mut embedding = Embedding::new().expect("Embedding initialization should succeed");
+        embedding.encoding_format("float");
+        // Encoding format is set internally
+    }
 
-                    assert_eq!(response.object, "list");
-                    assert_eq!(response.data.len(), texts.len());
+    #[test]
+    fn test_embedding_builder_encoding_format_base64() {
+        let mut embedding = Embedding::new().expect("Embedding initialization should succeed");
+        embedding.encoding_format("base64");
+        // Encoding format is set internally
+    }
 
-                    for (i, data) in response.data.iter().enumerate() {
-                        assert!(data.embedding.is_1d());
-                        let embedding_vec = data.embedding.as_1d().expect("Embedding should be 1D");
-                        tracing::info!("Embedding[{}] dimension: {}", i, embedding_vec.len());
-                        assert_eq!(embedding_vec.len(), 1536); // text-embedding-3-small outputs 1536 dimensions
-                        assert_eq!(data.index, i);
-                    }
+    #[test]
+    #[should_panic(expected = "encoding_format must be either 'float' or 'base64'")]
+    fn test_embedding_builder_encoding_format_invalid() {
+        let mut embedding = Embedding::new().expect("Embedding initialization should succeed");
+        embedding.encoding_format("invalid"); // Should panic
+    }
 
-                    break;
-                }
-                Err(e) => match e {
-                    OpenAIToolError::RequestError(e) => {
-                        tracing::warn!("Request error: {} (retrying... {})", e, counter);
-                        counter -= 1;
-                        if counter == 0 {
-                            panic!("Embedding request failed (retry limit reached)");
-                        }
-                        continue;
-                    }
-                    _ => {
-                        tracing::error!("Error: {}", e);
-                        panic!("Embedding request failed: {}", e);
-                    }
-                },
-            };
-        }
+    #[test]
+    fn test_embedding_builder_chain() {
+        let mut embedding = Embedding::new().expect("Embedding initialization should succeed");
+        embedding
+            .model("text-embedding-3-small")
+            .input_text("Hello!")
+            .encoding_format("float");
+        // Method chaining works
     }
 }

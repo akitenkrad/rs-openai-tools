@@ -9,6 +9,10 @@ pub enum OpenAIToolError {
     SerdeJsonError(#[from] serde_json::Error),
     #[error("Error from anyhow: {0}")]
     AnyhowError(#[from] anyhow::Error),
+    #[error("WebSocket error: {0}")]
+    WebSocketError(String),
+    #[error("Realtime API error: {code} - {message}")]
+    RealtimeError { code: String, message: String },
     #[error("Error: {0}")]
     Error(String),
 }

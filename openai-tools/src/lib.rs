@@ -238,4 +238,5 @@
 pub mod chat;
 pub mod common;
 pub mod embedding;
+pub mod realtime;
 pub mod responses;
