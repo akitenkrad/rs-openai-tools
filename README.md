@@ -28,29 +28,111 @@ use openai_tools::chat::ChatCompletion;
 use openai_tools::responses::Responses;
 use openai_tools::embedding::Embedding;
 use openai_tools::realtime::RealtimeClient;
+use openai_tools::conversations::Conversations;
+use openai_tools::models::Models;
+use openai_tools::files::Files;
+use openai_tools::moderations::Moderations;
+use openai_tools::images::Images;
+use openai_tools::audio::Audio;
+use openai_tools::batch::Batches;
+use openai_tools::fine_tuning::FineTuning;
 ```
 
 # Features
 
-| Feature Name                   | [Chat Completion](openai-tools/src/chat/mod.rs) | [Responses](/openai-tools/src/responses/mod.rs) | [Embedding](/openai-tools/src/embedding/mod.rs) | [Realtime](/openai-tools/src/realtime/mod.rs) | Images | Audio | Eval |
-|--------------------------------|:--:|:--:|:--:|:--:|:--:|:--:|:--:|
-| Basic Features                 | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
-| Structured Output              | ✅ | ✅ | - | - | - | - | - |
-| Function Calling / MCP Tools   | ✅ | ✅ | - | ✅ | - | - | - |
-| Image Input                    | ✅ | ✅ | - | - | - | - | - |
-| Audio Input/Output             | - | - | - | ✅ | - | - | - |
-| Voice Activity Detection (VAD) | - | - | - | ✅ | - | - | - |
-| WebSocket Streaming            | - | - | - | ✅ | - | - | - |
+| Feature | Chat | Responses | Conversations | Embedding | Realtime | Models | Files | Moderations | Images | Audio | Batch | Fine-tuning |
+|---------|:----:|:---------:|:-------------:|:---------:|:--------:|:------:|:-----:|:-----------:|:------:|:-----:|:-----:|:-----------:|
+| Basic   | ✅   | ✅        | ✅            | ✅        | ✅       | ✅     | ✅    | ✅          | ✅     | ✅    | ✅    | ✅          |
+| Structured Output | ✅ | ✅ | - | - | - | - | - | - | - | - | - | - |
+| Function Calling  | ✅ | ✅ | - | - | ✅ | - | - | - | - | - | - | - |
+| Image Input       | ✅ | ✅ | - | - | - | - | - | - | - | - | - | - |
+| Audio Input/Output | - | - | - | - | ✅ | - | - | - | - | ✅ | - | - |
+| VAD | - | - | - | - | ✅ | - | - | - | - | - | - | - |
+| WebSocket | - | - | - | - | ✅ | - | - | - | - | - | - | - |
+| Multipart Upload | - | - | - | - | - | - | ✅ | - | ✅ | ✅ | - | - |
 
-✅: Implemented
-🔧: In Progress
-❌: Not yet
+## Chat Completions API
+
+```rust
+use openai_tools::chat::request::ChatCompletion;
+use openai_tools::common::message::Message;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let messages = vec![Message::from_string("user", "Hello!")];
+
+    let mut chat = ChatCompletion::new();
+    let response = chat
+        .model_id("gpt-4o-mini")
+        .messages(messages)
+        .temperature(0.7)
+        .chat()
+        .await?;
+
+    println!("{}", response.choices[0].message.content);
+    Ok(())
+}
+```
+
+## Responses API
+
+```rust
+use openai_tools::responses::request::Responses;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let mut client = Responses::new();
+    let response = client
+        .model_id("gpt-4o")
+        .str_message("What is the capital of France?")
+        .complete()
+        .await?;
+
+    println!("{}", response.output_text());
+    Ok(())
+}
+```
+
+## Conversations API
+
+Manage long-running conversations with the Responses API:
+
+```rust
+use openai_tools::conversations::request::Conversations;
+use openai_tools::conversations::response::InputItem;
+use std::collections::HashMap;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let conversations = Conversations::new()?;
+
+    // Create a conversation with metadata
+    let mut metadata = HashMap::new();
+    metadata.insert("user_id".to_string(), "user123".to_string());
+
+    let conv = conversations.create(Some(metadata), None).await?;
+    println!("Created conversation: {}", conv.id);
+
+    // Add items to the conversation
+    let items = vec![InputItem::user_message("Hello!")];
+    conversations.create_items(&conv.id, items).await?;
+
+    // List conversation items
+    let items = conversations.list_items(&conv.id, Some(10), None, None, None).await?;
+    for item in &items.data {
+        println!("Item: {} ({})", item.id, item.item_type);
+    }
+
+    // Delete conversation when done
+    conversations.delete(&conv.id).await?;
+
+    Ok(())
+}
+```
 
 ## Realtime API
 
-The Realtime API enables real-time audio and text communication with GPT-4o models through WebSocket connections.
-
-### Basic Usage
+Real-time audio and text communication with GPT-4o models through WebSocket:
 
 ```rust
 use openai_tools::realtime::{RealtimeClient, Modality, Voice};
@@ -85,48 +167,224 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-### Function Calling
+## Models API
+
+List and retrieve available models:
 
 ```rust
-use openai_tools::realtime::{RealtimeClient, Modality, RealtimeTool};
-use openai_tools::realtime::events::server::ServerEvent;
-use openai_tools::common::parameters::ParameterProperty;
+use openai_tools::models::request::Models;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let mut client = RealtimeClient::new();
+    let models = Models::new()?;
 
-    // Use RealtimeTool for native Realtime API format
-    let weather_tool = RealtimeTool::function(
-        "get_weather",
-        "Get weather for a location",
-        vec![("location", ParameterProperty::from_string("City name"))],
-    );
-
-    client
-        .modalities(vec![Modality::Text])
-        .realtime_tools(vec![weather_tool]);
-
-    let mut session = client.connect().await?;
-
-    session.send_text("What's the weather in Tokyo?").await?;
-    session.create_response(None).await?;
-
-    while let Some(event) = session.recv().await? {
-        match event {
-            ServerEvent::ResponseFunctionCallArgumentsDone(e) => {
-                let result = r#"{"temp": "22C", "condition": "sunny"}"#;
-                session.submit_function_output(&e.call_id, result).await?;
-                session.create_response(None).await?;
-            }
-            ServerEvent::ResponseDone(_) => break,
-            _ => {}
-        }
+    // List all models
+    let response = models.list().await?;
+    for model in &response.data {
+        println!("{}: owned by {}", model.id, model.owned_by);
     }
 
-    session.close().await?;
+    // Retrieve a specific model
+    let model = models.retrieve("gpt-4o-mini").await?;
+    println!("Model: {}", model.id);
+
     Ok(())
 }
 ```
 
-> **Note**: You can also use `Tool::function()` from the common module - it will be automatically converted to `RealtimeTool` format.
+## Files API
+
+Upload, manage, and retrieve files:
+
+```rust
+use openai_tools::files::request::Files;
+use openai_tools::files::response::FilePurpose;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let files = Files::new()?;
+
+    // Upload a file for fine-tuning
+    let file = files.upload_path("training.jsonl", FilePurpose::FineTune).await?;
+    println!("Uploaded: {}", file.id);
+
+    // List files
+    let response = files.list(None).await?;
+    for file in &response.data {
+        println!("{}: {} bytes", file.filename, file.bytes);
+    }
+
+    // Delete file
+    files.delete(&file.id).await?;
+
+    Ok(())
+}
+```
+
+## Moderations API
+
+Check content for policy violations:
+
+```rust
+use openai_tools::moderations::request::Moderations;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let moderations = Moderations::new()?;
+
+    // Check a single text
+    let response = moderations.moderate_text("Hello, world!", None).await?;
+    if response.results[0].flagged {
+        println!("Content was flagged!");
+    } else {
+        println!("Content is safe.");
+    }
+
+    // Check multiple texts at once
+    let texts = vec!["Text 1".to_string(), "Text 2".to_string()];
+    let response = moderations.moderate_texts(texts, None).await?;
+
+    Ok(())
+}
+```
+
+## Images API (DALL-E)
+
+Generate images with DALL-E:
+
+```rust
+use openai_tools::images::request::{Images, GenerateOptions, ImageModel, ImageSize, ImageQuality};
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let images = Images::new()?;
+
+    // Generate an image
+    let options = GenerateOptions {
+        model: Some(ImageModel::DallE3),
+        size: Some(ImageSize::Size1024x1024),
+        quality: Some(ImageQuality::Hd),
+        ..Default::default()
+    };
+    let response = images.generate("A sunset over mountains", options).await?;
+    println!("Image URL: {:?}", response.data[0].url);
+
+    Ok(())
+}
+```
+
+## Audio API
+
+Text-to-speech and transcription:
+
+```rust
+use openai_tools::audio::request::{Audio, TtsOptions, TranscribeOptions};
+use openai_tools::audio::response::{TtsModel, Voice};
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let audio = Audio::new()?;
+
+    // Text-to-speech
+    let options = TtsOptions {
+        model: TtsModel::Tts1Hd,
+        voice: Voice::Nova,
+        ..Default::default()
+    };
+    let bytes = audio.text_to_speech("Hello!", options).await?;
+    std::fs::write("hello.mp3", bytes)?;
+
+    // Transcribe audio
+    let options = TranscribeOptions {
+        language: Some("en".to_string()),
+        ..Default::default()
+    };
+    let response = audio.transcribe("audio.mp3", options).await?;
+    println!("Transcript: {}", response.text);
+
+    Ok(())
+}
+```
+
+## Batch API
+
+Process large volumes of requests asynchronously with 50% cost savings:
+
+```rust
+use openai_tools::batch::request::{Batches, CreateBatchRequest, BatchEndpoint};
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let batches = Batches::new()?;
+
+    // List all batches
+    let response = batches.list(Some(20), None).await?;
+    for batch in &response.data {
+        println!("Batch: {} - {:?}", batch.id, batch.status);
+    }
+
+    // Create a batch job (input file must be uploaded via Files API with purpose "batch")
+    let request = CreateBatchRequest::new("file-abc123", BatchEndpoint::ChatCompletions);
+    let batch = batches.create(request).await?;
+    println!("Created batch: {}", batch.id);
+
+    Ok(())
+}
+```
+
+## Fine-tuning API
+
+Customize models with your training data:
+
+```rust
+use openai_tools::fine_tuning::request::{FineTuning, CreateFineTuningJobRequest};
+use openai_tools::fine_tuning::response::Hyperparameters;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let fine_tuning = FineTuning::new()?;
+
+    // List fine-tuning jobs
+    let response = fine_tuning.list(Some(10), None).await?;
+    for job in &response.data {
+        println!("Job: {} - {:?}", job.id, job.status);
+    }
+
+    // Create a fine-tuning job
+    let hyperparams = Hyperparameters {
+        n_epochs: Some(3),
+        ..Default::default()
+    };
+    let request = CreateFineTuningJobRequest::new("gpt-4o-mini-2024-07-18", "file-abc123")
+        .with_suffix("my-model")
+        .with_supervised_method(Some(hyperparams));
+
+    let job = fine_tuning.create(request).await?;
+    println!("Created job: {}", job.id);
+
+    Ok(())
+}
+```
+
+## Embedding API
+
+```rust
+use openai_tools::embedding::request::Embedding;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let mut embedding = Embedding::new();
+    let response = embedding
+        .model("text-embedding-3-small")
+        .input_text("Hello, world!")
+        .embed()
+        .await?;
+
+    println!("Embedding dimensions: {}", response.data[0].embedding.as_1d().unwrap().len());
+    Ok(())
+}
+```
+
+## License
+
+MIT License

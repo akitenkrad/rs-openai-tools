@@ -195,7 +195,7 @@
 
 use crate::chat::response::Response;
 use crate::common::{
-    errors::{OpenAIToolError, Result},
+    errors::{ErrorResponse, OpenAIToolError, Result},
     message::Message,
     structured_output::Schema,
     tool::Tool,
@@ -652,10 +652,18 @@ impl ChatCompletion {
         }
 
         let response = client.post(url).headers(header).body(body).send().await.map_err(OpenAIToolError::RequestError)?;
+        let status = response.status();
         let content = response.text().await.map_err(OpenAIToolError::RequestError)?;
 
         if cfg!(debug_assertions) {
             tracing::info!("Response content: {}", content);
+        }
+
+        if !status.is_success() {
+            if let Ok(error_resp) = serde_json::from_str::<ErrorResponse>(&content) {
+                return Err(OpenAIToolError::Error(error_resp.error.message.unwrap_or_default()));
+            }
+            return Err(OpenAIToolError::Error(format!("API error ({}): {}", status, content)));
         }
 
         serde_json::from_str::<Response>(&content).map_err(OpenAIToolError::SerdeJsonError)

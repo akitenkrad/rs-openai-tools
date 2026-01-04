@@ -301,8 +301,18 @@ impl From<u32> for MaxTokens {
 
 /// How to select tools for function calling.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
+#[serde(untagged)]
 pub enum ToolChoice {
+    /// Simple string-based choices: "auto", "none", "required"
+    Simple(SimpleToolChoice),
+    /// Force a specific function by name
+    Function(NamedToolChoice),
+}
+
+/// Simple tool choice options.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum SimpleToolChoice {
     /// Model decides whether to use tools.
     Auto,
     /// Never use tools.
@@ -313,7 +323,32 @@ pub enum ToolChoice {
 
 impl Default for ToolChoice {
     fn default() -> Self {
-        Self::Auto
+        Self::Simple(SimpleToolChoice::Auto)
+    }
+}
+
+impl ToolChoice {
+    /// Model decides whether to use tools.
+    pub fn auto() -> Self {
+        Self::Simple(SimpleToolChoice::Auto)
+    }
+
+    /// Never use tools.
+    pub fn none() -> Self {
+        Self::Simple(SimpleToolChoice::None)
+    }
+
+    /// Must use a tool.
+    pub fn required() -> Self {
+        Self::Simple(SimpleToolChoice::Required)
+    }
+
+    /// Force a specific function by name.
+    pub fn function(name: impl Into<String>) -> Self {
+        Self::Function(NamedToolChoice {
+            type_name: "function".to_string(),
+            function: NamedFunction { name: name.into() },
+        })
     }
 }
 
@@ -329,16 +364,6 @@ pub struct NamedToolChoice {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NamedFunction {
     pub name: String,
-}
-
-impl NamedToolChoice {
-    /// Create a named tool choice for a specific function.
-    pub fn function(name: impl Into<String>) -> Self {
-        Self {
-            type_name: "function".to_string(),
-            function: NamedFunction { name: name.into() },
-        }
-    }
 }
 
 /// Response creation configuration.

@@ -24,6 +24,14 @@ cargo test --test chat_integration
 cargo test --test responses_integration
 cargo test --test embedding_integration
 cargo test --test realtime_integration
+cargo test --test models_integration
+cargo test --test files_integration
+cargo test --test moderations_integration
+cargo test --test images_integration
+cargo test --test audio_integration
+cargo test --test batch_integration
+cargo test --test fine_tuning_integration
+cargo test --test conversations_integration
 
 # Run all tests (unit + integration)
 cargo make test
@@ -62,8 +70,16 @@ rs-openai-tools/
         ├── lib.rs      # Crate entry point
         ├── chat/       # Chat Completions API
         ├── responses/  # Responses API (assistant-style)
+        ├── conversations/ # Conversations API
         ├── embedding/  # Embeddings API
         ├── realtime/   # Realtime API (WebSocket)
+        ├── models/     # Models API
+        ├── files/      # Files API
+        ├── moderations/ # Moderations API
+        ├── images/     # Images API (DALL-E)
+        ├── audio/      # Audio API (TTS, STT)
+        ├── batch/      # Batch API
+        ├── fine_tuning/ # Fine-tuning API
         └── common/     # Shared types
 ```
 
@@ -76,6 +92,10 @@ rs-openai-tools/
 - **`responses/`**: Responses API (`/v1/responses`) - newer assistant-style API
   - `request.rs`: `Responses` builder with multi-modal support
   - `response.rs`: Response types
+
+- **`conversations/`**: Conversations API (`/v1/conversations`) - long-running conversation management
+  - `request.rs`: `Conversations` client for create, retrieve, update, delete, items
+  - `response.rs`: `Conversation`, `ConversationItem`, `InputItem`
 
 - **`embedding/`**: Embeddings API (`/v1/embeddings`)
   - `request.rs`: `Embedding` builder
@@ -90,6 +110,34 @@ rs-openai-tools/
   - `events/client.rs`: Client-to-server events (9 types)
   - `events/server.rs`: Server-to-client events (28 types)
   - `stream.rs`: `EventHandler` for callback-based processing
+
+- **`models/`**: Models API (`/v1/models`)
+  - `request.rs`: `Models` client for list, retrieve, delete
+  - `response.rs`: `Model`, `ModelsListResponse`, `DeleteResponse`
+
+- **`files/`**: Files API (`/v1/files`)
+  - `request.rs`: `Files` client with multipart upload support
+  - `response.rs`: `File`, `FileListResponse`, `DeleteResponse`
+
+- **`moderations/`**: Moderations API (`/v1/moderations`)
+  - `request.rs`: `Moderations` client for content policy classification
+  - `response.rs`: `ModerationResponse`, `ModerationCategories`, `ModerationCategoryScores`
+
+- **`images/`**: Images API (`/v1/images`)
+  - `request.rs`: `Images` client for generate, edit, variation
+  - `response.rs`: `ImageResponse`, `ImageData`
+
+- **`audio/`**: Audio API (`/v1/audio`)
+  - `request.rs`: `Audio` client for TTS, transcription, translation
+  - `response.rs`: `TranscriptionResponse`, `Word`, `Segment`
+
+- **`batch/`**: Batch API (`/v1/batches`)
+  - `request.rs`: `Batches` client for create, list, retrieve, cancel
+  - `response.rs`: `BatchObject`, `BatchStatus`, `RequestCounts`
+
+- **`fine_tuning/`**: Fine-tuning API (`/v1/fine_tuning/jobs`)
+  - `request.rs`: `FineTuning` client for jobs, events, checkpoints
+  - `response.rs`: `FineTuningJob`, `FineTuningEvent`, `FineTuningCheckpoint`
 
 - **`common/`**: Shared types across all APIs
   - `message.rs`: `Message`, `Content`, `ToolCall`
@@ -149,6 +197,187 @@ while let Some(event) = session.recv().await? {
 session.close().await?;
 ```
 
+**Conversations API**: Manage long-running conversations with the Responses API:
+```rust
+use openai_tools::conversations::request::Conversations;
+use openai_tools::conversations::response::InputItem;
+use std::collections::HashMap;
+
+let conversations = Conversations::new()?;
+
+// Create a conversation with metadata
+let mut metadata = HashMap::new();
+metadata.insert("user_id".to_string(), "user123".to_string());
+
+let conv = conversations.create(Some(metadata), None).await?;
+println!("Created conversation: {}", conv.id);
+
+// Add items to the conversation
+let items = vec![InputItem::user_message("Hello!")];
+conversations.create_items(&conv.id, items).await?;
+
+// List conversation items
+let items = conversations.list_items(&conv.id, Some(10), None, None, None).await?;
+for item in &items.data {
+    println!("Item: {} ({})", item.id, item.item_type);
+}
+
+// Use with Responses API
+let mut client = Responses::new();
+client.model_id("gpt-4o").conversation(&conv.id).str_message("How are you?").complete().await?;
+
+// Delete conversation when done
+conversations.delete(&conv.id).await?;
+```
+
+**Models API**: List and retrieve available models:
+```rust
+let models = Models::new()?;
+
+// List all models
+let response = models.list().await?;
+for model in &response.data {
+    println!("{}: owned by {}", model.id, model.owned_by);
+}
+
+// Retrieve a specific model
+let model = models.retrieve("gpt-4o-mini").await?;
+```
+
+**Files API**: Upload, manage, and retrieve files:
+```rust
+let files = Files::new()?;
+
+// Upload a file for fine-tuning
+let file = files.upload_path("training.jsonl", FilePurpose::FineTune).await?;
+
+// Or upload from bytes
+let content = b"jsonl content here";
+let file = files.upload_bytes(content, "data.jsonl", FilePurpose::Batch).await?;
+
+// List files
+let response = files.list(Some(FilePurpose::FineTune)).await?;
+
+// Get file content
+let content = files.content(&file.id).await?;
+
+// Delete file
+files.delete(&file.id).await?;
+```
+
+**Moderations API**: Check content for policy violations:
+```rust
+let moderations = Moderations::new()?;
+
+// Check a single text
+let response = moderations.moderate_text("Hello, world!", None).await?;
+if response.results[0].flagged {
+    println!("Content was flagged!");
+}
+
+// Check multiple texts at once
+let texts = vec!["Text 1".to_string(), "Text 2".to_string()];
+let response = moderations.moderate_texts(texts, None).await?;
+```
+
+**Images API**: Generate images with DALL-E:
+```rust
+let images = Images::new()?;
+
+// Generate an image
+let options = GenerateOptions {
+    model: Some(ImageModel::DallE3),
+    size: Some(ImageSize::Size1024x1024),
+    quality: Some(ImageQuality::Hd),
+    ..Default::default()
+};
+let response = images.generate("A sunset over mountains", options).await?;
+println!("Image URL: {:?}", response.data[0].url);
+
+// Get base64-encoded image
+let options = GenerateOptions {
+    response_format: Some(ResponseFormat::B64Json),
+    ..Default::default()
+};
+let response = images.generate("A cute robot", options).await?;
+let bytes = response.data[0].as_bytes().unwrap()?;
+std::fs::write("robot.png", bytes)?;
+```
+
+**Audio API**: Text-to-speech and transcription:
+```rust
+let audio = Audio::new()?;
+
+// Text-to-speech
+let options = TtsOptions {
+    model: TtsModel::Tts1Hd,
+    voice: Voice::Nova,
+    ..Default::default()
+};
+let bytes = audio.text_to_speech("Hello!", options).await?;
+std::fs::write("hello.mp3", bytes)?;
+
+// Transcribe audio
+let options = TranscribeOptions {
+    language: Some("en".to_string()),
+    ..Default::default()
+};
+let response = audio.transcribe("audio.mp3", options).await?;
+println!("Transcript: {}", response.text);
+
+// Translate audio to English
+let response = audio.translate("foreign_audio.mp3", TranslateOptions::default()).await?;
+```
+
+**Batch API**: Process large volumes of requests asynchronously with 50% cost savings:
+```rust
+let batches = Batches::new()?;
+
+// Create a batch job (input file must be uploaded via Files API with purpose "batch")
+let request = CreateBatchRequest::new("file-abc123", BatchEndpoint::ChatCompletions);
+let batch = batches.create(request).await?;
+
+// Check batch status
+let batch = batches.retrieve(&batch.id).await?;
+match batch.status {
+    BatchStatus::Completed => {
+        println!("Output file: {:?}", batch.output_file_id);
+    }
+    _ => println!("Status: {:?}", batch.status),
+}
+
+// List all batches
+let response = batches.list(Some(20), None).await?;
+```
+
+**Fine-tuning API**: Customize models with your training data:
+```rust
+let fine_tuning = FineTuning::new()?;
+
+// Create a fine-tuning job
+let hyperparams = Hyperparameters {
+    n_epochs: Some(3),
+    ..Default::default()
+};
+let request = CreateFineTuningJobRequest::new("gpt-4o-mini-2024-07-18", "file-abc123")
+    .with_suffix("my-model")
+    .with_supervised_method(Some(hyperparams));
+
+let job = fine_tuning.create(request).await?;
+
+// Check job status
+let job = fine_tuning.retrieve(&job.id).await?;
+if job.status == FineTuningJobStatus::Succeeded {
+    println!("Model: {:?}", job.fine_tuned_model);
+}
+
+// List training events
+let events = fine_tuning.list_events(&job.id, Some(10), None).await?;
+for event in &events.data {
+    println!("[{}] {}", event.level, event.message);
+}
+```
+
 ## Environment Setup
 
 Requires `OPENAI_API_KEY` environment variable or in `.env` file:
@@ -158,12 +387,70 @@ OPENAI_API_KEY=sk-...
 
 ## Feature Status
 
-| Feature | Chat | Responses | Embedding | Realtime |
-|---------|:----:|:---------:|:---------:|:--------:|
-| Basic   | ✅   | ✅        | ✅        | ✅       |
-| Structured Output | ✅ | ✅ | - | - |
-| Function Calling  | ✅ | ✅ | - | ✅ |
-| Image Input       | ✅ | ✅ | - | - |
-| Audio Input/Output | - | - | - | ✅ |
-| VAD (Voice Activity Detection) | - | - | - | ✅ |
-| WebSocket Streaming | - | - | - | ✅ |
+| Feature | Chat | Responses | Conversations | Embedding | Realtime | Models | Files | Moderations | Images | Audio | Batch | Fine-tuning |
+|---------|:----:|:---------:|:-------------:|:---------:|:--------:|:------:|:-----:|:-----------:|:------:|:-----:|:-----:|:-----------:|
+| Basic   | ✅   | ✅        | ✅            | ✅        | ✅       | ✅     | ✅    | ✅          | ✅     | ✅    | ✅    | ✅          |
+| Structured Output | ✅ | ✅ | - | - | - | - | - | - | - | - | - | - |
+| Function Calling  | ✅ | ✅ | - | - | ✅ | - | - | - | - | - | - | - |
+| Image Input       | ✅ | ✅ | - | - | - | - | - | - | - | - | - | - |
+| Audio Input/Output | - | - | - | - | ✅ | - | - | - | - | ✅ | - | - |
+| VAD (Voice Activity Detection) | - | - | - | - | ✅ | - | - | - | - | - | - | - |
+| WebSocket Streaming | - | - | - | - | ✅ | - | - | - | - | - | - | - |
+| Multipart Upload | - | - | - | - | - | - | ✅ | - | ✅ | ✅ | - | - |
+
+**Conversations API Features:**
+- Create conversations with optional metadata and initial items
+- Retrieve, update, and delete conversations
+- Add items (messages, tool calls, etc.) to conversations
+- List conversation items with pagination
+- Integration with Responses API for multi-turn interactions
+- Metadata support (key-value pairs for tracking)
+
+**Models API Features:**
+- List all available models
+- Retrieve specific model details
+- Delete fine-tuned models
+
+**Files API Features:**
+- Upload files (from path or bytes)
+- List files (with purpose filter)
+- Retrieve file details
+- Delete files
+- Get file content
+
+**Moderations API Features:**
+- Single text moderation
+- Batch text moderation
+- Multiple models (omni-moderation, text-moderation)
+- Detailed category scores
+
+**Images API Features:**
+- Image generation (DALL-E 2, DALL-E 3, GPT Image)
+- Image editing with masks
+- Image variations (DALL-E 2 only)
+- URL or base64 response format
+- Quality and style options
+
+**Audio API Features:**
+- Text-to-speech (TTS) with multiple voices
+- Audio transcription (Whisper, GPT-4o)
+- Audio translation to English
+- Multiple audio formats (MP3, WAV, FLAC, etc.)
+- Word and segment timestamps
+
+**Batch API Features:**
+- Create async batch jobs with 50% cost savings
+- Support for Chat Completions, Embeddings, Responses, Moderations endpoints
+- Retrieve batch status and progress
+- List all batches with pagination
+- Cancel in-progress batches
+- 24-hour completion window
+
+**Fine-tuning API Features:**
+- Create fine-tuning jobs (Supervised, DPO methods)
+- Configurable hyperparameters (epochs, batch size, learning rate)
+- Monitor training with events
+- Access training checkpoints
+- List and retrieve job details
+- Cancel in-progress jobs
+- Support for GPT-4o-mini, GPT-4o, GPT-4 Turbo, GPT-3.5 Turbo

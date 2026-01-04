@@ -61,7 +61,7 @@
 //! }
 //! ```
 
-use crate::common::errors::{OpenAIToolError, Result};
+use crate::common::errors::{ErrorResponse, OpenAIToolError, Result};
 use crate::embedding::response::Response;
 use core::str;
 use dotenvy::dotenv;
@@ -370,10 +370,18 @@ impl Embedding {
         }
 
         let response = client.post(url).headers(header).body(body).send().await.map_err(OpenAIToolError::RequestError)?;
+        let status = response.status();
         let content = response.text().await.map_err(OpenAIToolError::RequestError)?;
 
         if cfg!(test) {
             tracing::info!("Response content: {}", content);
+        }
+
+        if !status.is_success() {
+            if let Ok(error_resp) = serde_json::from_str::<ErrorResponse>(&content) {
+                return Err(OpenAIToolError::Error(error_resp.error.message.unwrap_or_default()));
+            }
+            return Err(OpenAIToolError::Error(format!("API error ({}): {}", status, content)));
         }
 
         serde_json::from_str::<Response>(&content).map_err(OpenAIToolError::SerdeJsonError)

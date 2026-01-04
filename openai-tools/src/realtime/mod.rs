@@ -17,6 +17,7 @@
 //! ```rust,no_run
 //! use openai_tools::realtime::{RealtimeClient, Modality, Voice};
 //! use openai_tools::realtime::vad::ServerVadConfig;
+//! use openai_tools::realtime::events::server::ServerEvent;
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -157,7 +158,10 @@ pub use client::{RealtimeClient, RealtimeSession};
 pub use conversation::{ContentPart, ConversationItem, FunctionCallItem, FunctionCallOutputItem, MessageItem, MessageRole};
 pub use events::client::ClientEvent;
 pub use events::server::ServerEvent;
-pub use session::{MaxTokens, Modality, RealtimeTool, SessionConfig, ToolChoice};
+pub use session::{
+    MaxTokens, Modality, NamedFunction, NamedToolChoice, RealtimeTool, SessionConfig,
+    SimpleToolChoice, ToolChoice,
+};
 pub use stream::EventHandler;
 pub use vad::{Eagerness, SemanticVadConfig, ServerVadConfig, TurnDetection};
 
@@ -303,13 +307,24 @@ mod tests {
 
     #[test]
     fn test_tool_choice_serialization() {
-        let auto = ToolChoice::Auto;
+        // Simple choices
+        let auto = ToolChoice::auto();
         let json = serde_json::to_string(&auto).unwrap();
         assert_eq!(json, "\"auto\"");
 
-        let none = ToolChoice::None;
+        let none = ToolChoice::none();
         let json = serde_json::to_string(&none).unwrap();
         assert_eq!(json, "\"none\"");
+
+        let required = ToolChoice::required();
+        let json = serde_json::to_string(&required).unwrap();
+        assert_eq!(json, "\"required\"");
+
+        // Named function choice
+        let func = ToolChoice::function("get_weather");
+        let json = serde_json::to_string(&func).unwrap();
+        assert!(json.contains("\"type\":\"function\""));
+        assert!(json.contains("\"name\":\"get_weather\""));
     }
 
     #[test]
