@@ -582,6 +582,24 @@ impl ChatCompletion {
         self.request_body.messages.clone()
     }
 
+    /// Checks if the model is a reasoning model that doesn't support custom temperature
+    ///
+    /// Reasoning models (o1, o3, etc.) only support the default temperature value of 1.0.
+    /// This method checks if the current model is one of these reasoning models.
+    ///
+    /// # Returns
+    ///
+    /// `true` if the model is a reasoning model, `false` otherwise
+    ///
+    /// # Supported Reasoning Models
+    ///
+    /// - `o1`, `o1-preview`, `o1-mini`, and variants
+    /// - `o3`, `o3-mini`, and variants
+    fn is_reasoning_model(&self) -> bool {
+        let model = self.request_body.model.to_lowercase();
+        model.starts_with("o1") || model.starts_with("o3")
+    }
+
     /// Sends the chat completion request to OpenAI API
     ///
     /// This method validates the request parameters, constructs the HTTP request,
@@ -599,6 +617,12 @@ impl ChatCompletion {
     /// - Messages are empty
     /// - Network request fails
     /// - Response parsing fails
+    ///
+    /// # Note
+    ///
+    /// For reasoning models (o1, o3, etc.), the `temperature` parameter is automatically
+    /// ignored if set to a value other than the default (1.0), as these models only
+    /// support the default temperature. A warning will be logged when this occurs.
     ///
     /// # Example
     ///
@@ -619,7 +643,7 @@ impl ChatCompletion {
     ///     .temperature(1.0)
     ///     .chat()
     ///     .await?;
-    ///     
+    ///
     /// println!("{}", response.choices[0].message.content.as_ref().unwrap().text.as_ref().unwrap());
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// # }
@@ -634,6 +658,87 @@ impl ChatCompletion {
         }
         if self.request_body.messages.is_empty() {
             return Err(OpenAIToolError::Error("Messages are not set.".into()));
+        }
+
+        // Handle reasoning models that don't support certain parameters
+        // See: https://platform.openai.com/docs/guides/reasoning
+        if self.is_reasoning_model() {
+            let model = &self.request_body.model;
+
+            // Temperature: only default (1.0) is supported
+            if let Some(temp) = self.request_body.temperature {
+                if (temp - 1.0).abs() > f32::EPSILON {
+                    tracing::warn!(
+                        "Reasoning model '{}' does not support custom temperature. \
+                         Ignoring temperature={} and using default (1.0).",
+                        model, temp
+                    );
+                    self.request_body.temperature = None;
+                }
+            }
+
+            // Frequency penalty: only 0 is supported
+            if let Some(fp) = self.request_body.frequency_penalty {
+                if fp.abs() > f32::EPSILON {
+                    tracing::warn!(
+                        "Reasoning model '{}' does not support frequency_penalty. \
+                         Ignoring frequency_penalty={} and using default (0).",
+                        model, fp
+                    );
+                    self.request_body.frequency_penalty = None;
+                }
+            }
+
+            // Presence penalty: only 0 is supported
+            if let Some(pp) = self.request_body.presence_penalty {
+                if pp.abs() > f32::EPSILON {
+                    tracing::warn!(
+                        "Reasoning model '{}' does not support presence_penalty. \
+                         Ignoring presence_penalty={} and using default (0).",
+                        model, pp
+                    );
+                    self.request_body.presence_penalty = None;
+                }
+            }
+
+            // Logprobs: not supported
+            if self.request_body.logprobs.is_some() {
+                tracing::warn!(
+                    "Reasoning model '{}' does not support logprobs. Ignoring logprobs parameter.",
+                    model
+                );
+                self.request_body.logprobs = None;
+            }
+
+            // Top logprobs: not supported
+            if self.request_body.top_logprobs.is_some() {
+                tracing::warn!(
+                    "Reasoning model '{}' does not support top_logprobs. Ignoring top_logprobs parameter.",
+                    model
+                );
+                self.request_body.top_logprobs = None;
+            }
+
+            // Logit bias: not supported
+            if self.request_body.logit_bias.is_some() {
+                tracing::warn!(
+                    "Reasoning model '{}' does not support logit_bias. Ignoring logit_bias parameter.",
+                    model
+                );
+                self.request_body.logit_bias = None;
+            }
+
+            // N: only 1 is supported
+            if let Some(n) = self.request_body.n {
+                if n != 1 {
+                    tracing::warn!(
+                        "Reasoning model '{}' does not support n != 1. \
+                         Ignoring n={} and using default (1).",
+                        model, n
+                    );
+                    self.request_body.n = None;
+                }
+            }
         }
 
         let body = serde_json::to_string(&self.request_body)?;

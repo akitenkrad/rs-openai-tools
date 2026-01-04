@@ -1764,6 +1764,24 @@ impl Responses {
         self
     }
 
+    /// Checks if the model is a reasoning model that doesn't support custom temperature
+    ///
+    /// Reasoning models (o1, o3, etc.) only support the default temperature value of 1.0.
+    /// This method checks if the current model is one of these reasoning models.
+    ///
+    /// # Returns
+    ///
+    /// `true` if the model is a reasoning model, `false` otherwise
+    ///
+    /// # Supported Reasoning Models
+    ///
+    /// - `o1`, `o1-preview`, `o1-mini`, and variants
+    /// - `o3`, `o3-mini`, and variants
+    fn is_reasoning_model(&self) -> bool {
+        let model = self.request_body.model.to_lowercase();
+        model.starts_with("o1") || model.starts_with("o3")
+    }
+
     /// Executes the request and returns the response
     ///
     /// This method sends the configured request to the OpenAI Responses API
@@ -1778,11 +1796,17 @@ impl Responses {
     ///
     /// Returns an error if:
     /// - The API key is not set or is empty
-    /// - The model ID is not set or is empty  
+    /// - The model ID is not set or is empty
     /// - Neither messages nor plain text input is provided
     /// - Both messages and plain text input are provided (mutually exclusive)
     /// - The HTTP request fails
     /// - The response cannot be parsed
+    ///
+    /// # Note
+    ///
+    /// For reasoning models (o1, o3, etc.), the `temperature` parameter is automatically
+    /// ignored if set to a value other than the default (1.0), as these models only
+    /// support the default temperature. A warning will be logged when this occurs.
     ///
     /// # Examples
     ///
@@ -1812,7 +1836,47 @@ impl Responses {
             return Err(OpenAIToolError::Error("Both plain text input and messages are set. Please use one of them.".into()));
         }
 
-        let body = serde_json::to_string(&self.request_body)?;
+        // Handle reasoning models that don't support certain parameters
+        // See: https://platform.openai.com/docs/guides/reasoning
+        let mut request_body = self.request_body.clone();
+        if self.is_reasoning_model() {
+            let model = &self.request_body.model;
+
+            // Temperature: only default (1.0) is supported
+            if let Some(temp) = request_body.temperature {
+                if (temp - 1.0).abs() > f64::EPSILON {
+                    tracing::warn!(
+                        "Reasoning model '{}' does not support custom temperature. \
+                         Ignoring temperature={} and using default (1.0).",
+                        model, temp
+                    );
+                    request_body.temperature = None;
+                }
+            }
+
+            // Top P: only default (1.0) is supported
+            if let Some(top_p) = request_body.top_p {
+                if (top_p - 1.0).abs() > f64::EPSILON {
+                    tracing::warn!(
+                        "Reasoning model '{}' does not support custom top_p. \
+                         Ignoring top_p={} and using default (1.0).",
+                        model, top_p
+                    );
+                    request_body.top_p = None;
+                }
+            }
+
+            // Top logprobs: not supported
+            if request_body.top_logprobs.is_some() {
+                tracing::warn!(
+                    "Reasoning model '{}' does not support top_logprobs. Ignoring top_logprobs parameter.",
+                    model
+                );
+                request_body.top_logprobs = None;
+            }
+        }
+
+        let body = serde_json::to_string(&request_body)?;
         let url = self.endpoint.clone();
 
         let client = request::Client::new();
@@ -1828,7 +1892,7 @@ impl Responses {
         if cfg!(test) {
             tracing::info!("Endpoint: {}", self.endpoint);
             // Replace API key with a placeholder for security
-            let body_for_debug = serde_json::to_string_pretty(&self.request_body).unwrap().replace(&self.api_key, "*************");
+            let body_for_debug = serde_json::to_string_pretty(&request_body).unwrap().replace(&self.api_key, "*************");
             // Log the request body for debugging purposes
             tracing::info!("Request body: {}", body_for_debug);
         }

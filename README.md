@@ -385,6 +385,38 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
+## Update History
+
+<details>
+<summary>v1.0.1</summary>
+
+- Added automatic handling for reasoning model (o1, o3 series) parameter restrictions
+  - Chat API: temperature, frequency_penalty, presence_penalty, logprobs, top_logprobs, logit_bias, n
+  - Responses API: temperature, top_p, top_logprobs
+- Unsupported parameters are automatically ignored with `tracing::warn!` warnings
+- Added "Model-Specific Parameter Restrictions" documentation section
+
+</details>
+
+<details>
+<summary>v1.0.0</summary>
+
+- Initial release with all OpenAI APIs:
+  - Chat Completions API
+  - Responses API
+  - Conversations API
+  - Embedding API
+  - Realtime API (WebSocket)
+  - Models API
+  - Files API
+  - Moderations API
+  - Images API (DALL-E)
+  - Audio API (TTS, STT)
+  - Batch API
+  - Fine-tuning API
+
+</details>
+
 ## License
 
 MIT License

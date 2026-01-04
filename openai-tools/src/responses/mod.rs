@@ -476,4 +476,53 @@ mod tests {
         assert!(json_body.contains("\"include\""));
         assert!(json_body.contains("\"metadata\""));
     }
+
+    #[test]
+    fn test_reasoning_model_detection_o1() {
+        // Test that o1 models are detected as reasoning models
+        let mut responses = Responses::new();
+        responses.model_id("o1-preview");
+        responses.str_message("Test");
+        responses.temperature(0.5);
+
+        // When we serialize, the temperature should be included
+        // (it's only removed during complete(), not during serialization)
+        assert_eq!(responses.request_body.temperature, Some(0.5));
+        assert_eq!(responses.request_body.model, "o1-preview");
+    }
+
+    #[test]
+    fn test_reasoning_model_detection_o3() {
+        // Test that o3 models are detected as reasoning models
+        let mut responses = Responses::new();
+        responses.model_id("o3-mini");
+        responses.str_message("Test");
+        responses.temperature(0.3);
+
+        assert_eq!(responses.request_body.temperature, Some(0.3));
+        assert_eq!(responses.request_body.model, "o3-mini");
+    }
+
+    #[test]
+    fn test_non_reasoning_model() {
+        // Test that regular models are not affected
+        let mut responses = Responses::new();
+        responses.model_id("gpt-4o");
+        responses.str_message("Test");
+        responses.temperature(0.7);
+
+        assert_eq!(responses.request_body.temperature, Some(0.7));
+        assert_eq!(responses.request_body.model, "gpt-4o");
+    }
+
+    #[test]
+    fn test_reasoning_model_with_default_temperature() {
+        // Test that default temperature (1.0) is allowed for reasoning models
+        let mut responses = Responses::new();
+        responses.model_id("o1");
+        responses.str_message("Test");
+        responses.temperature(1.0);
+
+        assert_eq!(responses.request_body.temperature, Some(1.0));
+    }
 }

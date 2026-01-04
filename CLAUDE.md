@@ -454,3 +454,100 @@ OPENAI_API_KEY=sk-...
 - List and retrieve job details
 - Cancel in-progress jobs
 - Support for GPT-4o-mini, GPT-4o, GPT-4 Turbo, GPT-3.5 Turbo
+
+## Model-Specific Parameter Restrictions
+
+### Reasoning Models (o1, o3 Series)
+
+OpenAI's reasoning models (`o1`, `o1-preview`, `o1-mini`, `o3`, `o3-mini`, etc.) have specific parameter restrictions. This library automatically handles these restrictions by ignoring unsupported parameters and logging warnings.
+
+#### Chat Completions API Parameter Restrictions
+
+| Parameter | Restriction | Library Behavior |
+|-----------|-------------|------------------|
+| `temperature` | Only `1.0` supported | Values ≠ 1.0 are ignored with warning |
+| `top_p` | Only `1.0` supported | Not implemented in Chat API |
+| `frequency_penalty` | Only `0` supported | Values ≠ 0 are ignored with warning |
+| `presence_penalty` | Only `0` supported | Values ≠ 0 are ignored with warning |
+| `logprobs` | Not supported | Ignored with warning if set |
+| `top_logprobs` | Not supported | Ignored with warning if set |
+| `logit_bias` | Not supported | Ignored with warning if set |
+| `n` | Only `1` supported | Values ≠ 1 are ignored with warning |
+
+#### Responses API Parameter Restrictions
+
+| Parameter | Restriction | Library Behavior |
+|-----------|-------------|------------------|
+| `temperature` | Only `1.0` supported | Values ≠ 1.0 are ignored with warning |
+| `top_p` | Only `1.0` supported | Values ≠ 1.0 are ignored with warning |
+| `top_logprobs` | Not supported | Ignored with warning if set |
+
+#### Example Usage with Reasoning Models
+
+```rust
+use openai_tools::chat::request::ChatCompletion;
+use openai_tools::responses::request::Responses;
+
+// Chat API with reasoning model
+let mut chat = ChatCompletion::new();
+chat.model_id("o1-preview")
+    .temperature(0.3)           // Warning: ignored, using default 1.0
+    .frequency_penalty(0.5)     // Warning: ignored, using default 0
+    .messages(messages)
+    .chat()
+    .await?;  // Request succeeds without API error
+
+// Responses API with reasoning model
+let mut responses = Responses::new();
+responses.model_id("o3-mini")
+    .temperature(0.7)           // Warning: ignored, using default 1.0
+    .top_p(0.9)                 // Warning: ignored, using default 1.0
+    .str_message("Hello!")
+    .complete()
+    .await?;  // Request succeeds without API error
+```
+
+#### Warning Log Examples
+
+When using unsupported parameters with reasoning models, warnings are logged via `tracing::warn!`:
+
+```
+WARN: Reasoning model 'o1-preview' does not support custom temperature. Ignoring temperature=0.3 and using default (1.0).
+WARN: Reasoning model 'o1-preview' does not support frequency_penalty. Ignoring frequency_penalty=0.5 and using default (0).
+WARN: Reasoning model 'o3-mini' does not support top_p. Ignoring top_p=0.9 and using default (1.0).
+```
+
+### Standard Models (GPT-4o, GPT-4, GPT-3.5, etc.)
+
+Standard models support all available parameters without restrictions:
+
+| API | Supported Parameters |
+|-----|---------------------|
+| Chat Completions | `temperature`, `frequency_penalty`, `presence_penalty`, `logprobs`, `top_logprobs`, `logit_bias`, `n`, `max_completion_tokens`, `modalities`, `store`, `tools`, `response_format` |
+| Responses | `temperature`, `top_p`, `top_logprobs`, `max_output_tokens`, `max_tool_calls`, `parallel_tool_calls`, `truncation`, `reasoning`, `tools`, `structured_output`, `metadata`, `include`, `background`, `conversation`, `store`, `stream` |
+
+### API Parameter Comparison
+
+| Parameter | Chat API | Responses API | Notes |
+|-----------|:--------:|:-------------:|-------|
+| `temperature` | ✅ | ✅ | Controls randomness (0.0-2.0) |
+| `top_p` | ❌ | ✅ | Nucleus sampling |
+| `frequency_penalty` | ✅ | ❌ | Reduces repetition |
+| `presence_penalty` | ✅ | ❌ | Encourages new topics |
+| `logprobs` | ✅ | ❌ | Token probabilities |
+| `top_logprobs` | ✅ | ✅ | Top N probabilities |
+| `logit_bias` | ✅ | ❌ | Token probability adjustment |
+| `n` | ✅ | ❌ | Number of completions |
+| `max_tokens` | `max_completion_tokens` | `max_output_tokens` | Different parameter names |
+| `tools` | ✅ | ✅ | Function calling |
+| `structured_output` | `response_format` | ✅ | JSON schema output |
+| `reasoning` | ❌ | ✅ | Reasoning effort/summary |
+| `truncation` | ❌ | ✅ | Input truncation behavior |
+| `parallel_tool_calls` | ❌ | ✅ | Concurrent tool execution |
+| `metadata` | ❌ | ✅ | Request tracking |
+
+### References
+
+- [OpenAI Reasoning Models Guide](https://platform.openai.com/docs/guides/reasoning)
+- [Chat Completions API Reference](https://platform.openai.com/docs/api-reference/chat)
+- [Responses API Reference](https://platform.openai.com/docs/api-reference/responses)
