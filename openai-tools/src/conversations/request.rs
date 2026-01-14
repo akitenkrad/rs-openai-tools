@@ -38,6 +38,7 @@
 //! }
 //! ```
 
+use crate::common::client::create_http_client;
 use crate::common::errors::{ErrorResponse, OpenAIToolError, Result};
 use crate::conversations::response::{
     Conversation, ConversationItemListResponse, ConversationListResponse,
@@ -47,6 +48,7 @@ use dotenvy::dotenv;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::env;
+use std::time::Duration;
 
 const BASE_URL: &str = "https://api.openai.com/v1/conversations";
 
@@ -139,6 +141,8 @@ struct CreateItemsRequest {
 pub struct Conversations {
     /// OpenAI API key for authentication
     api_key: String,
+    /// Optional request timeout duration
+    timeout: Option<Duration>,
 }
 
 impl Conversations {
@@ -165,12 +169,26 @@ impl Conversations {
         let api_key = env::var("OPENAI_API_KEY").map_err(|e| {
             OpenAIToolError::Error(format!("OPENAI_API_KEY not set in environment: {}", e))
         })?;
-        Ok(Self { api_key })
+        Ok(Self { api_key, timeout: None })
+    }
+
+    /// Sets the request timeout duration.
+    ///
+    /// # Arguments
+    ///
+    /// * `timeout` - The maximum time to wait for a response
+    ///
+    /// # Returns
+    ///
+    /// A mutable reference to self for method chaining
+    pub fn timeout(&mut self, timeout: Duration) -> &mut Self {
+        self.timeout = Some(timeout);
+        self
     }
 
     /// Creates the HTTP client with default headers.
-    fn create_client(&self) -> (request::Client, request::header::HeaderMap) {
-        let client = request::Client::new();
+    fn create_client(&self) -> Result<(request::Client, request::header::HeaderMap)> {
+        let client = create_http_client(self.timeout)?;
         let mut headers = request::header::HeaderMap::new();
         headers.insert(
             "Authorization",
@@ -184,7 +202,7 @@ impl Conversations {
             "User-Agent",
             request::header::HeaderValue::from_static("openai-tools-rust"),
         );
-        (client, headers)
+        Ok((client, headers))
     }
 
     /// Handles API error responses.
@@ -238,7 +256,7 @@ impl Conversations {
         metadata: Option<HashMap<String, String>>,
         items: Option<Vec<InputItem>>,
     ) -> Result<Conversation> {
-        let (client, headers) = self.create_client();
+        let (client, headers) = self.create_client()?;
 
         let request_body = CreateConversationRequest { metadata, items };
         let body = serde_json::to_string(&request_body)?;
@@ -292,7 +310,7 @@ impl Conversations {
     /// }
     /// ```
     pub async fn retrieve(&self, conversation_id: &str) -> Result<Conversation> {
-        let (client, headers) = self.create_client();
+        let (client, headers) = self.create_client()?;
         let url = format!("{}/{}", BASE_URL, conversation_id);
 
         let response = client
@@ -351,7 +369,7 @@ impl Conversations {
         conversation_id: &str,
         metadata: HashMap<String, String>,
     ) -> Result<Conversation> {
-        let (client, headers) = self.create_client();
+        let (client, headers) = self.create_client()?;
         let url = format!("{}/{}", BASE_URL, conversation_id);
 
         let request_body = UpdateConversationRequest { metadata };
@@ -407,7 +425,7 @@ impl Conversations {
     /// }
     /// ```
     pub async fn delete(&self, conversation_id: &str) -> Result<DeleteConversationResponse> {
-        let (client, headers) = self.create_client();
+        let (client, headers) = self.create_client()?;
         let url = format!("{}/{}", BASE_URL, conversation_id);
 
         let response = client
@@ -471,7 +489,7 @@ impl Conversations {
         conversation_id: &str,
         items: Vec<InputItem>,
     ) -> Result<ConversationItemListResponse> {
-        let (client, headers) = self.create_client();
+        let (client, headers) = self.create_client()?;
         let url = format!("{}/{}/items", BASE_URL, conversation_id);
 
         let request_body = CreateItemsRequest { items };
@@ -547,7 +565,7 @@ impl Conversations {
         order: Option<&str>,
         include: Option<Vec<ConversationInclude>>,
     ) -> Result<ConversationItemListResponse> {
-        let (client, headers) = self.create_client();
+        let (client, headers) = self.create_client()?;
 
         // Build query parameters
         let mut params = Vec::new();
@@ -629,7 +647,7 @@ impl Conversations {
         limit: Option<u32>,
         after: Option<&str>,
     ) -> Result<ConversationListResponse> {
-        let (client, headers) = self.create_client();
+        let (client, headers) = self.create_client()?;
 
         // Build query parameters
         let mut params = Vec::new();

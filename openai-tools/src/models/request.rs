@@ -28,10 +28,12 @@
 //! }
 //! ```
 
+use crate::common::client::create_http_client;
 use crate::common::errors::{ErrorResponse, OpenAIToolError, Result};
 use crate::models::response::{DeleteResponse, Model, ModelsListResponse};
 use dotenvy::dotenv;
 use std::env;
+use std::time::Duration;
 
 const BASE_URL: &str = "https://api.openai.com/v1/models";
 
@@ -59,6 +61,8 @@ const BASE_URL: &str = "https://api.openai.com/v1/models";
 pub struct Models {
     /// OpenAI API key for authentication
     api_key: String,
+    /// Optional request timeout duration
+    timeout: Option<Duration>,
 }
 
 impl Models {
@@ -85,12 +89,36 @@ impl Models {
         let api_key = env::var("OPENAI_API_KEY").map_err(|e| {
             OpenAIToolError::Error(format!("OPENAI_API_KEY not set in environment: {}", e))
         })?;
-        Ok(Self { api_key })
+        Ok(Self { api_key, timeout: None })
+    }
+
+    /// Sets the request timeout duration.
+    ///
+    /// # Arguments
+    ///
+    /// * `timeout` - The maximum time to wait for a response
+    ///
+    /// # Returns
+    ///
+    /// A mutable reference to self for method chaining
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// use std::time::Duration;
+    /// use openai_tools::models::request::Models;
+    ///
+    /// let mut models = Models::new().unwrap();
+    /// models.timeout(Duration::from_secs(30));
+    /// ```
+    pub fn timeout(&mut self, timeout: Duration) -> &mut Self {
+        self.timeout = Some(timeout);
+        self
     }
 
     /// Creates the HTTP client with default headers.
-    fn create_client(&self) -> (request::Client, request::header::HeaderMap) {
-        let client = request::Client::new();
+    fn create_client(&self) -> Result<(request::Client, request::header::HeaderMap)> {
+        let client = create_http_client(self.timeout)?;
         let mut headers = request::header::HeaderMap::new();
         headers.insert(
             "Authorization",
@@ -100,7 +128,7 @@ impl Models {
             "User-Agent",
             request::header::HeaderValue::from_static("openai-tools-rust"),
         );
-        (client, headers)
+        Ok((client, headers))
     }
 
     /// Lists all available models.
@@ -130,7 +158,7 @@ impl Models {
     /// }
     /// ```
     pub async fn list(&self) -> Result<ModelsListResponse> {
-        let (client, headers) = self.create_client();
+        let (client, headers) = self.create_client()?;
 
         let response = client
             .get(BASE_URL)
@@ -187,7 +215,7 @@ impl Models {
     /// }
     /// ```
     pub async fn retrieve(&self, model_id: &str) -> Result<Model> {
-        let (client, headers) = self.create_client();
+        let (client, headers) = self.create_client()?;
         let url = format!("{}/{}", BASE_URL, model_id);
 
         let response = client
@@ -246,7 +274,7 @@ impl Models {
     /// }
     /// ```
     pub async fn delete(&self, model_id: &str) -> Result<DeleteResponse> {
-        let (client, headers) = self.create_client();
+        let (client, headers) = self.create_client()?;
         let url = format!("{}/{}", BASE_URL, model_id);
 
         let response = client

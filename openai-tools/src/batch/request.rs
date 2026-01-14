@@ -30,11 +30,13 @@
 //! ```
 
 use crate::batch::response::{BatchListResponse, BatchObject};
+use crate::common::client::create_http_client;
 use crate::common::errors::{OpenAIToolError, Result};
 use dotenvy::dotenv;
 use serde::Serialize;
 use std::collections::HashMap;
 use std::env;
+use std::time::Duration;
 
 const BASE_URL: &str = "https://api.openai.com/v1/batches";
 
@@ -172,6 +174,8 @@ impl CreateBatchRequest {
 pub struct Batches {
     /// OpenAI API key for authentication
     api_key: String,
+    /// Optional request timeout duration
+    timeout: Option<Duration>,
 }
 
 impl Batches {
@@ -198,12 +202,26 @@ impl Batches {
         let api_key = env::var("OPENAI_API_KEY").map_err(|e| {
             OpenAIToolError::Error(format!("OPENAI_API_KEY not set in environment: {}", e))
         })?;
-        Ok(Self { api_key })
+        Ok(Self { api_key, timeout: None })
+    }
+
+    /// Sets the request timeout duration.
+    ///
+    /// # Arguments
+    ///
+    /// * `timeout` - The maximum time to wait for a response
+    ///
+    /// # Returns
+    ///
+    /// A mutable reference to self for method chaining
+    pub fn timeout(&mut self, timeout: Duration) -> &mut Self {
+        self.timeout = Some(timeout);
+        self
     }
 
     /// Creates the HTTP client with default headers.
-    fn create_client(&self) -> (request::Client, request::header::HeaderMap) {
-        let client = request::Client::new();
+    fn create_client(&self) -> Result<(request::Client, request::header::HeaderMap)> {
+        let client = create_http_client(self.timeout)?;
         let mut headers = request::header::HeaderMap::new();
         headers.insert(
             "Authorization",
@@ -217,7 +235,7 @@ impl Batches {
             "User-Agent",
             request::header::HeaderValue::from_static("openai-tools-rust"),
         );
-        (client, headers)
+        Ok((client, headers))
     }
 
     /// Creates a new batch job.
@@ -253,7 +271,7 @@ impl Batches {
     /// }
     /// ```
     pub async fn create(&self, request: CreateBatchRequest) -> Result<BatchObject> {
-        let (client, headers) = self.create_client();
+        let (client, headers) = self.create_client()?;
 
         let body = serde_json::to_string(&request).map_err(OpenAIToolError::SerdeJsonError)?;
 
@@ -303,7 +321,7 @@ impl Batches {
     /// }
     /// ```
     pub async fn retrieve(&self, batch_id: &str) -> Result<BatchObject> {
-        let (client, headers) = self.create_client();
+        let (client, headers) = self.create_client()?;
         let url = format!("{}/{}", BASE_URL, batch_id);
 
         let response = client
@@ -350,7 +368,7 @@ impl Batches {
     /// }
     /// ```
     pub async fn cancel(&self, batch_id: &str) -> Result<BatchObject> {
-        let (client, headers) = self.create_client();
+        let (client, headers) = self.create_client()?;
         let url = format!("{}/{}/cancel", BASE_URL, batch_id);
 
         let response = client
@@ -414,7 +432,7 @@ impl Batches {
         limit: Option<u32>,
         after: Option<&str>,
     ) -> Result<BatchListResponse> {
-        let (client, headers) = self.create_client();
+        let (client, headers) = self.create_client()?;
 
         let mut url = BASE_URL.to_string();
         let mut params = Vec::new();

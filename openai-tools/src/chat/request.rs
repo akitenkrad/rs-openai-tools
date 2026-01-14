@@ -195,6 +195,7 @@
 
 use crate::chat::response::Response;
 use crate::common::{
+    client::create_http_client,
     errors::{ErrorResponse, OpenAIToolError, Result},
     message::Message,
     structured_output::Schema,
@@ -205,6 +206,7 @@ use dotenvy::dotenv;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::env;
+use std::time::Duration;
 
 /// Response format structure for OpenAI API requests
 ///
@@ -308,6 +310,9 @@ struct Body {
 pub struct ChatCompletion {
     api_key: String,
     request_body: Body,
+    /// Optional request timeout duration
+    #[serde(skip)]
+    timeout: Option<Duration>,
 }
 
 impl ChatCompletion {
@@ -327,7 +332,7 @@ impl ChatCompletion {
         dotenv().ok();
         let api_key =
             env::var("OPENAI_API_KEY").map_err(|e| OpenAIToolError::Error(format!("OPENAI_API_KEY not set in environment: {}", e))).unwrap();
-        Self { api_key, request_body: Body::default() }
+        Self { api_key, request_body: Body::default(), timeout: None }
     }
 
     /// Sets the model ID to use
@@ -341,6 +346,31 @@ impl ChatCompletion {
     /// A mutable reference to self for method chaining
     pub fn model_id<T: AsRef<str>>(&mut self, model_id: T) -> &mut Self {
         self.request_body.model = model_id.as_ref().to_string();
+        self
+    }
+
+    /// Sets the request timeout duration
+    ///
+    /// # Arguments
+    ///
+    /// * `timeout` - The maximum time to wait for a response
+    ///
+    /// # Returns
+    ///
+    /// A mutable reference to self for method chaining
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// use std::time::Duration;
+    /// use openai_tools::chat::request::ChatCompletion;
+    ///
+    /// let mut chat = ChatCompletion::new();
+    /// chat.model_id("gpt-4o-mini")
+    ///     .timeout(Duration::from_secs(30));
+    /// ```
+    pub fn timeout(&mut self, timeout: Duration) -> &mut Self {
+        self.timeout = Some(timeout);
         self
     }
 
@@ -744,7 +774,7 @@ impl ChatCompletion {
         let body = serde_json::to_string(&self.request_body)?;
         let url = "https://api.openai.com/v1/chat/completions";
 
-        let client = request::Client::new();
+        let client = create_http_client(self.timeout)?;
         let mut header = request::header::HeaderMap::new();
         header.insert("Content-Type", request::header::HeaderValue::from_static("application/json"));
         header.insert("Authorization", request::header::HeaderValue::from_str(&format!("Bearer {}", self.api_key)).unwrap());

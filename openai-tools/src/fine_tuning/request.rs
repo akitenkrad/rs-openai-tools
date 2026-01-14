@@ -32,6 +32,7 @@
 //! }
 //! ```
 
+use crate::common::client::create_http_client;
 use crate::common::errors::{OpenAIToolError, Result};
 use crate::fine_tuning::response::{
     DpoConfig, FineTuningCheckpointListResponse, FineTuningEventListResponse, FineTuningJob,
@@ -40,6 +41,7 @@ use crate::fine_tuning::response::{
 use dotenvy::dotenv;
 use serde::Serialize;
 use std::env;
+use std::time::Duration;
 
 const BASE_URL: &str = "https://api.openai.com/v1/fine_tuning/jobs";
 
@@ -180,6 +182,8 @@ impl CreateFineTuningJobRequest {
 pub struct FineTuning {
     /// OpenAI API key for authentication
     api_key: String,
+    /// Optional request timeout duration
+    timeout: Option<Duration>,
 }
 
 impl FineTuning {
@@ -206,12 +210,26 @@ impl FineTuning {
         let api_key = env::var("OPENAI_API_KEY").map_err(|e| {
             OpenAIToolError::Error(format!("OPENAI_API_KEY not set in environment: {}", e))
         })?;
-        Ok(Self { api_key })
+        Ok(Self { api_key, timeout: None })
+    }
+
+    /// Sets the request timeout duration.
+    ///
+    /// # Arguments
+    ///
+    /// * `timeout` - The maximum time to wait for a response
+    ///
+    /// # Returns
+    ///
+    /// A mutable reference to self for method chaining
+    pub fn timeout(&mut self, timeout: Duration) -> &mut Self {
+        self.timeout = Some(timeout);
+        self
     }
 
     /// Creates the HTTP client with default headers.
-    fn create_client(&self) -> (request::Client, request::header::HeaderMap) {
-        let client = request::Client::new();
+    fn create_client(&self) -> Result<(request::Client, request::header::HeaderMap)> {
+        let client = create_http_client(self.timeout)?;
         let mut headers = request::header::HeaderMap::new();
         headers.insert(
             "Authorization",
@@ -225,7 +243,7 @@ impl FineTuning {
             "User-Agent",
             request::header::HeaderValue::from_static("openai-tools-rust"),
         );
-        (client, headers)
+        Ok((client, headers))
     }
 
     /// Creates a new fine-tuning job.
@@ -257,7 +275,7 @@ impl FineTuning {
     /// }
     /// ```
     pub async fn create(&self, request: CreateFineTuningJobRequest) -> Result<FineTuningJob> {
-        let (client, headers) = self.create_client();
+        let (client, headers) = self.create_client()?;
 
         let body = serde_json::to_string(&request).map_err(OpenAIToolError::SerdeJsonError)?;
 
@@ -307,7 +325,7 @@ impl FineTuning {
     /// }
     /// ```
     pub async fn retrieve(&self, job_id: &str) -> Result<FineTuningJob> {
-        let (client, headers) = self.create_client();
+        let (client, headers) = self.create_client()?;
         let url = format!("{}/{}", BASE_URL, job_id);
 
         let response = client
@@ -352,7 +370,7 @@ impl FineTuning {
     /// }
     /// ```
     pub async fn cancel(&self, job_id: &str) -> Result<FineTuningJob> {
-        let (client, headers) = self.create_client();
+        let (client, headers) = self.create_client()?;
         let url = format!("{}/{}/cancel", BASE_URL, job_id);
 
         let response = client
@@ -407,7 +425,7 @@ impl FineTuning {
         limit: Option<u32>,
         after: Option<&str>,
     ) -> Result<FineTuningJobListResponse> {
-        let (client, headers) = self.create_client();
+        let (client, headers) = self.create_client()?;
 
         let mut url = BASE_URL.to_string();
         let mut params = Vec::new();
@@ -479,7 +497,7 @@ impl FineTuning {
         limit: Option<u32>,
         after: Option<&str>,
     ) -> Result<FineTuningEventListResponse> {
-        let (client, headers) = self.create_client();
+        let (client, headers) = self.create_client()?;
 
         let mut url = format!("{}/{}/events", BASE_URL, job_id);
         let mut params = Vec::new();
@@ -552,7 +570,7 @@ impl FineTuning {
         limit: Option<u32>,
         after: Option<&str>,
     ) -> Result<FineTuningCheckpointListResponse> {
-        let (client, headers) = self.create_client();
+        let (client, headers) = self.create_client()?;
 
         let mut url = format!("{}/{}/checkpoints", BASE_URL, job_id);
         let mut params = Vec::new();

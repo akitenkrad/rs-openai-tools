@@ -1,3 +1,4 @@
+pub mod client;
 pub mod errors;
 pub mod function;
 pub mod message;
@@ -7,6 +8,7 @@ pub mod structured_output;
 pub mod tool;
 pub mod usage;
 
+pub use client::create_http_client;
 pub use errors::{OpenAIToolError, Result};
 pub use function::Function;
 pub use message::{Content, Message, ToolCall};

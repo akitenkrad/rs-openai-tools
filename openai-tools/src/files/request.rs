@@ -30,6 +30,7 @@
 //! }
 //! ```
 
+use crate::common::client::create_http_client;
 use crate::common::errors::{ErrorResponse, OpenAIToolError, Result};
 use crate::files::response::{DeleteResponse, File, FileListResponse};
 use dotenvy::dotenv;
@@ -37,6 +38,7 @@ use request::multipart::{Form, Part};
 use serde::{Deserialize, Serialize};
 use std::env;
 use std::path::Path;
+use std::time::Duration;
 
 const BASE_URL: &str = "https://api.openai.com/v1/files";
 
@@ -110,6 +112,8 @@ impl std::fmt::Display for FilePurpose {
 pub struct Files {
     /// OpenAI API key for authentication
     api_key: String,
+    /// Optional request timeout duration
+    timeout: Option<Duration>,
 }
 
 impl Files {
@@ -136,12 +140,36 @@ impl Files {
         let api_key = env::var("OPENAI_API_KEY").map_err(|e| {
             OpenAIToolError::Error(format!("OPENAI_API_KEY not set in environment: {}", e))
         })?;
-        Ok(Self { api_key })
+        Ok(Self { api_key, timeout: None })
+    }
+
+    /// Sets the request timeout duration.
+    ///
+    /// # Arguments
+    ///
+    /// * `timeout` - The maximum time to wait for a response
+    ///
+    /// # Returns
+    ///
+    /// A mutable reference to self for method chaining
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// use std::time::Duration;
+    /// use openai_tools::files::request::Files;
+    ///
+    /// let mut files = Files::new().unwrap();
+    /// files.timeout(Duration::from_secs(120));  // Longer timeout for file uploads
+    /// ```
+    pub fn timeout(&mut self, timeout: Duration) -> &mut Self {
+        self.timeout = Some(timeout);
+        self
     }
 
     /// Creates the HTTP client with default headers.
-    fn create_client(&self) -> (request::Client, request::header::HeaderMap) {
-        let client = request::Client::new();
+    fn create_client(&self) -> Result<(request::Client, request::header::HeaderMap)> {
+        let client = create_http_client(self.timeout)?;
         let mut headers = request::header::HeaderMap::new();
         headers.insert(
             "Authorization",
@@ -151,7 +179,7 @@ impl Files {
             "User-Agent",
             request::header::HeaderValue::from_static("openai-tools-rust"),
         );
-        (client, headers)
+        Ok((client, headers))
     }
 
     /// Uploads a file from a file path.
@@ -235,7 +263,7 @@ impl Files {
         filename: &str,
         purpose: FilePurpose,
     ) -> Result<File> {
-        let (client, headers) = self.create_client();
+        let (client, headers) = self.create_client()?;
 
         let file_part = Part::bytes(content.to_vec())
             .file_name(filename.to_string())
@@ -305,7 +333,7 @@ impl Files {
     /// }
     /// ```
     pub async fn list(&self, purpose: Option<FilePurpose>) -> Result<FileListResponse> {
-        let (client, headers) = self.create_client();
+        let (client, headers) = self.create_client()?;
 
         let url = match purpose {
             Some(p) => format!("{}?purpose={}", BASE_URL, p.as_str()),
@@ -364,7 +392,7 @@ impl Files {
     /// }
     /// ```
     pub async fn retrieve(&self, file_id: &str) -> Result<File> {
-        let (client, headers) = self.create_client();
+        let (client, headers) = self.create_client()?;
         let url = format!("{}/{}", BASE_URL, file_id);
 
         let response = client
@@ -419,7 +447,7 @@ impl Files {
     /// }
     /// ```
     pub async fn delete(&self, file_id: &str) -> Result<DeleteResponse> {
-        let (client, headers) = self.create_client();
+        let (client, headers) = self.create_client()?;
         let url = format!("{}/{}", BASE_URL, file_id);
 
         let response = client
@@ -474,7 +502,7 @@ impl Files {
     /// }
     /// ```
     pub async fn content(&self, file_id: &str) -> Result<Vec<u8>> {
-        let (client, headers) = self.create_client();
+        let (client, headers) = self.create_client()?;
         let url = format!("{}/{}/content", BASE_URL, file_id);
 
         let response = client

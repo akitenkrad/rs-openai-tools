@@ -61,12 +61,14 @@
 //! }
 //! ```
 
+use crate::common::client::create_http_client;
 use crate::common::errors::{ErrorResponse, OpenAIToolError, Result};
 use crate::embedding::response::Response;
 use core::str;
 use dotenvy::dotenv;
 use serde::{Deserialize, Serialize};
 use std::env;
+use std::time::Duration;
 
 /// Internal structure for handling input text in embedding requests.
 ///
@@ -177,6 +179,8 @@ pub struct Embedding {
     api_key: String,
     /// Request body containing model and input parameters
     body: Body,
+    /// Optional request timeout duration
+    timeout: Option<Duration>,
 }
 
 impl Embedding {
@@ -202,7 +206,7 @@ impl Embedding {
         dotenv().ok();
         let api_key = env::var("OPENAI_API_KEY").map_err(|e| OpenAIToolError::Error(format!("OPENAI_API_KEY not set in environment: {}", e)))?;
         let body = Body::default();
-        Ok(Self { api_key, body })
+        Ok(Self { api_key, body, timeout: None })
     }
 
     /// Sets the model to use for embedding generation.
@@ -224,6 +228,31 @@ impl Embedding {
     /// ```
     pub fn model<T: AsRef<str>>(&mut self, model: T) -> &mut Self {
         self.body.model = model.as_ref().to_string();
+        self
+    }
+
+    /// Sets the request timeout duration.
+    ///
+    /// # Arguments
+    ///
+    /// * `timeout` - The maximum time to wait for a response
+    ///
+    /// # Returns
+    ///
+    /// A mutable reference to self for method chaining
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// use std::time::Duration;
+    /// use openai_tools::embedding::request::Embedding;
+    ///
+    /// let mut embedding = Embedding::new().unwrap();
+    /// embedding.model("text-embedding-3-small")
+    ///     .timeout(Duration::from_secs(30));
+    /// ```
+    pub fn timeout(&mut self, timeout: Duration) -> &mut Self {
+        self.timeout = Some(timeout);
         self
     }
 
@@ -357,7 +386,7 @@ impl Embedding {
         let body = serde_json::to_string(&self.body)?;
         let url = "https://api.openai.com/v1/embeddings";
 
-        let client = request::Client::new();
+        let client = create_http_client(self.timeout)?;
         let mut header = request::header::HeaderMap::new();
         header.insert("Content-Type", request::header::HeaderValue::from_static("application/json"));
         header.insert("Authorization", request::header::HeaderValue::from_str(&format!("Bearer {}", self.api_key)).unwrap());

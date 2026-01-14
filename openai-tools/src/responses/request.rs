@@ -1,5 +1,6 @@
 use crate::{
     common::{
+        client::create_http_client,
         errors::{OpenAIToolError, Result},
         message::Message,
         structured_output::Schema,
@@ -13,6 +14,7 @@ use request;
 use serde::{ser::SerializeStruct, Serialize};
 use std::collections::HashMap;
 use std::env;
+use std::time::Duration;
 use strum::{Display, EnumString};
 
 /// Specifies additional data to include in the response output
@@ -932,6 +934,9 @@ pub struct Responses {
     user_agent: String,
     /// The request body containing all parameters for the API call
     pub request_body: Body,
+    /// Optional request timeout duration
+    #[serde(skip)]
+    timeout: Option<Duration>,
 }
 
 impl Responses {
@@ -947,14 +952,14 @@ impl Responses {
     pub fn new() -> Self {
         dotenv().ok();
         let api_key = env::var("OPENAI_API_KEY").expect("OPENAI_API_KEY is not set.");
-        Self { endpoint: "https://api.openai.com/v1/responses".into(), api_key, user_agent: "".into(), request_body: Body::default() }
+        Self { endpoint: "https://api.openai.com/v1/responses".into(), api_key, user_agent: "".into(), request_body: Body::default(), timeout: None }
     }
 
     /// Creates a new instance of the Responses client with a custom endpoint
     pub fn from_endpoint<T: AsRef<str>>(endpoint: T) -> Self {
         dotenv().ok();
         let api_key = env::var("OPENAI_API_KEY").expect("OPENAI_API_KEY is not set.");
-        Self { endpoint: endpoint.as_ref().to_string(), api_key, user_agent: "".into(), request_body: Body::default() }
+        Self { endpoint: endpoint.as_ref().to_string(), api_key, user_agent: "".into(), request_body: Body::default(), timeout: None }
     }
 
     /// Sets the model ID for the request
@@ -968,6 +973,31 @@ impl Responses {
     /// A mutable reference to self for method chaining
     pub fn model_id<T: AsRef<str>>(&mut self, model_id: T) -> &mut Self {
         self.request_body.model = model_id.as_ref().to_string();
+        self
+    }
+
+    /// Sets the request timeout duration
+    ///
+    /// # Arguments
+    ///
+    /// * `timeout` - The maximum time to wait for a response
+    ///
+    /// # Returns
+    ///
+    /// A mutable reference to self for method chaining
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// use std::time::Duration;
+    /// use openai_tools::responses::request::Responses;
+    ///
+    /// let mut responses = Responses::new();
+    /// responses.model_id("gpt-4o")
+    ///     .timeout(Duration::from_secs(30));
+    /// ```
+    pub fn timeout(&mut self, timeout: Duration) -> &mut Self {
+        self.timeout = Some(timeout);
         self
     }
 
@@ -1879,7 +1909,7 @@ impl Responses {
         let body = serde_json::to_string(&request_body)?;
         let url = self.endpoint.clone();
 
-        let client = request::Client::new();
+        let client = create_http_client(self.timeout)?;
 
         // Set up headers
         let mut header = request::header::HeaderMap::new();

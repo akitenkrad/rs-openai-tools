@@ -160,6 +160,26 @@ chat.model_id("gpt-4o-mini")
     .await?;
 ```
 
+**Timeout Configuration**: All HTTP-based API clients support optional request timeouts:
+```rust
+use std::time::Duration;
+
+// Builder pattern clients
+let mut chat = ChatCompletion::new();
+chat.model_id("gpt-4o-mini")
+    .timeout(Duration::from_secs(30))  // Set 30 second timeout
+    .messages(messages)
+    .chat()
+    .await?;
+
+// Service pattern clients
+let mut files = Files::new()?;
+files.timeout(Duration::from_secs(120));  // Longer timeout for file uploads
+let file = files.upload_path("data.jsonl", FilePurpose::FineTune).await?;
+```
+
+Timeout is optional - if not set, requests have no timeout limit (default reqwest behavior).
+
 **Schema for Structured Output**: Two factory methods depending on API:
 - `Schema::chat_json_schema("name")` - for Chat Completions
 - `Schema::responses_json_schema("name")` - for Responses API
