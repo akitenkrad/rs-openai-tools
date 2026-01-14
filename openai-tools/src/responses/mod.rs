@@ -258,6 +258,7 @@ pub mod response;
 mod tests {
     use crate::common::{
         message::{Content, Message},
+        models::ChatModel,
         parameters::ParameterProperty,
         role::Role,
         structured_output::Schema,
@@ -266,10 +267,10 @@ mod tests {
     use crate::responses::request::{Include, ReasoningEffort, ReasoningSummary, Responses, Truncation};
 
     #[test]
-    fn test_responses_builder_model_id() {
+    fn test_responses_builder_model() {
         let mut responses = Responses::new();
-        responses.model_id("gpt-4o-mini");
-        assert_eq!(responses.request_body.model, "gpt-4o-mini");
+        responses.model(ChatModel::Gpt4oMini);
+        assert_eq!(responses.request_body.model, ChatModel::Gpt4oMini);
     }
 
     #[test]
@@ -418,7 +419,7 @@ mod tests {
     #[test]
     fn test_request_body_serialization() {
         let mut responses = Responses::new();
-        responses.model_id("gpt-4o-mini");
+        responses.model(ChatModel::Gpt4oMini);
         responses.str_message("Test message");
         responses.temperature(0.5);
         responses.max_output_tokens(100);
@@ -431,7 +432,7 @@ mod tests {
     #[test]
     fn test_optional_parameters_serialization() {
         let mut responses = Responses::new();
-        responses.model_id("gpt-4o-mini");
+        responses.model(ChatModel::Gpt4oMini);
         responses.str_message("Test");
         responses.temperature(0.7);
         responses.max_output_tokens(100);
@@ -481,45 +482,45 @@ mod tests {
     fn test_reasoning_model_detection_o1() {
         // Test that o1 models are detected as reasoning models
         let mut responses = Responses::new();
-        responses.model_id("o1-preview");
+        responses.model(ChatModel::O1);
         responses.str_message("Test");
         responses.temperature(0.5);
 
         // When we serialize, the temperature should be included
         // (it's only removed during complete(), not during serialization)
         assert_eq!(responses.request_body.temperature, Some(0.5));
-        assert_eq!(responses.request_body.model, "o1-preview");
+        assert_eq!(responses.request_body.model, ChatModel::O1);
     }
 
     #[test]
     fn test_reasoning_model_detection_o3() {
         // Test that o3 models are detected as reasoning models
         let mut responses = Responses::new();
-        responses.model_id("o3-mini");
+        responses.model(ChatModel::O3Mini);
         responses.str_message("Test");
         responses.temperature(0.3);
 
         assert_eq!(responses.request_body.temperature, Some(0.3));
-        assert_eq!(responses.request_body.model, "o3-mini");
+        assert_eq!(responses.request_body.model, ChatModel::O3Mini);
     }
 
     #[test]
     fn test_non_reasoning_model() {
         // Test that regular models are not affected
         let mut responses = Responses::new();
-        responses.model_id("gpt-4o");
+        responses.model(ChatModel::Gpt4o);
         responses.str_message("Test");
         responses.temperature(0.7);
 
         assert_eq!(responses.request_body.temperature, Some(0.7));
-        assert_eq!(responses.request_body.model, "gpt-4o");
+        assert_eq!(responses.request_body.model, ChatModel::Gpt4o);
     }
 
     #[test]
     fn test_reasoning_model_with_default_temperature() {
         // Test that default temperature (1.0) is allowed for reasoning models
         let mut responses = Responses::new();
-        responses.model_id("o1");
+        responses.model(ChatModel::O1);
         responses.str_message("Test");
         responses.temperature(1.0);
 

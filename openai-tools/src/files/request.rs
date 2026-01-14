@@ -110,6 +110,8 @@ impl std::fmt::Display for FilePurpose {
 /// }
 /// ```
 pub struct Files {
+    /// The API endpoint URL
+    endpoint: String,
     /// OpenAI API key for authentication
     api_key: String,
     /// Optional request timeout duration
@@ -140,7 +142,23 @@ impl Files {
         let api_key = env::var("OPENAI_API_KEY").map_err(|e| {
             OpenAIToolError::Error(format!("OPENAI_API_KEY not set in environment: {}", e))
         })?;
-        Ok(Self { api_key, timeout: None })
+        Ok(Self { endpoint: BASE_URL.to_string(), api_key, timeout: None })
+    }
+
+    /// Sets a custom API endpoint URL
+    ///
+    /// Use this to point to alternative OpenAI-compatible APIs.
+    ///
+    /// # Arguments
+    ///
+    /// * `url` - The base URL of the API endpoint (without trailing paths)
+    ///
+    /// # Returns
+    ///
+    /// A mutable reference to self for method chaining
+    pub fn base_url<T: AsRef<str>>(&mut self, url: T) -> &mut Self {
+        self.endpoint = url.as_ref().to_string();
+        self
     }
 
     /// Sets the request timeout duration.
@@ -275,7 +293,7 @@ impl Files {
             .text("purpose", purpose.as_str().to_string());
 
         let response = client
-            .post(BASE_URL)
+            .post(&self.endpoint)
             .headers(headers)
             .multipart(form)
             .send()
@@ -336,8 +354,8 @@ impl Files {
         let (client, headers) = self.create_client()?;
 
         let url = match purpose {
-            Some(p) => format!("{}?purpose={}", BASE_URL, p.as_str()),
-            None => BASE_URL.to_string(),
+            Some(p) => format!("{}?purpose={}", self.endpoint, p.as_str()),
+            None => self.endpoint.clone(),
         };
 
         let response = client
@@ -393,7 +411,7 @@ impl Files {
     /// ```
     pub async fn retrieve(&self, file_id: &str) -> Result<File> {
         let (client, headers) = self.create_client()?;
-        let url = format!("{}/{}", BASE_URL, file_id);
+        let url = format!("{}/{}", self.endpoint, file_id);
 
         let response = client
             .get(&url)
@@ -448,7 +466,7 @@ impl Files {
     /// ```
     pub async fn delete(&self, file_id: &str) -> Result<DeleteResponse> {
         let (client, headers) = self.create_client()?;
-        let url = format!("{}/{}", BASE_URL, file_id);
+        let url = format!("{}/{}", self.endpoint, file_id);
 
         let response = client
             .delete(&url)
@@ -503,7 +521,7 @@ impl Files {
     /// ```
     pub async fn content(&self, file_id: &str) -> Result<Vec<u8>> {
         let (client, headers) = self.create_client()?;
-        let url = format!("{}/{}/content", BASE_URL, file_id);
+        let url = format!("{}/{}/content", self.endpoint, file_id);
 
         let response = client
             .get(&url)

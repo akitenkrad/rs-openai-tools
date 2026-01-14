@@ -141,12 +141,13 @@ pub mod response;
 
 #[cfg(test)]
 mod tests {
+    use crate::common::models::EmbeddingModel;
     use crate::embedding::request::Embedding;
 
     #[test]
     fn test_embedding_builder_model() {
         let mut embedding = Embedding::new().expect("Embedding initialization should succeed");
-        embedding.model("text-embedding-3-small");
+        embedding.model(EmbeddingModel::TextEmbedding3Small);
         // Model is set internally, we can verify by serialization
     }
 
@@ -190,7 +191,7 @@ mod tests {
     fn test_embedding_builder_chain() {
         let mut embedding = Embedding::new().expect("Embedding initialization should succeed");
         embedding
-            .model("text-embedding-3-small")
+            .model(EmbeddingModel::TextEmbedding3Small)
             .input_text("Hello!")
             .encoding_format("float");
         // Method chaining works

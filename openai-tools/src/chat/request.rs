@@ -198,6 +198,7 @@ use crate::common::{
     client::create_http_client,
     errors::{ErrorResponse, OpenAIToolError, Result},
     message::Message,
+    models::ChatModel,
     structured_output::Schema,
     tool::Tool,
 };
@@ -240,7 +241,7 @@ impl Format {
 /// to the OpenAI API. Each field corresponds to the API specification.
 #[derive(Debug, Clone, Deserialize, Serialize, Default)]
 struct Body {
-    model: String,
+    model: ChatModel,
     messages: Vec<Message>,
     /// Whether to store the request and response at OpenAI
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -306,8 +307,13 @@ struct Body {
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// # }
 /// ```
+/// Default API endpoint for Chat Completions
+const DEFAULT_ENDPOINT: &str = "https://api.openai.com/v1/chat/completions";
+
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
 pub struct ChatCompletion {
+    /// The API endpoint URL
+    endpoint: String,
     api_key: String,
     request_body: Body,
     /// Optional request timeout duration
@@ -332,20 +338,82 @@ impl ChatCompletion {
         dotenv().ok();
         let api_key =
             env::var("OPENAI_API_KEY").map_err(|e| OpenAIToolError::Error(format!("OPENAI_API_KEY not set in environment: {}", e))).unwrap();
-        Self { api_key, request_body: Body::default(), timeout: None }
+        Self { endpoint: DEFAULT_ENDPOINT.to_string(), api_key, request_body: Body::default(), timeout: None }
     }
 
-    /// Sets the model ID to use
+    /// Sets a custom API endpoint URL
+    ///
+    /// Use this to point to alternative OpenAI-compatible APIs (e.g., Azure OpenAI,
+    /// local LLM servers, or proxy servers).
     ///
     /// # Arguments
     ///
-    /// * `model_id` - OpenAI model ID (e.g., `gpt-4o-mini`, `gpt-4o`)
+    /// * `url` - The full URL of the API endpoint
     ///
     /// # Returns
     ///
     /// A mutable reference to self for method chaining
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// use openai_tools::chat::request::ChatCompletion;
+    ///
+    /// let mut chat = ChatCompletion::new();
+    /// chat.base_url("https://my-proxy.example.com/v1/chat/completions");
+    /// ```
+    pub fn base_url<T: AsRef<str>>(&mut self, url: T) -> &mut Self {
+        self.endpoint = url.as_ref().to_string();
+        self
+    }
+
+    /// Sets the model to use for chat completion.
+    ///
+    /// # Arguments
+    ///
+    /// * `model` - The model to use (e.g., `ChatModel::Gpt4oMini`, `ChatModel::Gpt4o`)
+    ///
+    /// # Returns
+    ///
+    /// A mutable reference to self for method chaining
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// use openai_tools::chat::request::ChatCompletion;
+    /// use openai_tools::common::models::ChatModel;
+    ///
+    /// let mut chat = ChatCompletion::new();
+    /// chat.model(ChatModel::Gpt4oMini);
+    /// ```
+    pub fn model(&mut self, model: ChatModel) -> &mut Self {
+        self.request_body.model = model;
+        self
+    }
+
+    /// Sets the model using a string ID (for backward compatibility).
+    ///
+    /// Prefer using [`model`] with `ChatModel` enum for type safety.
+    ///
+    /// # Arguments
+    ///
+    /// * `model_id` - OpenAI model ID string (e.g., "gpt-4o-mini")
+    ///
+    /// # Returns
+    ///
+    /// A mutable reference to self for method chaining
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// use openai_tools::chat::request::ChatCompletion;
+    ///
+    /// let mut chat = ChatCompletion::new();
+    /// chat.model_id("gpt-4o-mini");
+    /// ```
+    #[deprecated(since = "0.2.0", note = "Use `model(ChatModel)` instead for type safety")]
     pub fn model_id<T: AsRef<str>>(&mut self, model_id: T) -> &mut Self {
-        self.request_body.model = model_id.as_ref().to_string();
+        self.request_body.model = ChatModel::from(model_id.as_ref());
         self
     }
 
@@ -614,7 +682,7 @@ impl ChatCompletion {
 
     /// Checks if the model is a reasoning model that doesn't support custom temperature
     ///
-    /// Reasoning models (o1, o3, etc.) only support the default temperature value of 1.0.
+    /// Reasoning models (o1, o3, o4 series) only support the default temperature value of 1.0.
     /// This method checks if the current model is one of these reasoning models.
     ///
     /// # Returns
@@ -623,11 +691,11 @@ impl ChatCompletion {
     ///
     /// # Supported Reasoning Models
     ///
-    /// - `o1`, `o1-preview`, `o1-mini`, and variants
+    /// - `o1`, `o1-pro`, and variants
     /// - `o3`, `o3-mini`, and variants
+    /// - `o4-mini` and variants
     fn is_reasoning_model(&self) -> bool {
-        let model = self.request_body.model.to_lowercase();
-        model.starts_with("o1") || model.starts_with("o3")
+        self.request_body.model.is_reasoning_model()
     }
 
     /// Sends the chat completion request to OpenAI API
@@ -683,9 +751,7 @@ impl ChatCompletion {
         if self.api_key.is_empty() {
             return Err(OpenAIToolError::Error("API key is not set.".into()));
         }
-        if self.request_body.model.is_empty() {
-            return Err(OpenAIToolError::Error("Model ID is not set.".into()));
-        }
+        // Note: Model defaults to ChatModel::Gpt4oMini, so no need to check for empty
         if self.request_body.messages.is_empty() {
             return Err(OpenAIToolError::Error("Messages are not set.".into()));
         }
@@ -772,7 +838,6 @@ impl ChatCompletion {
         }
 
         let body = serde_json::to_string(&self.request_body)?;
-        let url = "https://api.openai.com/v1/chat/completions";
 
         let client = create_http_client(self.timeout)?;
         let mut header = request::header::HeaderMap::new();
@@ -786,7 +851,7 @@ impl ChatCompletion {
             tracing::info!("Request body: {}", body_for_debug);
         }
 
-        let response = client.post(url).headers(header).body(body).send().await.map_err(OpenAIToolError::RequestError)?;
+        let response = client.post(&self.endpoint).headers(header).body(body).send().await.map_err(OpenAIToolError::RequestError)?;
         let status = response.status();
         let content = response.text().await.map_err(OpenAIToolError::RequestError)?;
 

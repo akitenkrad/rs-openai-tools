@@ -10,6 +10,7 @@ use tokio_tungstenite::{
 };
 
 use crate::common::errors::{OpenAIToolError, Result};
+use crate::common::models::RealtimeModel;
 use crate::common::tool::Tool;
 
 use super::audio::{AudioFormat, InputAudioTranscription, TranscriptionModel, Voice};
@@ -18,9 +19,6 @@ use super::events::client::ClientEvent;
 use super::events::server::ServerEvent;
 use super::session::{Modality, RealtimeTool, ResponseCreateConfig, SessionConfig};
 use super::vad::{SemanticVadConfig, ServerVadConfig, TurnDetection};
-
-/// The default Realtime API model.
-const DEFAULT_MODEL: &str = "gpt-4o-realtime-preview";
 
 /// The Realtime API WebSocket endpoint.
 const REALTIME_API_URL: &str = "wss://api.openai.com/v1/realtime";
@@ -50,7 +48,7 @@ const REALTIME_API_URL: &str = "wss://api.openai.com/v1/realtime";
 #[derive(Debug, Clone)]
 pub struct RealtimeClient {
     api_key: String,
-    model: String,
+    model: RealtimeModel,
     session_config: SessionConfig,
 }
 
@@ -61,17 +59,36 @@ impl RealtimeClient {
     pub fn new() -> Self {
         dotenvy::dotenv().ok();
         let api_key = std::env::var("OPENAI_API_KEY").expect("OPENAI_API_KEY must be set");
-        Self { api_key, model: DEFAULT_MODEL.to_string(), session_config: SessionConfig::default() }
+        Self { api_key, model: RealtimeModel::default(), session_config: SessionConfig::default() }
     }
 
     /// Create a new RealtimeClient with an explicit API key.
     pub fn with_api_key(api_key: impl Into<String>) -> Self {
-        Self { api_key: api_key.into(), model: DEFAULT_MODEL.to_string(), session_config: SessionConfig::default() }
+        Self { api_key: api_key.into(), model: RealtimeModel::default(), session_config: SessionConfig::default() }
     }
 
-    /// Set the model ID.
-    pub fn model(&mut self, model: impl Into<String>) -> &mut Self {
-        self.model = model.into();
+    /// Set the model for the Realtime API.
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// use openai_tools::realtime::RealtimeClient;
+    /// use openai_tools::common::models::RealtimeModel;
+    ///
+    /// let mut client = RealtimeClient::new();
+    /// client.model(RealtimeModel::Gpt4oRealtimePreview);
+    /// ```
+    pub fn model(&mut self, model: RealtimeModel) -> &mut Self {
+        self.model = model;
+        self
+    }
+
+    /// Set the model using a string ID (for backward compatibility).
+    ///
+    /// Prefer using [`model`] with `RealtimeModel` enum for type safety.
+    #[deprecated(since = "0.2.0", note = "Use `model(RealtimeModel)` instead for type safety")]
+    pub fn model_id(&mut self, model_id: impl Into<String>) -> &mut Self {
+        self.model = RealtimeModel::from(model_id.into().as_str());
         self
     }
 
@@ -159,7 +176,7 @@ impl RealtimeClient {
     ///
     /// Returns a `RealtimeSession` for sending and receiving events.
     pub async fn connect(&self) -> Result<RealtimeSession> {
-        let url = format!("{}?model={}", REALTIME_API_URL, self.model);
+        let url = format!("{}?model={}", REALTIME_API_URL, self.model.as_str());
 
         // Build WebSocket request with headers
         let mut request = url.into_client_request().map_err(|e| OpenAIToolError::Error(format!("Failed to build request: {}", e)))?;

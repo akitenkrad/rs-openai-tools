@@ -3,6 +3,7 @@ use crate::{
         client::create_http_client,
         errors::{OpenAIToolError, Result},
         message::Message,
+        models::ChatModel,
         structured_output::Schema,
         tool::Tool,
     },
@@ -316,10 +317,9 @@ pub struct Format {
 /// ```
 #[derive(Debug, Clone, Default, new)]
 pub struct Body {
-    /// The ID of the model to use for generating responses
+    /// The model to use for generating responses
     ///
     /// Specifies which OpenAI model to use for response generation.
-    /// Common values include "gpt-4", "gpt-4-turbo", "gpt-3.5-turbo".
     ///
     /// # Required
     ///
@@ -327,10 +327,10 @@ pub struct Body {
     ///
     /// # Examples
     ///
-    /// - `"gpt-4"` - Latest GPT-4 model
-    /// - `"gpt-4-turbo"` - GPT-4 Turbo for faster responses
-    /// - `"gpt-3.5-turbo"` - More cost-effective option
-    pub model: String,
+    /// - `ChatModel::Gpt4o` - Latest GPT-4o model
+    /// - `ChatModel::Gpt4oMini` - Cost-effective option
+    /// - `ChatModel::O3Mini` - Reasoning model
+    pub model: ChatModel,
 
     /// Optional instructions to guide the model's behavior and response style
     ///
@@ -962,17 +962,70 @@ impl Responses {
         Self { endpoint: endpoint.as_ref().to_string(), api_key, user_agent: "".into(), request_body: Body::default(), timeout: None }
     }
 
-    /// Sets the model ID for the request
+    /// Sets a custom API endpoint URL
+    ///
+    /// Use this to point to alternative OpenAI-compatible APIs (e.g., Azure OpenAI,
+    /// local LLM servers, or proxy servers).
     ///
     /// # Arguments
     ///
-    /// * `model_id` - The ID of the model to use (e.g., "gpt-4", "gpt-3.5-turbo")
+    /// * `url` - The full URL of the API endpoint
     ///
     /// # Returns
     ///
     /// A mutable reference to self for method chaining
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// use openai_tools::responses::request::Responses;
+    ///
+    /// let mut responses = Responses::new();
+    /// responses.base_url("https://my-proxy.example.com/v1/responses");
+    /// ```
+    pub fn base_url<T: AsRef<str>>(&mut self, url: T) -> &mut Self {
+        self.endpoint = url.as_ref().to_string();
+        self
+    }
+
+    /// Sets the model for the request.
+    ///
+    /// # Arguments
+    ///
+    /// * `model` - The model to use (e.g., `ChatModel::Gpt4oMini`, `ChatModel::Gpt4o`)
+    ///
+    /// # Returns
+    ///
+    /// A mutable reference to self for method chaining
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// use openai_tools::responses::request::Responses;
+    /// use openai_tools::common::models::ChatModel;
+    ///
+    /// let mut responses = Responses::new();
+    /// responses.model(ChatModel::Gpt4oMini);
+    /// ```
+    pub fn model(&mut self, model: ChatModel) -> &mut Self {
+        self.request_body.model = model;
+        self
+    }
+
+    /// Sets the model using a string ID (for backward compatibility).
+    ///
+    /// Prefer using [`model`] with `ChatModel` enum for type safety.
+    ///
+    /// # Arguments
+    ///
+    /// * `model_id` - The ID of the model to use (e.g., "gpt-4o-mini")
+    ///
+    /// # Returns
+    ///
+    /// A mutable reference to self for method chaining
+    #[deprecated(since = "0.2.0", note = "Use `model(ChatModel)` instead for type safety")]
     pub fn model_id<T: AsRef<str>>(&mut self, model_id: T) -> &mut Self {
-        self.request_body.model = model_id.as_ref().to_string();
+        self.request_body.model = ChatModel::from(model_id.as_ref());
         self
     }
 
@@ -1796,7 +1849,7 @@ impl Responses {
 
     /// Checks if the model is a reasoning model that doesn't support custom temperature
     ///
-    /// Reasoning models (o1, o3, etc.) only support the default temperature value of 1.0.
+    /// Reasoning models (o1, o3, o4 series) only support the default temperature value of 1.0.
     /// This method checks if the current model is one of these reasoning models.
     ///
     /// # Returns
@@ -1805,11 +1858,11 @@ impl Responses {
     ///
     /// # Supported Reasoning Models
     ///
-    /// - `o1`, `o1-preview`, `o1-mini`, and variants
+    /// - `o1`, `o1-pro`, and variants
     /// - `o3`, `o3-mini`, and variants
+    /// - `o4-mini` and variants
     fn is_reasoning_model(&self) -> bool {
-        let model = self.request_body.model.to_lowercase();
-        model.starts_with("o1") || model.starts_with("o3")
+        self.request_body.model.is_reasoning_model()
     }
 
     /// Executes the request and returns the response
@@ -1857,9 +1910,7 @@ impl Responses {
         if self.api_key.is_empty() {
             return Err(OpenAIToolError::Error("API key is not set.".into()));
         }
-        if self.request_body.model.is_empty() {
-            return Err(OpenAIToolError::Error("Model ID is not set.".into()));
-        }
+        // Note: Model defaults to ChatModel::Gpt4oMini, so no need to check for empty
         if self.request_body.messages_input.is_none() && self.request_body.plain_text_input.is_none() {
             return Err(OpenAIToolError::Error("Messages are not set.".into()));
         } else if self.request_body.plain_text_input.is_none() && self.request_body.messages_input.is_none() {

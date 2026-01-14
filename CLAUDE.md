@@ -142,6 +142,7 @@ rs-openai-tools/
 - **`common/`**: Shared types across all APIs
   - `message.rs`: `Message`, `Content`, `ToolCall`
   - `role.rs`: `Role` enum (User, Assistant, System, Tool)
+  - `models.rs`: Type-safe model enums (`ChatModel`, `EmbeddingModel`, `RealtimeModel`, `FineTuningModel`)
   - `tool.rs`: `Tool` definition for function calling
   - `parameters.rs`: `ParameterProperty` for tool parameters
   - `structured_output.rs`: `Schema` for JSON schema responses
@@ -152,8 +153,10 @@ rs-openai-tools/
 
 **Builder Pattern**: All API clients use builder-style configuration:
 ```rust
+use openai_tools::common::models::ChatModel;
+
 let mut chat = ChatCompletion::new();
-chat.model_id("gpt-4o-mini")
+chat.model(ChatModel::Gpt4oMini)  // Type-safe model selection
     .messages(messages)
     .temperature(0.7)
     .chat()
@@ -163,10 +166,11 @@ chat.model_id("gpt-4o-mini")
 **Timeout Configuration**: All HTTP-based API clients support optional request timeouts:
 ```rust
 use std::time::Duration;
+use openai_tools::common::models::ChatModel;
 
 // Builder pattern clients
 let mut chat = ChatCompletion::new();
-chat.model_id("gpt-4o-mini")
+chat.model(ChatModel::Gpt4oMini)
     .timeout(Duration::from_secs(30))  // Set 30 second timeout
     .messages(messages)
     .chat()
@@ -179,6 +183,40 @@ let file = files.upload_path("data.jsonl", FilePurpose::FineTune).await?;
 ```
 
 Timeout is optional - if not set, requests have no timeout limit (default reqwest behavior).
+
+**Type-Safe Model Selection**: All APIs use enum-based model selection for compile-time validation:
+
+| Enum | API | Available Variants |
+|------|-----|-------------------|
+| `ChatModel` | Chat, Responses | `Gpt41`, `Gpt41Mini`, `Gpt41Nano`, `Gpt4o`, `Gpt4oMini`, `Gpt4Turbo`, `Gpt4`, `Gpt35Turbo`, `O1`, `O1Pro`, `O3`, `O3Mini`, `O4Mini`, `Custom(String)` |
+| `EmbeddingModel` | Embedding | `TextEmbedding3Small`, `TextEmbedding3Large`, `TextEmbeddingAda002` |
+| `RealtimeModel` | Realtime | `Gpt4oRealtimePreview`, `Gpt4oMiniRealtimePreview`, `Custom(String)` |
+| `FineTuningModel` | Fine-tuning | `Gpt41_2025_04_14`, `Gpt41Mini_2025_04_14`, `Gpt4oMini_2024_07_18`, `Gpt4o_2024_08_06`, `Gpt4_0613`, `Gpt35Turbo_0125`, etc. |
+
+```rust
+use openai_tools::common::models::{ChatModel, EmbeddingModel, RealtimeModel, FineTuningModel};
+
+// Chat/Responses API
+chat.model(ChatModel::Gpt4oMini);
+responses.model(ChatModel::O3Mini);
+
+// Embedding API
+embedding.model(EmbeddingModel::TextEmbedding3Small);
+
+// Realtime API
+client.model(RealtimeModel::Gpt4oRealtimePreview);
+
+// Fine-tuning API
+CreateFineTuningJobRequest::new(FineTuningModel::Gpt4oMini_2024_07_18, "file-id");
+
+// Custom models (for fine-tuned models or new models)
+chat.model(ChatModel::custom("ft:gpt-4o-mini:my-org::abc123"));
+
+// Check if model is a reasoning model
+if ChatModel::O3Mini.is_reasoning_model() {
+    // Handle reasoning model restrictions
+}
+```
 
 **Schema for Structured Output**: Two factory methods depending on API:
 - `Schema::chat_json_schema("name")` - for Chat Completions
@@ -196,9 +234,11 @@ Tool::function(
 
 **Realtime API**: WebSocket-based real-time communication:
 ```rust
+use openai_tools::common::models::RealtimeModel;
+
 let mut client = RealtimeClient::new();
 client
-    .model("gpt-4o-realtime-preview")
+    .model(RealtimeModel::Gpt4oRealtimePreview)  // Type-safe model selection
     .modalities(vec![Modality::Text, Modality::Audio])
     .voice(Voice::Alloy)
     .server_vad(ServerVadConfig::default());
@@ -221,6 +261,7 @@ session.close().await?;
 ```rust
 use openai_tools::conversations::request::Conversations;
 use openai_tools::conversations::response::InputItem;
+use openai_tools::common::models::ChatModel;
 use std::collections::HashMap;
 
 let conversations = Conversations::new()?;
@@ -244,7 +285,7 @@ for item in &items.data {
 
 // Use with Responses API
 let mut client = Responses::new();
-client.model_id("gpt-4o").conversation(&conv.id).str_message("How are you?").complete().await?;
+client.model(ChatModel::Gpt4o).conversation(&conv.id).str_message("How are you?").complete().await?;
 
 // Delete conversation when done
 conversations.delete(&conv.id).await?;
@@ -372,6 +413,8 @@ let response = batches.list(Some(20), None).await?;
 
 **Fine-tuning API**: Customize models with your training data:
 ```rust
+use openai_tools::common::models::FineTuningModel;
+
 let fine_tuning = FineTuning::new()?;
 
 // Create a fine-tuning job
@@ -379,7 +422,7 @@ let hyperparams = Hyperparameters {
     n_epochs: Some(3),
     ..Default::default()
 };
-let request = CreateFineTuningJobRequest::new("gpt-4o-mini-2024-07-18", "file-abc123")
+let request = CreateFineTuningJobRequest::new(FineTuningModel::Gpt4oMini_2024_07_18, "file-abc123")
     .with_suffix("my-model")
     .with_supervised_method(Some(hyperparams));
 
@@ -507,21 +550,22 @@ OpenAI's reasoning models (`o1`, `o1-preview`, `o1-mini`, `o3`, `o3-mini`, etc.)
 ```rust
 use openai_tools::chat::request::ChatCompletion;
 use openai_tools::responses::request::Responses;
+use openai_tools::common::models::ChatModel;
 
 // Chat API with reasoning model
 let mut chat = ChatCompletion::new();
-chat.model_id("o1-preview")
-    .temperature(0.3)           // Warning: ignored, using default 1.0
-    .frequency_penalty(0.5)     // Warning: ignored, using default 0
+chat.model(ChatModel::O1)           // Type-safe reasoning model selection
+    .temperature(0.3)               // Warning: ignored, using default 1.0
+    .frequency_penalty(0.5)         // Warning: ignored, using default 0
     .messages(messages)
     .chat()
     .await?;  // Request succeeds without API error
 
 // Responses API with reasoning model
 let mut responses = Responses::new();
-responses.model_id("o3-mini")
-    .temperature(0.7)           // Warning: ignored, using default 1.0
-    .top_p(0.9)                 // Warning: ignored, using default 1.0
+responses.model(ChatModel::O3Mini)  // Type-safe reasoning model selection
+    .temperature(0.7)               // Warning: ignored, using default 1.0
+    .top_p(0.9)                     // Warning: ignored, using default 1.0
     .str_message("Hello!")
     .complete()
     .await?;  // Request succeeds without API error

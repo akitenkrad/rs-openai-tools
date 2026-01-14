@@ -63,6 +63,7 @@
 
 use crate::common::client::create_http_client;
 use crate::common::errors::{ErrorResponse, OpenAIToolError, Result};
+use crate::common::models::EmbeddingModel;
 use crate::embedding::response::Response;
 use core::str;
 use dotenvy::dotenv;
@@ -142,13 +143,16 @@ impl Serialize for Input {
 /// Contains all parameters that can be sent to the API endpoint.
 #[derive(Debug, Clone, Deserialize, Serialize, Default)]
 struct Body {
-    /// The model ID to use for embedding generation
-    model: String,
+    /// The model to use for embedding generation
+    model: EmbeddingModel,
     /// The input text(s) to embed
     input: Input,
     /// The format for the output embeddings ("float" or "base64")
     encoding_format: Option<String>,
 }
+
+/// Default API endpoint for Embeddings
+const DEFAULT_ENDPOINT: &str = "https://api.openai.com/v1/embeddings";
 
 /// Main struct for building and sending embedding requests to the OpenAI API.
 ///
@@ -164,17 +168,19 @@ struct Body {
 /// #[tokio::main]
 /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ///     let mut embedding = Embedding::new()?;
-///     
+///
 ///     let response = embedding
 ///         .model("text-embedding-3-small")
 ///         .input_text("Sample text")
 ///         .embed()
 ///         .await?;
-///         
+///
 ///     Ok(())
 /// }
 /// ```
 pub struct Embedding {
+    /// The API endpoint URL
+    endpoint: String,
     /// OpenAI API key for authentication
     api_key: String,
     /// Request body containing model and input parameters
@@ -206,14 +212,30 @@ impl Embedding {
         dotenv().ok();
         let api_key = env::var("OPENAI_API_KEY").map_err(|e| OpenAIToolError::Error(format!("OPENAI_API_KEY not set in environment: {}", e)))?;
         let body = Body::default();
-        Ok(Self { api_key, body, timeout: None })
+        Ok(Self { endpoint: DEFAULT_ENDPOINT.to_string(), api_key, body, timeout: None })
+    }
+
+    /// Sets a custom API endpoint URL
+    ///
+    /// Use this to point to alternative OpenAI-compatible APIs.
+    ///
+    /// # Arguments
+    ///
+    /// * `url` - The full URL of the API endpoint
+    ///
+    /// # Returns
+    ///
+    /// A mutable reference to self for method chaining
+    pub fn base_url<T: AsRef<str>>(&mut self, url: T) -> &mut Self {
+        self.endpoint = url.as_ref().to_string();
+        self
     }
 
     /// Sets the model to use for embedding generation.
     ///
     /// # Arguments
     ///
-    /// * `model` - The model identifier (e.g., "text-embedding-3-small", "text-embedding-3-large")
+    /// * `model` - The embedding model to use
     ///
     /// # Returns
     ///
@@ -222,12 +244,31 @@ impl Embedding {
     /// # Example
     ///
     /// ```rust,no_run
-    /// # use openai_tools::embedding::request::Embedding;
-    /// # let mut embedding = Embedding::new().unwrap();
-    /// embedding.model("text-embedding-3-small");
+    /// use openai_tools::embedding::request::Embedding;
+    /// use openai_tools::common::models::EmbeddingModel;
+    ///
+    /// let mut embedding = Embedding::new().unwrap();
+    /// embedding.model(EmbeddingModel::TextEmbedding3Small);
     /// ```
-    pub fn model<T: AsRef<str>>(&mut self, model: T) -> &mut Self {
-        self.body.model = model.as_ref().to_string();
+    pub fn model(&mut self, model: EmbeddingModel) -> &mut Self {
+        self.body.model = model;
+        self
+    }
+
+    /// Sets the model using a string ID (for backward compatibility).
+    ///
+    /// Prefer using [`model`] with `EmbeddingModel` enum for type safety.
+    ///
+    /// # Arguments
+    ///
+    /// * `model_id` - The model identifier string (e.g., "text-embedding-3-small")
+    ///
+    /// # Returns
+    ///
+    /// A mutable reference to self for method chaining
+    #[deprecated(since = "0.2.0", note = "Use `model(EmbeddingModel)` instead for type safety")]
+    pub fn model_id<T: AsRef<str>>(&mut self, model_id: T) -> &mut Self {
+        self.body.model = EmbeddingModel::from(model_id.as_ref());
         self
     }
 
@@ -376,15 +417,12 @@ impl Embedding {
         if self.api_key.is_empty() {
             return Err(OpenAIToolError::Error("API key is not set.".into()));
         }
-        if self.body.model.is_empty() {
-            return Err(OpenAIToolError::Error("Model ID is not set.".into()));
-        }
+        // Note: Model defaults to EmbeddingModel::TextEmbedding3Small, so no need to check for empty
         if self.body.input.input_text.is_empty() && self.body.input.input_text_array.is_empty() {
             return Err(OpenAIToolError::Error("Input text is not set.".into()));
         }
 
         let body = serde_json::to_string(&self.body)?;
-        let url = "https://api.openai.com/v1/embeddings";
 
         let client = create_http_client(self.timeout)?;
         let mut header = request::header::HeaderMap::new();
@@ -398,7 +436,7 @@ impl Embedding {
             tracing::info!("Request body: {}", body_for_debug);
         }
 
-        let response = client.post(url).headers(header).body(body).send().await.map_err(OpenAIToolError::RequestError)?;
+        let response = client.post(&self.endpoint).headers(header).body(body).send().await.map_err(OpenAIToolError::RequestError)?;
         let status = response.status();
         let content = response.text().await.map_err(OpenAIToolError::RequestError)?;
 

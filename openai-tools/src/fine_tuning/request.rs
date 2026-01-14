@@ -34,6 +34,7 @@
 
 use crate::common::client::create_http_client;
 use crate::common::errors::{OpenAIToolError, Result};
+use crate::common::models::FineTuningModel;
 use crate::fine_tuning::response::{
     DpoConfig, FineTuningCheckpointListResponse, FineTuningEventListResponse, FineTuningJob,
     FineTuningJobListResponse, Hyperparameters, Integration, MethodConfig, SupervisedConfig,
@@ -48,8 +49,8 @@ const BASE_URL: &str = "https://api.openai.com/v1/fine_tuning/jobs";
 /// Request to create a new fine-tuning job.
 #[derive(Debug, Clone, Serialize)]
 pub struct CreateFineTuningJobRequest {
-    /// The name of the model to fine-tune.
-    pub model: String,
+    /// The base model to fine-tune.
+    pub model: FineTuningModel,
 
     /// The ID of the uploaded training file.
     pub training_file: String,
@@ -80,19 +81,23 @@ impl CreateFineTuningJobRequest {
     ///
     /// # Arguments
     ///
-    /// * `model` - The base model to fine-tune (e.g., "gpt-4o-mini-2024-07-18")
+    /// * `model` - The base model to fine-tune
     /// * `training_file` - The ID of the uploaded training file
     ///
     /// # Example
     ///
     /// ```rust
     /// use openai_tools::fine_tuning::request::CreateFineTuningJobRequest;
+    /// use openai_tools::common::models::FineTuningModel;
     ///
-    /// let request = CreateFineTuningJobRequest::new("gpt-4o-mini-2024-07-18", "file-abc123");
+    /// let request = CreateFineTuningJobRequest::new(
+    ///     FineTuningModel::Gpt4oMini_2024_07_18,
+    ///     "file-abc123"
+    /// );
     /// ```
-    pub fn new(model: impl Into<String>, training_file: impl Into<String>) -> Self {
+    pub fn new(model: FineTuningModel, training_file: impl Into<String>) -> Self {
         Self {
-            model: model.into(),
+            model,
             training_file: training_file.into(),
             validation_file: None,
             suffix: None,

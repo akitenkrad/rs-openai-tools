@@ -33,6 +33,7 @@
 //! use openai_tools::chat::request::ChatCompletion;
 //! use openai_tools::common::message::Message;
 //! use openai_tools::common::role::Role;
+//! use openai_tools::common::models::ChatModel;
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -42,7 +43,7 @@
 //!     ];
 //!
 //!     let response = chat
-//!         .model_id("gpt-4o-mini")
+//!         .model(ChatModel::Gpt4oMini)  // Type-safe model selection
 //!         .messages(messages)
 //!         .temperature(0.7)
 //!         .chat()
@@ -57,7 +58,7 @@
 //!
 //! ```rust,no_run
 //! use openai_tools::chat::request::ChatCompletion;
-//! use openai_tools::common::{message::Message, role::Role, structured_output::Schema};
+//! use openai_tools::common::{message::Message, role::Role, structured_output::Schema, models::ChatModel};
 //! use serde::{Deserialize, Serialize};
 //!
 //! #[derive(Debug, Serialize, Deserialize)]
@@ -70,20 +71,20 @@
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     let mut chat = ChatCompletion::new();
-//!     
+//!
 //!     // Create JSON schema
 //!     let mut schema = Schema::chat_json_schema("person_info");
 //!     schema.add_property("name", "string", "Person's full name");
 //!     schema.add_property("age", "number", "Person's age");
 //!     schema.add_property("occupation", "string", "Person's job");
-//!     
+//!
 //!     let messages = vec![
 //!         Message::from_string(Role::User,
 //!             "Extract info: John Smith, 30, Software Engineer")
 //!     ];
 //!
 //!     let response = chat
-//!         .model_id("gpt-4o-mini")
+//!         .model(ChatModel::Gpt4oMini)
 //!         .messages(messages)
 //!         .json_schema(schema)
 //!         .chat()
@@ -92,7 +93,7 @@
 //!     let person: PersonInfo = serde_json::from_str(
 //!         response.choices[0].message.content.as_ref().unwrap().text.as_ref().unwrap()
 //!     )?;
-//!     
+//!
 //!     println!("Extracted: {} ({}), {}", person.name, person.age, person.occupation);
 //!     Ok(())
 //! }
@@ -102,12 +103,12 @@
 //!
 //! ```rust,no_run
 //! use openai_tools::chat::request::ChatCompletion;
-//! use openai_tools::common::{message::Message, role::Role, tool::Tool, parameters::ParameterProperty};
+//! use openai_tools::common::{message::Message, role::Role, tool::Tool, parameters::ParameterProperty, models::ChatModel};
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     let mut chat = ChatCompletion::new();
-//!     
+//!
 //!     // Define a weather tool
 //!     let weather_tool = Tool::function(
 //!         "get_weather",
@@ -124,7 +125,7 @@
 //!     ];
 //!
 //!     let response = chat
-//!         .model_id("gpt-4o-mini")
+//!         .model(ChatModel::Gpt4oMini)
 //!         .messages(messages)
 //!         .tools(vec![weather_tool])
 //!         .chat()
@@ -148,16 +149,16 @@
 //!
 //! ```rust,no_run
 //! use openai_tools::responses::request::Responses;
-//! use openai_tools::common::{message::{Message, Content}, role::Role};
+//! use openai_tools::common::{message::{Message, Content}, role::Role, models::ChatModel};
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     let mut responses = Responses::new();
-//!     
+//!
 //!     responses
-//!         .model_id("gpt-4o-mini")
+//!         .model(ChatModel::Gpt4oMini)
 //!         .instructions("You are an image analysis assistant.");
-//!     
+//!
 //!     // Multi-modal message with text and image
 //!     let message = Message::from_message_array(
 //!         Role::User,
@@ -166,9 +167,9 @@
 //!             Content::from_image_file("path/to/image.jpg"),
 //!         ],
 //!     );
-//!     
+//!
 //!     responses.messages(vec![message]);
-//!     
+//!
 //!     let response = responses.complete().await?;
 //!     let text = response.output_text().unwrap();
 //!     println!("Response: {}", text);
@@ -195,6 +196,7 @@
 //!   - [`common::structured_output`] - JSON schema utilities
 //!   - [`common::errors`] - Error types and handling
 //!   - [`common::usage`] - Token usage tracking
+//!   - [`common::models`] - Type-safe model enums (ChatModel, EmbeddingModel, etc.)
 //!
 //! ## Error Handling
 //!

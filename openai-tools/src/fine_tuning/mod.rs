@@ -127,12 +127,13 @@ pub use response::{
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::common::models::FineTuningModel;
 
     #[test]
     fn test_create_fine_tuning_job_request_new() {
         let request =
-            CreateFineTuningJobRequest::new("gpt-4o-mini-2024-07-18", "file-abc123");
-        assert_eq!(request.model, "gpt-4o-mini-2024-07-18");
+            CreateFineTuningJobRequest::new(FineTuningModel::Gpt4oMini_2024_07_18, "file-abc123");
+        assert_eq!(request.model, FineTuningModel::Gpt4oMini_2024_07_18);
         assert_eq!(request.training_file, "file-abc123");
         assert!(request.validation_file.is_none());
         assert!(request.suffix.is_none());
@@ -143,7 +144,7 @@ mod tests {
     #[test]
     fn test_create_fine_tuning_job_request_with_options() {
         let request =
-            CreateFineTuningJobRequest::new("gpt-4o-mini-2024-07-18", "file-abc123")
+            CreateFineTuningJobRequest::new(FineTuningModel::Gpt4oMini_2024_07_18, "file-abc123")
                 .with_validation_file("file-def456")
                 .with_suffix("my-model")
                 .with_seed(42);
@@ -162,7 +163,7 @@ mod tests {
         };
 
         let request =
-            CreateFineTuningJobRequest::new("gpt-4o-mini-2024-07-18", "file-abc123")
+            CreateFineTuningJobRequest::new(FineTuningModel::Gpt4oMini_2024_07_18, "file-abc123")
                 .with_supervised_method(Some(hyperparams));
 
         assert!(request.method.is_some());
@@ -175,7 +176,7 @@ mod tests {
     #[test]
     fn test_create_fine_tuning_job_request_with_dpo_method() {
         let request =
-            CreateFineTuningJobRequest::new("gpt-4o-mini-2024-07-18", "file-abc123")
+            CreateFineTuningJobRequest::new(FineTuningModel::Gpt4oMini_2024_07_18, "file-abc123")
                 .with_dpo_method(None);
 
         assert!(request.method.is_some());
@@ -188,7 +189,7 @@ mod tests {
     #[test]
     fn test_create_fine_tuning_job_request_serialization() {
         let request =
-            CreateFineTuningJobRequest::new("gpt-4o-mini-2024-07-18", "file-abc123")
+            CreateFineTuningJobRequest::new(FineTuningModel::Gpt4oMini_2024_07_18, "file-abc123")
                 .with_suffix("test-model");
 
         let json = serde_json::to_string(&request).unwrap();
