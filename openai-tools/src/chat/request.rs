@@ -198,7 +198,7 @@ use crate::common::{
     client::create_http_client,
     errors::{ErrorResponse, OpenAIToolError, Result},
     message::Message,
-    models::ChatModel,
+    models::{ChatModel, ParameterRestriction},
     structured_output::Schema,
     tool::Tool,
 };
@@ -339,6 +339,49 @@ impl ChatCompletion {
         let api_key =
             env::var("OPENAI_API_KEY").map_err(|e| OpenAIToolError::Error(format!("OPENAI_API_KEY not set in environment: {}", e))).unwrap();
         Self { endpoint: DEFAULT_ENDPOINT.to_string(), api_key, request_body: Body::default(), timeout: None }
+    }
+
+    /// Creates a new ChatCompletion instance with a specified model.
+    ///
+    /// This is the recommended constructor as it enables parameter validation
+    /// at setter time. When you set parameters like `temperature()`, the model's
+    /// parameter support is checked and warnings are logged for unsupported values.
+    ///
+    /// # Arguments
+    ///
+    /// * `model` - The model to use for chat completion
+    ///
+    /// # Panics
+    ///
+    /// Panics if the `OPENAI_API_KEY` environment variable is not set.
+    ///
+    /// # Returns
+    ///
+    /// A new ChatCompletion instance with the specified model
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// use openai_tools::chat::request::ChatCompletion;
+    /// use openai_tools::common::models::ChatModel;
+    ///
+    /// // Recommended: specify model at creation time
+    /// let mut chat = ChatCompletion::with_model(ChatModel::Gpt4oMini);
+    ///
+    /// // For reasoning models, unsupported parameters are validated at setter time
+    /// let mut reasoning_chat = ChatCompletion::with_model(ChatModel::O3Mini);
+    /// reasoning_chat.temperature(0.5); // Warning logged, value ignored
+    /// ```
+    pub fn with_model(model: ChatModel) -> Self {
+        dotenv().ok();
+        let api_key =
+            env::var("OPENAI_API_KEY").map_err(|e| OpenAIToolError::Error(format!("OPENAI_API_KEY not set in environment: {}", e))).unwrap();
+        Self {
+            endpoint: DEFAULT_ENDPOINT.to_string(),
+            api_key,
+            request_body: Body { model, ..Default::default() },
+            timeout: None,
+        }
     }
 
     /// Sets a custom API endpoint URL
@@ -504,6 +547,9 @@ impl ChatCompletion {
     /// A parameter that penalizes based on word frequency to reduce repetition.
     /// Positive values decrease repetition, negative values increase it.
     ///
+    /// **Note:** Reasoning models (GPT-5, o-series) only support frequency_penalty=0.
+    /// For these models, non-zero values will be ignored with a warning.
+    ///
     /// # Arguments
     ///
     /// * `frequency_penalty` - Frequency penalty value (range: -2.0 to 2.0)
@@ -512,11 +558,34 @@ impl ChatCompletion {
     ///
     /// A mutable reference to self for method chaining
     pub fn frequency_penalty(&mut self, frequency_penalty: f32) -> &mut Self {
-        self.request_body.frequency_penalty = Option::from(frequency_penalty);
+        let support = self.request_body.model.parameter_support();
+        match support.frequency_penalty {
+            ParameterRestriction::FixedValue(fixed) => {
+                if (frequency_penalty as f64 - fixed).abs() > f64::EPSILON {
+                    tracing::warn!(
+                        "Model '{}' only supports frequency_penalty={}. Ignoring frequency_penalty={}.",
+                        self.request_body.model, fixed, frequency_penalty
+                    );
+                    return self;
+                }
+            }
+            ParameterRestriction::NotSupported => {
+                tracing::warn!(
+                    "Model '{}' does not support frequency_penalty parameter. Ignoring.",
+                    self.request_body.model
+                );
+                return self;
+            }
+            ParameterRestriction::Any => {}
+        }
+        self.request_body.frequency_penalty = Some(frequency_penalty);
         self
     }
 
     /// Sets logit bias to adjust the probability of specific tokens
+    ///
+    /// **Note:** Reasoning models (GPT-5, o-series) do not support logit_bias.
+    /// For these models, this parameter will be ignored with a warning.
     ///
     /// # Arguments
     ///
@@ -526,12 +595,23 @@ impl ChatCompletion {
     ///
     /// A mutable reference to self for method chaining
     pub fn logit_bias<T: AsRef<str>>(&mut self, logit_bias: HashMap<T, i32>) -> &mut Self {
+        let support = self.request_body.model.parameter_support();
+        if !support.logit_bias {
+            tracing::warn!(
+                "Model '{}' does not support logit_bias parameter. Ignoring.",
+                self.request_body.model
+            );
+            return self;
+        }
         self.request_body.logit_bias =
-            Option::from(logit_bias.into_iter().map(|(k, v)| (k.as_ref().to_string(), v)).collect::<HashMap<String, i32>>());
+            Some(logit_bias.into_iter().map(|(k, v)| (k.as_ref().to_string(), v)).collect::<HashMap<String, i32>>());
         self
     }
 
     /// Sets whether to include probability information for each token
+    ///
+    /// **Note:** Reasoning models (GPT-5, o-series) do not support logprobs.
+    /// For these models, this parameter will be ignored with a warning.
     ///
     /// # Arguments
     ///
@@ -541,11 +621,22 @@ impl ChatCompletion {
     ///
     /// A mutable reference to self for method chaining
     pub fn logprobs(&mut self, logprobs: bool) -> &mut Self {
-        self.request_body.logprobs = Option::from(logprobs);
+        let support = self.request_body.model.parameter_support();
+        if !support.logprobs {
+            tracing::warn!(
+                "Model '{}' does not support logprobs parameter. Ignoring.",
+                self.request_body.model
+            );
+            return self;
+        }
+        self.request_body.logprobs = Some(logprobs);
         self
     }
 
     /// Sets the number of top probabilities to return for each token
+    ///
+    /// **Note:** Reasoning models (GPT-5, o-series) do not support top_logprobs.
+    /// For these models, this parameter will be ignored with a warning.
     ///
     /// # Arguments
     ///
@@ -555,7 +646,15 @@ impl ChatCompletion {
     ///
     /// A mutable reference to self for method chaining
     pub fn top_logprobs(&mut self, top_logprobs: u8) -> &mut Self {
-        self.request_body.top_logprobs = Option::from(top_logprobs);
+        let support = self.request_body.model.parameter_support();
+        if !support.top_logprobs {
+            tracing::warn!(
+                "Model '{}' does not support top_logprobs parameter. Ignoring.",
+                self.request_body.model
+            );
+            return self;
+        }
+        self.request_body.top_logprobs = Some(top_logprobs);
         self
     }
 
@@ -575,6 +674,9 @@ impl ChatCompletion {
 
     /// Sets the number of responses to generate
     ///
+    /// **Note:** Reasoning models (GPT-5, o-series) only support n=1.
+    /// For these models, values other than 1 will be ignored with a warning.
+    ///
     /// # Arguments
     ///
     /// * `n` - Number of responses to generate
@@ -583,7 +685,15 @@ impl ChatCompletion {
     ///
     /// A mutable reference to self for method chaining
     pub fn n(&mut self, n: u32) -> &mut Self {
-        self.request_body.n = Option::from(n);
+        let support = self.request_body.model.parameter_support();
+        if !support.n_multiple && n != 1 {
+            tracing::warn!(
+                "Model '{}' only supports n=1. Ignoring n={}.",
+                self.request_body.model, n
+            );
+            return self;
+        }
+        self.request_body.n = Some(n);
         self
     }
 
@@ -607,6 +717,9 @@ impl ChatCompletion {
     /// Positive values encourage talking about new topics, negative values encourage
     /// staying on existing topics.
     ///
+    /// **Note:** Reasoning models (GPT-5, o-series) only support presence_penalty=0.
+    /// For these models, non-zero values will be ignored with a warning.
+    ///
     /// # Arguments
     ///
     /// * `presence_penalty` - Presence penalty value (range: -2.0 to 2.0)
@@ -615,7 +728,27 @@ impl ChatCompletion {
     ///
     /// A mutable reference to self for method chaining
     pub fn presence_penalty(&mut self, presence_penalty: f32) -> &mut Self {
-        self.request_body.presence_penalty = Option::from(presence_penalty);
+        let support = self.request_body.model.parameter_support();
+        match support.presence_penalty {
+            ParameterRestriction::FixedValue(fixed) => {
+                if (presence_penalty as f64 - fixed).abs() > f64::EPSILON {
+                    tracing::warn!(
+                        "Model '{}' only supports presence_penalty={}. Ignoring presence_penalty={}.",
+                        self.request_body.model, fixed, presence_penalty
+                    );
+                    return self;
+                }
+            }
+            ParameterRestriction::NotSupported => {
+                tracing::warn!(
+                    "Model '{}' does not support presence_penalty parameter. Ignoring.",
+                    self.request_body.model
+                );
+                return self;
+            }
+            ParameterRestriction::Any => {}
+        }
+        self.request_body.presence_penalty = Some(presence_penalty);
         self
     }
 
@@ -623,6 +756,9 @@ impl ChatCompletion {
     ///
     /// Higher values (e.g., 1.0) produce more creative and diverse outputs,
     /// while lower values (e.g., 0.2) produce more deterministic and consistent outputs.
+    ///
+    /// **Note:** Reasoning models (GPT-5, o-series) only support temperature=1.0.
+    /// For these models, other values will be ignored with a warning.
     ///
     /// # Arguments
     ///
@@ -632,7 +768,27 @@ impl ChatCompletion {
     ///
     /// A mutable reference to self for method chaining
     pub fn temperature(&mut self, temperature: f32) -> &mut Self {
-        self.request_body.temperature = Option::from(temperature);
+        let support = self.request_body.model.parameter_support();
+        match support.temperature {
+            ParameterRestriction::FixedValue(fixed) => {
+                if (temperature as f64 - fixed).abs() > f64::EPSILON {
+                    tracing::warn!(
+                        "Model '{}' only supports temperature={}. Ignoring temperature={}.",
+                        self.request_body.model, fixed, temperature
+                    );
+                    return self;
+                }
+            }
+            ParameterRestriction::NotSupported => {
+                tracing::warn!(
+                    "Model '{}' does not support temperature parameter. Ignoring.",
+                    self.request_body.model
+                );
+                return self;
+            }
+            ParameterRestriction::Any => {}
+        }
+        self.request_body.temperature = Some(temperature);
         self
     }
 
@@ -716,11 +872,20 @@ impl ChatCompletion {
     /// - Network request fails
     /// - Response parsing fails
     ///
-    /// # Note
+    /// # Parameter Validation
     ///
-    /// For reasoning models (o1, o3, etc.), the `temperature` parameter is automatically
-    /// ignored if set to a value other than the default (1.0), as these models only
-    /// support the default temperature. A warning will be logged when this occurs.
+    /// For reasoning models (GPT-5, o-series), certain parameters have restrictions:
+    /// - `temperature`: only 1.0 supported
+    /// - `frequency_penalty`: only 0 supported
+    /// - `presence_penalty`: only 0 supported
+    /// - `logprobs`, `top_logprobs`, `logit_bias`: not supported
+    /// - `n`: only 1 supported
+    ///
+    /// **Validation occurs at two points:**
+    /// 1. At setter time (when using `with_model()` constructor) - immediate warning
+    /// 2. At API call time (fallback) - for cases where model is changed after setting params
+    ///
+    /// Unsupported parameter values are ignored with a warning and the request proceeds.
     ///
     /// # Example
     ///

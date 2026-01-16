@@ -24,3 +24,4 @@ Cargo.lock
 docker-compose.yml
 /.claude
 /thoughts
+/docs

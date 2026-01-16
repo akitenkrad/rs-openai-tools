@@ -264,7 +264,7 @@ mod tests {
         structured_output::Schema,
         tool::Tool,
     };
-    use crate::responses::request::{Include, ReasoningEffort, ReasoningSummary, Responses, Truncation};
+    use crate::responses::request::{Include, ReasoningEffort, ReasoningSummary, Responses, TextConfig, TextVerbosity, Truncation};
 
     #[test]
     fn test_responses_builder_model() {
@@ -481,26 +481,30 @@ mod tests {
     #[test]
     fn test_reasoning_model_detection_o1() {
         // Test that o1 models are detected as reasoning models
+        // and non-default temperature is ignored at setter time
         let mut responses = Responses::new();
         responses.model(ChatModel::O1);
         responses.str_message("Test");
-        responses.temperature(0.5);
+        responses.temperature(0.5); // Should be ignored with warning
 
-        // When we serialize, the temperature should be included
-        // (it's only removed during complete(), not during serialization)
-        assert_eq!(responses.request_body.temperature, Some(0.5));
+        // Validation now happens at setter time for reasoning models
+        // Non-default temperature (0.5) should be ignored
+        assert_eq!(responses.request_body.temperature, None);
         assert_eq!(responses.request_body.model, ChatModel::O1);
     }
 
     #[test]
     fn test_reasoning_model_detection_o3() {
         // Test that o3 models are detected as reasoning models
+        // and non-default temperature is ignored at setter time
         let mut responses = Responses::new();
         responses.model(ChatModel::O3Mini);
         responses.str_message("Test");
-        responses.temperature(0.3);
+        responses.temperature(0.3); // Should be ignored with warning
 
-        assert_eq!(responses.request_body.temperature, Some(0.3));
+        // Validation now happens at setter time for reasoning models
+        // Non-default temperature (0.3) should be ignored
+        assert_eq!(responses.request_body.temperature, None);
         assert_eq!(responses.request_body.model, ChatModel::O3Mini);
     }
 
@@ -525,5 +529,107 @@ mod tests {
         responses.temperature(1.0);
 
         assert_eq!(responses.request_body.temperature, Some(1.0));
+    }
+
+    #[test]
+    fn test_reasoning_effort_none() {
+        // Test ReasoningEffort::None serialization
+        let effort = ReasoningEffort::None;
+        let json = serde_json::to_string(&effort).unwrap();
+        assert_eq!(json, "\"none\"");
+    }
+
+    #[test]
+    fn test_reasoning_effort_xhigh() {
+        // Test ReasoningEffort::Xhigh serialization
+        let effort = ReasoningEffort::Xhigh;
+        let json = serde_json::to_string(&effort).unwrap();
+        assert_eq!(json, "\"xhigh\"");
+    }
+
+    #[test]
+    fn test_reasoning_effort_all_variants() {
+        // Test all ReasoningEffort variants serialize correctly
+        assert_eq!(serde_json::to_string(&ReasoningEffort::None).unwrap(), "\"none\"");
+        assert_eq!(serde_json::to_string(&ReasoningEffort::Minimal).unwrap(), "\"minimal\"");
+        assert_eq!(serde_json::to_string(&ReasoningEffort::Low).unwrap(), "\"low\"");
+        assert_eq!(serde_json::to_string(&ReasoningEffort::Medium).unwrap(), "\"medium\"");
+        assert_eq!(serde_json::to_string(&ReasoningEffort::High).unwrap(), "\"high\"");
+        assert_eq!(serde_json::to_string(&ReasoningEffort::Xhigh).unwrap(), "\"xhigh\"");
+    }
+
+    #[test]
+    fn test_text_verbosity_low() {
+        let verbosity = TextVerbosity::Low;
+        let json = serde_json::to_string(&verbosity).unwrap();
+        assert_eq!(json, "\"low\"");
+    }
+
+    #[test]
+    fn test_text_verbosity_medium() {
+        let verbosity = TextVerbosity::Medium;
+        let json = serde_json::to_string(&verbosity).unwrap();
+        assert_eq!(json, "\"medium\"");
+    }
+
+    #[test]
+    fn test_text_verbosity_high() {
+        let verbosity = TextVerbosity::High;
+        let json = serde_json::to_string(&verbosity).unwrap();
+        assert_eq!(json, "\"high\"");
+    }
+
+    #[test]
+    fn test_text_config_serialization() {
+        let config = TextConfig {
+            verbosity: Some(TextVerbosity::High),
+        };
+        let json = serde_json::to_string(&config).unwrap();
+        assert!(json.contains("\"verbosity\":\"high\""));
+    }
+
+    #[test]
+    fn test_responses_builder_text_verbosity() {
+        let mut responses = Responses::new();
+        responses.text_verbosity(TextVerbosity::Low);
+
+        assert!(responses.request_body.text.is_some());
+        let text = responses.request_body.text.as_ref().unwrap();
+        assert_eq!(text.verbosity, Some(TextVerbosity::Low));
+    }
+
+    #[test]
+    fn test_responses_builder_reasoning_with_none() {
+        let mut responses = Responses::new();
+        responses.model(ChatModel::Gpt52);
+        responses.reasoning(ReasoningEffort::None, ReasoningSummary::Auto);
+
+        assert!(responses.request_body.reasoning.is_some());
+        let reasoning = responses.request_body.reasoning.as_ref().unwrap();
+        assert_eq!(reasoning.effort, Some(ReasoningEffort::None));
+    }
+
+    #[test]
+    fn test_responses_builder_reasoning_with_xhigh() {
+        let mut responses = Responses::new();
+        responses.model(ChatModel::Gpt52);
+        responses.reasoning(ReasoningEffort::Xhigh, ReasoningSummary::Detailed);
+
+        assert!(responses.request_body.reasoning.is_some());
+        let reasoning = responses.request_body.reasoning.as_ref().unwrap();
+        assert_eq!(reasoning.effort, Some(ReasoningEffort::Xhigh));
+    }
+
+    #[test]
+    fn test_request_body_with_text_serialization() {
+        // Test that text config is properly serialized in the request body
+        let mut responses = Responses::new();
+        responses.model(ChatModel::Gpt52);
+        responses.str_message("Test");
+        responses.text_verbosity(TextVerbosity::High);
+
+        let json_body = serde_json::to_string(&responses.request_body).unwrap();
+        assert!(json_body.contains("\"text\""));
+        assert!(json_body.contains("\"verbosity\":\"high\""));
     }
 }

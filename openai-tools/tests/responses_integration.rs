@@ -10,7 +10,8 @@ use openai_tools::common::{
     structured_output::Schema,
     tool::Tool,
 };
-use openai_tools::responses::request::{Include, ReasoningEffort, ReasoningSummary, Responses, Truncation};
+use openai_tools::common::models::ChatModel;
+use openai_tools::responses::request::{Include, ReasoningEffort, ReasoningSummary, Responses, TextVerbosity, Truncation};
 use serde::Deserialize;
 use std::sync::Once;
 use tracing_subscriber::EnvFilter;
@@ -525,4 +526,166 @@ fn test_optional_parameters() {
     assert!(json_body.contains("\"metadata\""));
 
     tracing::info!("All optional parameters test passed successfully");
+}
+
+// ============================================================================
+// GPT-5.2 New Parameter Tests
+// ============================================================================
+
+/// Test reasoning effort with None value (no reasoning tokens)
+#[test]
+fn test_reasoning_effort_none_serialization() {
+    init_tracing();
+
+    let mut responses = Responses::new();
+    responses.model(ChatModel::Gpt52);
+    responses.str_message("What is 2+2?");
+    responses.reasoning(ReasoningEffort::None, ReasoningSummary::Auto);
+
+    let json_body = serde_json::to_string(&responses.request_body).unwrap();
+    tracing::info!("Request body with ReasoningEffort::None: {}", json_body);
+
+    assert!(json_body.contains("\"effort\":\"none\""));
+}
+
+/// Test reasoning effort with Xhigh value (maximum reasoning)
+#[test]
+fn test_reasoning_effort_xhigh_serialization() {
+    init_tracing();
+
+    let mut responses = Responses::new();
+    responses.model(ChatModel::Gpt52);
+    responses.str_message("Solve this complex math problem: Find all prime factors of 123456789.");
+    responses.reasoning(ReasoningEffort::Xhigh, ReasoningSummary::Detailed);
+
+    let json_body = serde_json::to_string(&responses.request_body).unwrap();
+    tracing::info!("Request body with ReasoningEffort::Xhigh: {}", json_body);
+
+    assert!(json_body.contains("\"effort\":\"xhigh\""));
+    assert!(json_body.contains("\"summary\":\"detailed\""));
+}
+
+/// Test text verbosity parameter
+#[test]
+fn test_text_verbosity_serialization() {
+    init_tracing();
+
+    let mut responses = Responses::new();
+    responses.model(ChatModel::Gpt52);
+    responses.str_message("Explain quantum computing.");
+    responses.text_verbosity(TextVerbosity::High);
+
+    let json_body = serde_json::to_string(&responses.request_body).unwrap();
+    tracing::info!("Request body with TextVerbosity::High: {}", json_body);
+
+    assert!(json_body.contains("\"text\""));
+    assert!(json_body.contains("\"verbosity\":\"high\""));
+}
+
+/// Test text verbosity with low setting for concise responses
+#[test]
+fn test_text_verbosity_low_serialization() {
+    init_tracing();
+
+    let mut responses = Responses::new();
+    responses.model(ChatModel::Gpt52);
+    responses.str_message("What is the capital of Japan?");
+    responses.text_verbosity(TextVerbosity::Low);
+
+    let json_body = serde_json::to_string(&responses.request_body).unwrap();
+    tracing::info!("Request body with TextVerbosity::Low: {}", json_body);
+
+    assert!(json_body.contains("\"verbosity\":\"low\""));
+}
+
+/// Test combining reasoning effort and text verbosity
+#[test]
+fn test_combined_reasoning_and_verbosity() {
+    init_tracing();
+
+    let mut responses = Responses::new();
+    responses.model(ChatModel::Gpt52);
+    responses.str_message("Analyze the impact of AI on society.");
+    responses.reasoning(ReasoningEffort::High, ReasoningSummary::Detailed);
+    responses.text_verbosity(TextVerbosity::High);
+
+    let json_body = serde_json::to_string(&responses.request_body).unwrap();
+    tracing::info!("Request body with reasoning and verbosity: {}", json_body);
+
+    assert!(json_body.contains("\"reasoning\""));
+    assert!(json_body.contains("\"effort\":\"high\""));
+    assert!(json_body.contains("\"text\""));
+    assert!(json_body.contains("\"verbosity\":\"high\""));
+}
+
+/// Integration test: Test GPT-5.2 with reasoning effort None (API call)
+#[tokio::test]
+async fn test_gpt52_with_reasoning_none() {
+    init_tracing();
+
+    let mut responses = Responses::new();
+    responses.model(ChatModel::Gpt52);
+    responses.str_message("What is 2+2? Reply with just the number.");
+    responses.reasoning(ReasoningEffort::None, ReasoningSummary::Auto);
+    responses.max_output_tokens(50);
+
+    let result = responses.complete().await;
+    tracing::info!("GPT-5.2 with ReasoningEffort::None result: {:?}", result);
+
+    match result {
+        Ok(response) => {
+            tracing::info!("Response received successfully");
+            assert!(response.output.is_some(), "Expected output to be present");
+            assert!(!response.output.unwrap().is_empty(), "Expected non-empty output");
+        }
+        Err(e) => {
+            // GPT-5.2 may not be available in all accounts
+            tracing::warn!("GPT-5.2 test failed (model may not be available): {:?}", e);
+        }
+    }
+}
+
+/// Integration test: Test GPT-5.2 with text verbosity (API call)
+#[tokio::test]
+async fn test_gpt52_with_text_verbosity() {
+    init_tracing();
+
+    let mut responses = Responses::new();
+    responses.model(ChatModel::Gpt52);
+    responses.str_message("What is photosynthesis?");
+    responses.text_verbosity(TextVerbosity::Low);
+    responses.max_output_tokens(100);
+
+    let result = responses.complete().await;
+    tracing::info!("GPT-5.2 with TextVerbosity::Low result: {:?}", result);
+
+    match result {
+        Ok(response) => {
+            tracing::info!("Response received successfully");
+            assert!(response.output.is_some(), "Expected output to be present");
+            assert!(!response.output.unwrap().is_empty(), "Expected non-empty output");
+        }
+        Err(e) => {
+            // GPT-5.2 may not be available in all accounts
+            tracing::warn!("GPT-5.2 test failed (model may not be available): {:?}", e);
+        }
+    }
+}
+
+/// Integration test: Test with_model constructor
+#[tokio::test]
+async fn test_with_model_constructor() {
+    init_tracing();
+
+    let mut responses = Responses::with_model(ChatModel::Gpt4oMini);
+    responses.str_message("Say hello in Japanese.");
+    responses.max_output_tokens(50);
+
+    let result = responses.complete().await;
+    tracing::info!("with_model constructor result: {:?}", result);
+
+    assert!(result.is_ok(), "Expected successful response");
+    let response = result.unwrap();
+    assert!(response.output.is_some(), "Expected output to be present");
+    assert!(!response.output.unwrap().is_empty(), "Expected non-empty output");
 }

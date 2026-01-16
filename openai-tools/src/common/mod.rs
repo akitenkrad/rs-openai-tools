@@ -13,7 +13,7 @@ pub use client::create_http_client;
 pub use errors::{OpenAIToolError, Result};
 pub use function::Function;
 pub use message::{Content, Message, ToolCall};
-pub use models::{ChatModel, EmbeddingModel, FineTuningModel, RealtimeModel};
+pub use models::{ChatModel, EmbeddingModel, FineTuningModel, ParameterRestriction, ParameterSupport, RealtimeModel};
 pub use parameters::{ParameterProperty, Parameters};
 pub use role::Role;
 pub use structured_output::Schema;

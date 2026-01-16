@@ -42,6 +42,108 @@
 
 use serde::{Deserialize, Serialize};
 
+// ============================================================================
+// Parameter Restriction Types
+// ============================================================================
+
+/// Defines how a parameter is restricted for a model.
+///
+/// This enum is used to specify whether a parameter can accept any value,
+/// only a fixed value, or is not supported at all.
+#[derive(Debug, Clone, PartialEq)]
+pub enum ParameterRestriction {
+    /// Parameter accepts any value within its valid range
+    Any,
+    /// Parameter only supports a specific fixed value
+    FixedValue(f64),
+    /// Parameter is not supported by this model
+    NotSupported,
+}
+
+/// Parameter support information for a model.
+///
+/// This struct provides detailed information about which parameters are
+/// supported by a model and any restrictions that apply.
+///
+/// # Example
+///
+/// ```rust
+/// use openai_tools::common::models::{ChatModel, ParameterRestriction};
+///
+/// let model = ChatModel::O3Mini;
+/// let support = model.parameter_support();
+///
+/// // Reasoning models only support temperature = 1.0
+/// assert_eq!(support.temperature, ParameterRestriction::FixedValue(1.0));
+///
+/// // Reasoning models don't support logprobs
+/// assert!(!support.logprobs);
+/// ```
+#[derive(Debug, Clone)]
+pub struct ParameterSupport {
+    /// Temperature parameter restriction (Chat & Responses API)
+    pub temperature: ParameterRestriction,
+    /// Frequency penalty parameter restriction (Chat API only)
+    pub frequency_penalty: ParameterRestriction,
+    /// Presence penalty parameter restriction (Chat API only)
+    pub presence_penalty: ParameterRestriction,
+    /// Whether logprobs parameter is supported (Chat API only)
+    pub logprobs: bool,
+    /// Whether top_logprobs parameter is supported (Chat & Responses API)
+    pub top_logprobs: bool,
+    /// Whether logit_bias parameter is supported (Chat API only)
+    pub logit_bias: bool,
+    /// Whether n > 1 (multiple completions) is supported (Chat API only)
+    pub n_multiple: bool,
+    /// Top P parameter restriction (Responses API only)
+    pub top_p: ParameterRestriction,
+    /// Whether reasoning parameter is supported (Responses API only, reasoning models)
+    pub reasoning: bool,
+}
+
+impl ParameterSupport {
+    /// Creates parameter support info for standard (non-reasoning) models.
+    ///
+    /// Standard models support all parameters with full range.
+    pub fn standard_model() -> Self {
+        Self {
+            temperature: ParameterRestriction::Any,
+            frequency_penalty: ParameterRestriction::Any,
+            presence_penalty: ParameterRestriction::Any,
+            logprobs: true,
+            top_logprobs: true,
+            logit_bias: true,
+            n_multiple: true,
+            top_p: ParameterRestriction::Any,
+            reasoning: false,
+        }
+    }
+
+    /// Creates parameter support info for reasoning models (GPT-5, o-series).
+    ///
+    /// Reasoning models have restricted parameter support:
+    /// - temperature: only 1.0
+    /// - top_p: only 1.0
+    /// - frequency_penalty: only 0
+    /// - presence_penalty: only 0
+    /// - logprobs, top_logprobs, logit_bias: not supported
+    /// - n: only 1
+    /// - reasoning: supported
+    pub fn reasoning_model() -> Self {
+        Self {
+            temperature: ParameterRestriction::FixedValue(1.0),
+            frequency_penalty: ParameterRestriction::FixedValue(0.0),
+            presence_penalty: ParameterRestriction::FixedValue(0.0),
+            logprobs: false,
+            top_logprobs: false,
+            logit_bias: false,
+            n_multiple: false,
+            top_p: ParameterRestriction::FixedValue(1.0),
+            reasoning: true,
+        }
+    }
+}
+
 /// Models available for Chat Completions and Responses APIs.
 ///
 /// This enum covers all models that can be used with the Chat Completions API
@@ -292,6 +394,37 @@ impl ChatModel {
             self,
             Self::Custom(s) if s.starts_with("gpt-5") || s.starts_with("o1") || s.starts_with("o3") || s.starts_with("o4")
         )
+    }
+
+    /// Returns parameter support information for this model.
+    ///
+    /// This method provides detailed information about which parameters
+    /// are supported by the model and any restrictions that apply.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use openai_tools::common::models::{ChatModel, ParameterRestriction};
+    ///
+    /// // Standard model supports all parameters
+    /// let standard = ChatModel::Gpt4oMini;
+    /// let support = standard.parameter_support();
+    /// assert_eq!(support.temperature, ParameterRestriction::Any);
+    /// assert!(support.logprobs);
+    ///
+    /// // Reasoning model has restrictions
+    /// let reasoning = ChatModel::O3Mini;
+    /// let support = reasoning.parameter_support();
+    /// assert_eq!(support.temperature, ParameterRestriction::FixedValue(1.0));
+    /// assert!(!support.logprobs);
+    /// assert!(support.reasoning);
+    /// ```
+    pub fn parameter_support(&self) -> ParameterSupport {
+        if self.is_reasoning_model() {
+            ParameterSupport::reasoning_model()
+        } else {
+            ParameterSupport::standard_model()
+        }
     }
 
     /// Creates a custom model from a string.
@@ -761,5 +894,50 @@ mod tests {
         // GPT-5 deserialization
         let gpt52: ChatModel = serde_json::from_str("\"gpt-5.2\"").unwrap();
         assert_eq!(gpt52, ChatModel::Gpt52);
+    }
+
+    #[test]
+    fn test_parameter_support_standard_model() {
+        let model = ChatModel::Gpt4oMini;
+        let support = model.parameter_support();
+
+        // Standard models support all parameters
+        assert_eq!(support.temperature, ParameterRestriction::Any);
+        assert_eq!(support.frequency_penalty, ParameterRestriction::Any);
+        assert_eq!(support.presence_penalty, ParameterRestriction::Any);
+        assert_eq!(support.top_p, ParameterRestriction::Any);
+        assert!(support.logprobs);
+        assert!(support.top_logprobs);
+        assert!(support.logit_bias);
+        assert!(support.n_multiple);
+        assert!(!support.reasoning); // Standard models don't support reasoning
+    }
+
+    #[test]
+    fn test_parameter_support_reasoning_model() {
+        let model = ChatModel::O3Mini;
+        let support = model.parameter_support();
+
+        // Reasoning models have restrictions
+        assert_eq!(support.temperature, ParameterRestriction::FixedValue(1.0));
+        assert_eq!(support.frequency_penalty, ParameterRestriction::FixedValue(0.0));
+        assert_eq!(support.presence_penalty, ParameterRestriction::FixedValue(0.0));
+        assert_eq!(support.top_p, ParameterRestriction::FixedValue(1.0));
+        assert!(!support.logprobs);
+        assert!(!support.top_logprobs);
+        assert!(!support.logit_bias);
+        assert!(!support.n_multiple);
+        assert!(support.reasoning); // Reasoning models support reasoning
+    }
+
+    #[test]
+    fn test_parameter_support_gpt5_model() {
+        // GPT-5 models are also reasoning models
+        let model = ChatModel::Gpt52;
+        let support = model.parameter_support();
+
+        assert_eq!(support.temperature, ParameterRestriction::FixedValue(1.0));
+        assert!(!support.logprobs);
+        assert!(support.reasoning);
     }
 }

@@ -3,7 +3,7 @@ use crate::{
         client::create_http_client,
         errors::{OpenAIToolError, Result},
         message::Message,
-        models::ChatModel,
+        models::{ChatModel, ParameterRestriction},
         structured_output::Schema,
         tool::Tool,
     },
@@ -93,12 +93,29 @@ pub enum Include {
 /// This enum controls how much computational effort the model invests
 /// in reasoning through complex problems before generating a response.
 ///
+/// # Model Support
+///
+/// | Model | Supported Values |
+/// |-------|-----------------|
+/// | GPT-5.2, GPT-5.2-pro | `none`, `low`, `medium`, `high`, `xhigh` |
+/// | GPT-5.1 | `none`, `low`, `medium`, `high` |
+/// | GPT-5-mini | `minimal`, `medium`, `high` |
+/// | o1, o3, o4 series | `low`, `medium`, `high` |
+///
 /// # API Reference
 ///
 /// Corresponds to the `reasoning.effort` parameter in the OpenAI Responses API.
 #[derive(Debug, Clone, Serialize, EnumString, Display, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum ReasoningEffort {
+    /// No reasoning tokens - fastest response (GPT-5.1/5.2 default)
+    ///
+    /// Use this when you don't need reasoning capabilities and want
+    /// the fastest possible response time.
+    #[strum(serialize = "none")]
+    #[serde(rename = "none")]
+    None,
+
     /// Minimal reasoning effort - fastest response time
     ///
     /// Use this for simple queries that don't require deep analysis.
@@ -126,6 +143,14 @@ pub enum ReasoningEffort {
     #[strum(serialize = "high")]
     #[serde(rename = "high")]
     High,
+
+    /// Extra-high reasoning effort - quality-critical work (GPT-5.2 only)
+    ///
+    /// Use this for the most demanding tasks requiring maximum reasoning
+    /// quality. Only available on GPT-5.2 and GPT-5.2-pro models.
+    #[strum(serialize = "xhigh")]
+    #[serde(rename = "xhigh")]
+    Xhigh,
 }
 
 /// Defines the format of reasoning summary to include in the response
@@ -175,6 +200,53 @@ pub struct Reasoning {
     pub effort: Option<ReasoningEffort>,
     /// The format for the reasoning summary
     pub summary: Option<ReasoningSummary>,
+}
+
+/// Defines the verbosity level for text output
+///
+/// This enum controls how detailed and lengthy the model's text responses
+/// should be. Available on GPT-5.2 and newer models.
+///
+/// # API Reference
+///
+/// Corresponds to the `text.verbosity` parameter in the OpenAI Responses API.
+#[derive(Debug, Clone, Serialize, EnumString, Display, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum TextVerbosity {
+    /// Low verbosity - concise responses
+    ///
+    /// Use this for brief, to-the-point answers.
+    #[strum(serialize = "low")]
+    #[serde(rename = "low")]
+    Low,
+
+    /// Medium verbosity - balanced responses (default)
+    ///
+    /// Use this for standard-length responses with appropriate detail.
+    #[strum(serialize = "medium")]
+    #[serde(rename = "medium")]
+    Medium,
+
+    /// High verbosity - comprehensive responses
+    ///
+    /// Use this for detailed explanations with thorough coverage.
+    #[strum(serialize = "high")]
+    #[serde(rename = "high")]
+    High,
+}
+
+/// Configuration for text output behavior
+///
+/// This struct allows you to control the characteristics of the generated
+/// text output, such as verbosity level.
+///
+/// # API Reference
+///
+/// Corresponds to the `text` parameter in the OpenAI Responses API.
+#[derive(Debug, Clone, Serialize)]
+pub struct TextConfig {
+    /// The verbosity level for text output
+    pub verbosity: Option<TextVerbosity>,
 }
 
 /// Defines how the model should choose and use tools
@@ -682,6 +754,22 @@ pub struct Body {
     /// ```
     pub reasoning: Option<Reasoning>,
 
+    /// Optional text output configuration
+    ///
+    /// Controls the characteristics of the generated text output,
+    /// such as verbosity level. Available on GPT-5.2 and newer models.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use openai_tools::responses::request::{TextConfig, TextVerbosity};
+    ///
+    /// let text = TextConfig {
+    ///     verbosity: Some(TextVerbosity::High),
+    /// };
+    /// ```
+    pub text: Option<TextConfig>,
+
     /// Optional safety identifier
     ///
     /// Identifier for safety and content filtering configurations.
@@ -874,6 +962,9 @@ impl Serialize for Body {
         if self.reasoning.is_some() {
             state.serialize_field("reasoning", &self.reasoning)?;
         }
+        if self.text.is_some() {
+            state.serialize_field("text", &self.text)?;
+        }
         if self.safety_identifier.is_some() {
             state.serialize_field("safety_identifier", &self.safety_identifier)?;
         }
@@ -960,6 +1051,50 @@ impl Responses {
         dotenv().ok();
         let api_key = env::var("OPENAI_API_KEY").expect("OPENAI_API_KEY is not set.");
         Self { endpoint: endpoint.as_ref().to_string(), api_key, user_agent: "".into(), request_body: Body::default(), timeout: None }
+    }
+
+    /// Creates a new Responses client with a specified model.
+    ///
+    /// This is the recommended constructor as it enables parameter validation
+    /// at setter time. When you set parameters like `temperature()` or `top_p()`,
+    /// the model's parameter support is checked and warnings are logged for
+    /// unsupported values.
+    ///
+    /// # Arguments
+    ///
+    /// * `model` - The model to use for response generation
+    ///
+    /// # Panics
+    ///
+    /// Panics if the `OPENAI_API_KEY` environment variable is not set.
+    ///
+    /// # Returns
+    ///
+    /// A new Responses instance with the specified model
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// use openai_tools::responses::request::Responses;
+    /// use openai_tools::common::models::ChatModel;
+    ///
+    /// // Recommended: specify model at creation time
+    /// let mut responses = Responses::with_model(ChatModel::Gpt4oMini);
+    ///
+    /// // For reasoning models, unsupported parameters are validated at setter time
+    /// let mut reasoning_responses = Responses::with_model(ChatModel::O3Mini);
+    /// reasoning_responses.temperature(0.5); // Warning logged, value ignored
+    /// ```
+    pub fn with_model(model: ChatModel) -> Self {
+        dotenv().ok();
+        let api_key = env::var("OPENAI_API_KEY").expect("OPENAI_API_KEY is not set.");
+        Self {
+            endpoint: "https://api.openai.com/v1/responses".into(),
+            api_key,
+            user_agent: "".into(),
+            request_body: Body { model, ..Default::default() },
+            timeout: None,
+        }
     }
 
     /// Sets a custom API endpoint URL
@@ -1160,6 +1295,9 @@ impl Responses {
     ///   - 1.0: Default balanced behavior
     ///   - 2.0: Most random and creative responses
     ///
+    /// **Note:** Reasoning models (GPT-5, o-series) only support temperature=1.0.
+    /// For these models, other values will be ignored with a warning.
+    ///
     /// # Panics
     ///
     /// This method will panic if the temperature value is outside the valid
@@ -1184,6 +1322,26 @@ impl Responses {
     /// ```
     pub fn temperature(&mut self, temperature: f64) -> &mut Self {
         assert!((0.0..=2.0).contains(&temperature), "Temperature must be between 0.0 and 2.0, got {}", temperature);
+        let support = self.request_body.model.parameter_support();
+        match support.temperature {
+            ParameterRestriction::FixedValue(fixed) => {
+                if (temperature - fixed).abs() > f64::EPSILON {
+                    tracing::warn!(
+                        "Model '{}' only supports temperature={}. Ignoring temperature={}.",
+                        self.request_body.model, fixed, temperature
+                    );
+                    return self;
+                }
+            }
+            ParameterRestriction::NotSupported => {
+                tracing::warn!(
+                    "Model '{}' does not support temperature parameter. Ignoring.",
+                    self.request_body.model
+                );
+                return self;
+            }
+            ParameterRestriction::Any => {}
+        }
         self.request_body.temperature = Some(temperature);
         self
     }
@@ -1512,6 +1670,47 @@ impl Responses {
         self
     }
 
+    /// Sets the text output verbosity level
+    ///
+    /// Controls how detailed and lengthy the model's text responses should be.
+    /// This is particularly useful for controlling response length and detail level
+    /// based on your use case requirements.
+    ///
+    /// # Arguments
+    ///
+    /// * `verbosity` - The verbosity level for text output:
+    ///   - `TextVerbosity::Low` - Concise, brief responses
+    ///   - `TextVerbosity::Medium` - Balanced responses (default)
+    ///   - `TextVerbosity::High` - Comprehensive, detailed responses
+    ///
+    /// # Model Support
+    ///
+    /// This parameter is available on GPT-5.2 and newer models.
+    ///
+    /// # Use Cases
+    ///
+    /// - **Low verbosity**: Quick answers, summaries, yes/no questions
+    /// - **Medium verbosity**: Standard explanations, general queries
+    /// - **High verbosity**: Detailed tutorials, comprehensive analysis
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use openai_tools::responses::request::{Responses, TextVerbosity};
+    ///
+    /// let mut client = Responses::new();
+    ///
+    /// // Concise responses for simple queries
+    /// client.text_verbosity(TextVerbosity::Low);
+    ///
+    /// // Detailed responses for complex explanations
+    /// client.text_verbosity(TextVerbosity::High);
+    /// ```
+    pub fn text_verbosity(&mut self, verbosity: TextVerbosity) -> &mut Self {
+        self.request_body.text = Some(TextConfig { verbosity: Some(verbosity) });
+        self
+    }
+
     /// Sets the safety identifier for content filtering configuration
     ///
     /// Specifies which safety and content filtering policies should be applied
@@ -1747,6 +1946,9 @@ impl Responses {
     ///
     /// Higher values increase response size and may affect latency.
     ///
+    /// **Note:** Reasoning models (GPT-5, o-series) do not support top_logprobs.
+    /// For these models, this parameter will be ignored with a warning.
+    ///
     /// # Examples
     ///
     /// ```rust
@@ -1758,6 +1960,14 @@ impl Responses {
     /// client.top_logprobs(0);   // No log probabilities
     /// ```
     pub fn top_logprobs(&mut self, n: usize) -> &mut Self {
+        let support = self.request_body.model.parameter_support();
+        if !support.top_logprobs {
+            tracing::warn!(
+                "Model '{}' does not support top_logprobs parameter. Ignoring.",
+                self.request_body.model
+            );
+            return self;
+        }
         self.request_body.top_logprobs = Some(n);
         self
     }
@@ -1791,6 +2001,9 @@ impl Responses {
     /// - Low top_p + Low temperature = Very focused responses
     /// - High top_p + High temperature = Very creative responses
     ///
+    /// **Note:** Reasoning models (GPT-5, o-series) only support top_p=1.0.
+    /// For these models, other values will be ignored with a warning.
+    ///
     /// # Examples
     ///
     /// ```rust
@@ -1802,6 +2015,26 @@ impl Responses {
     /// client.top_p(0.95);  // High diversity
     /// ```
     pub fn top_p(&mut self, p: f64) -> &mut Self {
+        let support = self.request_body.model.parameter_support();
+        match support.top_p {
+            ParameterRestriction::FixedValue(fixed) => {
+                if (p - fixed).abs() > f64::EPSILON {
+                    tracing::warn!(
+                        "Model '{}' only supports top_p={}. Ignoring top_p={}.",
+                        self.request_body.model, fixed, p
+                    );
+                    return self;
+                }
+            }
+            ParameterRestriction::NotSupported => {
+                tracing::warn!(
+                    "Model '{}' does not support top_p parameter. Ignoring.",
+                    self.request_body.model
+                );
+                return self;
+            }
+            ParameterRestriction::Any => {}
+        }
         self.request_body.top_p = Some(p);
         self
     }
@@ -1885,11 +2118,18 @@ impl Responses {
     /// - The HTTP request fails
     /// - The response cannot be parsed
     ///
-    /// # Note
+    /// # Parameter Validation
     ///
-    /// For reasoning models (o1, o3, etc.), the `temperature` parameter is automatically
-    /// ignored if set to a value other than the default (1.0), as these models only
-    /// support the default temperature. A warning will be logged when this occurs.
+    /// For reasoning models (GPT-5, o-series), certain parameters have restrictions:
+    /// - `temperature`: only 1.0 supported
+    /// - `top_p`: only 1.0 supported
+    /// - `top_logprobs`: not supported
+    ///
+    /// **Validation occurs at two points:**
+    /// 1. At setter time (when using `with_model()` constructor) - immediate warning
+    /// 2. At API call time (fallback) - for cases where model is changed after setting params
+    ///
+    /// Unsupported parameter values are ignored with a warning and the request proceeds.
     ///
     /// # Examples
     ///

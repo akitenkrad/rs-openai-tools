@@ -4,6 +4,7 @@
 //! Run with: cargo test --test embedding_integration
 
 use openai_tools::common::errors::OpenAIToolError;
+use openai_tools::common::models::EmbeddingModel;
 use openai_tools::embedding::request::Embedding;
 use std::sync::Once;
 use tracing_subscriber::EnvFilter;
@@ -26,7 +27,7 @@ async fn test_embedding_with_text() {
 
     let mut embedding = Embedding::new().expect("Embedding initialization should succeed");
     embedding
-        .model("text-embedding-3-small")
+        .model(EmbeddingModel::TextEmbedding3Small)
         .input_text("Hello, world!");
 
     let mut counter = 3;
@@ -75,7 +76,7 @@ async fn test_embedding_with_text_array() {
     let mut embedding = Embedding::new().expect("Embedding initialization should succeed");
     let texts = vec!["Hello, world!", "こんにちは、世界！", "Bonjour le monde!"];
     embedding
-        .model("text-embedding-3-small")
+        .model(EmbeddingModel::TextEmbedding3Small)
         .input_text_array(texts.clone());
 
     let mut counter = 3;

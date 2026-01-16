@@ -9,16 +9,17 @@
 //!
 //! Note: These tests connect to the actual OpenAI Realtime API and may incur costs.
 
+use openai_tools::common::models::RealtimeModel;
 use openai_tools::common::{parameters::ParameterProperty, tool::Tool};
 use openai_tools::realtime::events::server::ServerEvent;
-use openai_tools::realtime::{Modality, RealtimeClient, Voice};
 use openai_tools::realtime::vad::ServerVadConfig;
+use openai_tools::realtime::{Modality, RealtimeClient, Voice};
 
 /// Test basic WebSocket connection to the Realtime API.
 #[tokio::test]
 async fn test_realtime_connection() {
     let mut client = RealtimeClient::new();
-    client.model("gpt-4o-realtime-preview");
+    client.model(RealtimeModel::Gpt4oRealtimePreview);
 
     let session_result = client.connect().await;
 
@@ -39,7 +40,7 @@ async fn test_realtime_connection() {
 async fn test_text_conversation() {
     let mut client = RealtimeClient::new();
     client
-        .model("gpt-4o-realtime-preview")
+        .model(RealtimeModel::Gpt4oRealtimePreview)
         .modalities(vec![Modality::Text])
         .instructions("You are a helpful assistant. Keep responses brief.");
 
@@ -124,7 +125,7 @@ async fn test_function_calling() {
 
     let mut client = RealtimeClient::new();
     client
-        .model("gpt-4o-realtime-preview")
+        .model(RealtimeModel::Gpt4oRealtimePreview)
         .modalities(vec![Modality::Text])
         .tools(vec![weather_tool])
         .instructions("You are a helpful assistant with access to weather information.");
@@ -204,7 +205,7 @@ async fn test_function_calling() {
 #[tokio::test]
 async fn test_session_update() {
     let mut client = RealtimeClient::new();
-    client.model("gpt-4o-realtime-preview");
+    client.model(RealtimeModel::Gpt4oRealtimePreview);
 
     let session_result = client.connect().await;
 
@@ -259,7 +260,7 @@ async fn test_audio_configuration() {
 
     let mut client = RealtimeClient::new();
     client
-        .model("gpt-4o-realtime-preview")
+        .model(RealtimeModel::Gpt4oRealtimePreview)
         .modalities(vec![Modality::Text, Modality::Audio])
         .voice(Voice::Alloy)
         .input_audio_format(AudioFormat::Pcm16)
