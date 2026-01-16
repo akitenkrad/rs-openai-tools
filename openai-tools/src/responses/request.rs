@@ -1170,21 +1170,17 @@ impl Responses {
     ///
     /// | Variable | Required | Description |
     /// |----------|----------|-------------|
-    /// | `AZURE_OPENAI_API_KEY` | Yes* | Azure API key |
-    /// | `AZURE_OPENAI_TOKEN` | Yes* | Entra ID token (alternative to API key) |
-    /// | `AZURE_OPENAI_ENDPOINT` | Yes** | Full endpoint URL |
-    /// | `AZURE_OPENAI_RESOURCE_NAME` | Yes** | Resource name (alternative to endpoint) |
-    /// | `AZURE_OPENAI_DEPLOYMENT_NAME` | Yes | Deployment name |
-    /// | `AZURE_OPENAI_API_VERSION` | No | API version (default: 2024-08-01-preview) |
-    ///
-    /// \* Either API_KEY or TOKEN required
-    /// \*\* Either ENDPOINT or RESOURCE_NAME required
+    /// | `AZURE_OPENAI_API_KEY` | Yes | Azure API key |
+    /// | `AZURE_OPENAI_BASE_URL` | Yes | Complete endpoint URL including deployment, API path, and api-version |
     ///
     /// # Example
     ///
     /// ```rust,no_run
     /// use openai_tools::responses::request::Responses;
     ///
+    /// // With environment variables:
+    /// // AZURE_OPENAI_API_KEY=xxx
+    /// // AZURE_OPENAI_BASE_URL=https://my-resource.openai.azure.com/openai/deployments/gpt-4o/responses?api-version=2024-08-01-preview
     /// let mut responses = Responses::azure()?;
     /// # Ok::<(), openai_tools::common::errors::OpenAIToolError>(())
     /// ```

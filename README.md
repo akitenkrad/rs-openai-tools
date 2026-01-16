@@ -30,9 +30,10 @@ Set Azure-specific environment variables:
 
 ```text
 AZURE_OPENAI_API_KEY = "xxxxxxxxxxxxxxxxxxxxxxxxxxx"
-AZURE_OPENAI_RESOURCE_NAME = "my-resource"
-AZURE_OPENAI_DEPLOYMENT_NAME = "gpt-4o-deployment"
+AZURE_OPENAI_BASE_URL = "https://my-resource.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2024-08-01-preview"
 ```
+
+Note: `AZURE_OPENAI_BASE_URL` must be the complete endpoint URL including deployment, API path, and api-version.
 
 ### Provider Detection
 
@@ -435,10 +436,27 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ## Update History
 
 <details>
+<summary>v1.0.3</summary>
+
+- **Breaking Change**: Simplified `AzureAuth` to accept complete endpoint URL
+  - `AzureAuth::new(api_key, base_url)` - simple 2-argument constructor
+  - `base_url` must be the complete endpoint URL including API path (e.g., `/chat/completions`)
+  - `endpoint()` method now returns `base_url` as-is (path parameter is ignored)
+  - Removed `resource_name`, `deployment_name`, `api_version` fields
+  - Removed `use_entra_id`, `with_entra_id()`, `is_entra_id()` (Entra ID support removed)
+- **Breaking Change**: Updated `with_url()` method signature
+  - Changed from `with_url(url, api_key, deployment_name)` to `with_url(url, api_key)`
+- Environment variable changes:
+  - Use `AZURE_OPENAI_BASE_URL` (complete endpoint URL) instead of separate resource/deployment vars
+  - Removed `AZURE_OPENAI_TOKEN` (Entra ID token support removed)
+
+</details>
+
+<details>
 <summary>v1.0.2</summary>
 
 - Added URL-based provider detection for all API clients
-  - `with_url(url, api_key, deployment_name)` - auto-detect provider from URL pattern
+  - `with_url(url, api_key)` - auto-detect provider from URL pattern
   - `from_url(url)` - auto-detect with env var credentials
   - `*.openai.azure.com` → Azure, all other URLs → OpenAI-compatible
 - Support for OpenAI-compatible APIs (Ollama, vLLM, LocalAI, etc.)
