@@ -64,7 +64,27 @@ let chat = ChatCompletion::with_url(
     "ollama",
     None
 )?;
+
+// Azure with complete base URL (no dynamic URL construction)
+let auth = AuthProvider::Azure(
+    AzureAuth::with_base_url(
+        "api-key",
+        "https://my-resource.openai.azure.com/openai/deployments/gpt-4o?api-version=2024-08-01-preview"
+    )
+);
+let chat = ChatCompletion::with_auth(auth);
 ```
+
+### Azure URL Construction Modes
+
+Azure OpenAI supports two URL construction modes:
+
+| Mode | Method | Description |
+|------|--------|-------------|
+| **Dynamic** | `AzureAuth::new()` | Constructs URL from `resource_name`, `deployment_name`, and `api_version` |
+| **Static** | `AzureAuth::with_base_url()` | Uses complete base URL directly (no dynamic construction) |
+
+Static mode is useful when you have a complete endpoint URL from external configuration or need full control over the URL structure.
 
 ## Modules
 

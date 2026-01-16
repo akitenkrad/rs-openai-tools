@@ -513,6 +513,16 @@ let chat = ChatCompletion::with_url(
     "ollama",
     None
 )?;
+
+// 8. Azure with complete base URL (no dynamic URL construction)
+//    Useful when you want full control over the endpoint URL
+let auth = AuthProvider::Azure(
+    AzureAuth::with_base_url(
+        "api-key",
+        "https://my-resource.openai.azure.com/openai/deployments/gpt-4o?api-version=2024-08-01-preview"
+    )
+);
+let chat = ChatCompletion::with_auth(auth);
 ```
 
 ### URL-based Provider Detection
@@ -528,6 +538,37 @@ This is useful for:
 - Supporting multiple providers with a single configuration
 - Connecting to local OpenAI-compatible servers (Ollama, vLLM, LocalAI)
 - Dynamic provider switching based on environment
+
+### Azure URL Construction Modes
+
+Azure OpenAI supports two URL construction modes:
+
+| Mode | Method | URL Construction |
+|------|--------|------------------|
+| **Dynamic** (default) | `AzureAuth::new()`, `AzureAuth::with_endpoint()` | `{base}/openai/deployments/{deployment}/{path}?api-version={version}` |
+| **Static** | `AzureAuth::with_base_url()` | `{base_url}/{path}` (no dynamic construction) |
+
+**Static mode** is useful when:
+- You have a complete endpoint URL from an external configuration
+- You want full control over the URL structure
+- You're using a proxy or custom Azure endpoint
+
+```rust
+use openai_tools::common::auth::AzureAuth;
+
+// Dynamic mode: URL is constructed from components
+let auth = AzureAuth::new("key", "my-resource", "gpt-4o");
+// Endpoint: https://my-resource.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2024-08-01-preview
+
+// Static mode: base_url is used directly
+let auth = AzureAuth::with_base_url(
+    "key",
+    "https://my-resource.openai.azure.com/openai/deployments/gpt-4o?api-version=2024-08-01-preview"
+);
+// Endpoint: https://my-resource.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2024-08-01-preview
+```
+
+If the base URL contains query parameters (e.g., `?api-version=...`), the path is inserted before the query string.
 
 ## Feature Status
 
