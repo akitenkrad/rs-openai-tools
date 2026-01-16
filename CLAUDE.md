@@ -191,7 +191,7 @@ Timeout is optional - if not set, requests have no timeout limit (default reqwes
 
 | Enum | API | Available Variants |
 |------|-----|-------------------|
-| `ChatModel` | Chat, Responses | **GPT-5**: `Gpt52`, `Gpt52ChatLatest`, `Gpt52Pro`, `Gpt51`, `Gpt51ChatLatest`, `Gpt51CodexMax`, `Gpt5Mini` / **GPT-4.1**: `Gpt41`, `Gpt41Mini`, `Gpt41Nano` / **GPT-4o**: `Gpt4o`, `Gpt4oMini`, `Gpt4oAudioPreview` / **GPT-4/3.5**: `Gpt4Turbo`, `Gpt4`, `Gpt35Turbo` / **Reasoning**: `O1`, `O1Pro`, `O3`, `O3Mini`, `O4Mini` / `Custom(String)` |
+| `ChatModel` | Chat, Responses | **GPT-5**: `Gpt5_2`, `Gpt5_2ChatLatest`, `Gpt5_2Pro`, `Gpt5_1`, `Gpt5_1ChatLatest`, `Gpt5_1CodexMax`, `Gpt5Mini` / **GPT-4.1**: `Gpt4_1`, `Gpt4_1Mini`, `Gpt4_1Nano` / **GPT-4o**: `Gpt4o`, `Gpt4oMini`, `Gpt4oAudioPreview` / **GPT-4/3.5**: `Gpt4Turbo`, `Gpt4`, `Gpt3_5Turbo` / **Reasoning**: `O1`, `O1Pro`, `O3`, `O3Mini`, `O4Mini` / `Custom(String)` |
 | `EmbeddingModel` | Embedding | `TextEmbedding3Small`, `TextEmbedding3Large`, `TextEmbeddingAda002` |
 | `RealtimeModel` | Realtime | `Gpt4oRealtimePreview`, `Gpt4oMiniRealtimePreview`, `Custom(String)` |
 | `FineTuningModel` | Fine-tuning | `Gpt41_2025_04_14`, `Gpt41Mini_2025_04_14`, `Gpt41Nano_2025_04_14`, `Gpt4oMini_2024_07_18`, `Gpt4o_2024_08_06`, `Gpt4_0613`, `Gpt35Turbo_0125`, etc. |
@@ -200,9 +200,9 @@ Timeout is optional - if not set, requests have no timeout limit (default reqwes
 use openai_tools::common::models::{ChatModel, EmbeddingModel, RealtimeModel, FineTuningModel};
 
 // Chat/Responses API - GPT-5 series (latest flagship)
-chat.model(ChatModel::Gpt52);           // GPT-5.2 Thinking - coding & agentic tasks
-responses.model(ChatModel::Gpt52Pro);   // GPT-5.2 Pro - most capable (Responses API only)
-chat.model(ChatModel::Gpt51);           // GPT-5.1 - configurable reasoning
+chat.model(ChatModel::Gpt5_2);          // GPT-5.2 Thinking - coding & agentic tasks
+responses.model(ChatModel::Gpt5_2Pro);  // GPT-5.2 Pro - most capable (Responses API only)
+chat.model(ChatModel::Gpt5_1);          // GPT-5.1 - configurable reasoning
 
 // Chat/Responses API - Other models
 chat.model(ChatModel::Gpt4oMini);       // Cost-effective
@@ -221,7 +221,7 @@ CreateFineTuningJobRequest::new(FineTuningModel::Gpt4oMini_2024_07_18, "file-id"
 chat.model(ChatModel::custom("ft:gpt-4o-mini:my-org::abc123"));
 
 // Check if model is a reasoning model (GPT-5 series and o-series)
-if ChatModel::Gpt52.is_reasoning_model() {
+if ChatModel::Gpt5_2.is_reasoning_model() {
     // Handle reasoning model restrictions
 }
 ```
@@ -570,7 +570,7 @@ use openai_tools::responses::request::{Responses, Reasoning, ReasoningEffort, Re
 use openai_tools::common::models::ChatModel;
 
 let mut responses = Responses::new();
-responses.model(ChatModel::Gpt52)
+responses.model(ChatModel::Gpt5_2)
     .reasoning(Reasoning {
         effort: Some(ReasoningEffort::High),    // none, minimal, low, medium, high, xhigh
         summary: Some(ReasoningSummary::Auto),  // auto, concise, detailed

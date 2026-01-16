@@ -277,20 +277,14 @@ mod tests {
     fn test_responses_builder_instructions() {
         let mut responses = Responses::new();
         responses.instructions("You are a helpful assistant.");
-        assert_eq!(
-            responses.request_body.instructions,
-            Some("You are a helpful assistant.".to_string())
-        );
+        assert_eq!(responses.request_body.instructions, Some("You are a helpful assistant.".to_string()));
     }
 
     #[test]
     fn test_responses_builder_str_message() {
         let mut responses = Responses::new();
         responses.str_message("Hello world!");
-        assert_eq!(
-            responses.request_body.plain_text_input,
-            Some("Hello world!".to_string())
-        );
+        assert_eq!(responses.request_body.plain_text_input, Some("Hello world!".to_string()));
     }
 
     #[test]
@@ -308,10 +302,7 @@ mod tests {
         let tool = Tool::function(
             "calculator",
             "A simple calculator",
-            vec![
-                ("a", ParameterProperty::from_number("First number")),
-                ("b", ParameterProperty::from_number("Second number")),
-            ],
+            vec![("a", ParameterProperty::from_number("First number")), ("b", ParameterProperty::from_number("Second number"))],
             false,
         );
         responses.tools(vec![tool]);
@@ -408,10 +399,7 @@ mod tests {
     fn test_message_from_message_array() {
         let message = Message::from_message_array(
             Role::User,
-            vec![
-                Content::from_text("Look at this:"),
-                Content::from_image_url("https://example.com/img.png"),
-            ],
+            vec![Content::from_text("Look at this:"), Content::from_image_url("https://example.com/img.png")],
         );
         assert_eq!(message.role, Role::User);
     }
@@ -581,9 +569,7 @@ mod tests {
 
     #[test]
     fn test_text_config_serialization() {
-        let config = TextConfig {
-            verbosity: Some(TextVerbosity::High),
-        };
+        let config = TextConfig { verbosity: Some(TextVerbosity::High) };
         let json = serde_json::to_string(&config).unwrap();
         assert!(json.contains("\"verbosity\":\"high\""));
     }
@@ -601,7 +587,7 @@ mod tests {
     #[test]
     fn test_responses_builder_reasoning_with_none() {
         let mut responses = Responses::new();
-        responses.model(ChatModel::Gpt52);
+        responses.model(ChatModel::Gpt5_2);
         responses.reasoning(ReasoningEffort::None, ReasoningSummary::Auto);
 
         assert!(responses.request_body.reasoning.is_some());
@@ -612,7 +598,7 @@ mod tests {
     #[test]
     fn test_responses_builder_reasoning_with_xhigh() {
         let mut responses = Responses::new();
-        responses.model(ChatModel::Gpt52);
+        responses.model(ChatModel::Gpt5_2);
         responses.reasoning(ReasoningEffort::Xhigh, ReasoningSummary::Detailed);
 
         assert!(responses.request_body.reasoning.is_some());
@@ -624,7 +610,7 @@ mod tests {
     fn test_request_body_with_text_serialization() {
         // Test that text config is properly serialized in the request body
         let mut responses = Responses::new();
-        responses.model(ChatModel::Gpt52);
+        responses.model(ChatModel::Gpt5_2);
         responses.str_message("Test");
         responses.text_verbosity(TextVerbosity::High);
 

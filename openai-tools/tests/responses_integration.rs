@@ -3,6 +3,7 @@
 //! These tests require a valid OPENAI_API_KEY environment variable.
 //! Run with: cargo test --test responses_integration
 
+use openai_tools::common::models::ChatModel;
 use openai_tools::common::{
     message::{Content, Message},
     parameters::ParameterProperty,
@@ -10,7 +11,6 @@ use openai_tools::common::{
     structured_output::Schema,
     tool::Tool,
 };
-use openai_tools::common::models::ChatModel;
 use openai_tools::responses::request::{Include, ReasoningEffort, ReasoningSummary, Responses, TextVerbosity, Truncation};
 use serde::Deserialize;
 use std::sync::Once;
@@ -21,10 +21,7 @@ static INIT: Once = Once::new();
 fn init_tracing() {
     INIT.call_once(|| {
         let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
-        let _ = tracing_subscriber::fmt()
-            .with_env_filter(filter)
-            .with_test_writer()
-            .try_init();
+        let _ = tracing_subscriber::fmt().with_env_filter(filter).with_test_writer().try_init();
     });
 }
 
@@ -174,10 +171,7 @@ async fn test_responses_with_multi_turn_conversations() {
     // Second interaction in the same conversation
     let mut responses = Responses::new();
     responses.model_id("gpt-4o-mini");
-    let messages = vec![Message::from_string(
-        Role::User,
-        "What's the weather like today?",
-    )];
+    let messages = vec![Message::from_string(Role::User, "What's the weather like today?")];
     responses.messages(messages);
     responses.previous_response_id(conversation_id);
 
@@ -213,19 +207,13 @@ async fn test_responses_with_tools() {
     let mut responses = Responses::new();
     responses.model_id("gpt-4o-mini");
     responses.instructions("test instructions");
-    let messages = vec![Message::from_string(
-        Role::User,
-        "Calculate 2 + 2 using a calculator tool.",
-    )];
+    let messages = vec![Message::from_string(Role::User, "Calculate 2 + 2 using a calculator tool.")];
     responses.messages(messages);
 
     let tool = Tool::function(
         "calculator",
         "A simple calculator tool",
-        vec![
-            ("a", ParameterProperty::from_number("The first number")),
-            ("b", ParameterProperty::from_number("The second number")),
-        ],
+        vec![("a", ParameterProperty::from_number("The first number")), ("b", ParameterProperty::from_number("The second number"))],
         false,
     );
     responses.tools(vec![tool]);
@@ -240,17 +228,9 @@ async fn test_responses_with_tools() {
                 tracing::info!("Response: {}", serde_json::to_string_pretty(&res).unwrap());
 
                 // Find the function_call output in the response
-                let function_call_output = res
-                    .output
-                    .as_ref()
-                    .unwrap()
-                    .iter()
-                    .find(|output| output.type_name.as_ref().unwrap() == "function_call")
-                    .unwrap();
-                assert_eq!(
-                    function_call_output.type_name.as_ref().unwrap(),
-                    "function_call"
-                );
+                let function_call_output =
+                    res.output.as_ref().unwrap().iter().find(|output| output.type_name.as_ref().unwrap() == "function_call").unwrap();
+                assert_eq!(function_call_output.type_name.as_ref().unwrap(), "function_call");
                 assert_eq!(function_call_output.name.as_ref().unwrap(), "calculator");
                 assert!(function_call_output.call_id.as_ref().unwrap().len() > 0);
                 break;
@@ -284,22 +264,12 @@ async fn test_responses_with_json_schema() {
     let mut responses = Responses::new();
     responses.model_id("gpt-4o-mini");
 
-    let messages = vec![Message::from_string(
-        Role::User,
-        "What is the capital of France? Also, list some countries with their population.",
-    )];
+    let messages = vec![Message::from_string(Role::User, "What is the capital of France? Also, list some countries with their population.")];
     responses.messages(messages);
 
     let mut schema = Schema::responses_json_schema("capital");
     schema.add_property("capital", "string", "The capital city of France");
-    schema.add_array(
-        "countries",
-        vec![
-            ("name", "string"),
-            ("population", "string"),
-            ("big_or_small", "boolean"),
-        ],
-    );
+    schema.add_array("countries", vec![("name", "string"), ("population", "string"), ("big_or_small", "boolean")]);
     responses.structured_output(schema);
 
     let mut counter = 3;
@@ -309,8 +279,7 @@ async fn test_responses_with_json_schema() {
                 tracing::info!("Response: {}", serde_json::to_string_pretty(&res).unwrap());
 
                 // Find the message output in the response
-                let res =
-                    serde_json::from_str::<TestResponse>(&res.output_text().unwrap()).unwrap();
+                let res = serde_json::from_str::<TestResponse>(&res.output_text().unwrap()).unwrap();
                 assert_eq!(res.capital, "Paris");
                 assert!(res.countries.len() > 0);
                 for country in res.countries.iter() {
@@ -352,10 +321,7 @@ async fn test_responses_with_image_input() {
             Ok(res) => {
                 for output in res.output.unwrap().iter() {
                     if output.type_name.as_ref().unwrap() == "message" {
-                        tracing::info!(
-                            "Image URL: {}",
-                            output.content.as_ref().unwrap()[0].text.as_ref().unwrap()
-                        );
+                        tracing::info!("Image URL: {}", output.content.as_ref().unwrap()[0].text.as_ref().unwrap());
                     }
                 }
                 break;
@@ -421,18 +387,9 @@ fn test_optional_parameters() {
     responses.truncation(Truncation::Auto); // Input truncation
 
     // Add metadata for tracking
-    responses.metadata(
-        "test_type".to_string(),
-        serde_json::Value::String("optional_params".to_string()),
-    );
-    responses.metadata(
-        "version".to_string(),
-        serde_json::Value::String("1".to_string()),
-    );
-    responses.metadata(
-        "debug".to_string(),
-        serde_json::Value::String("true".to_string()),
-    );
+    responses.metadata("test_type".to_string(), serde_json::Value::String("optional_params".to_string()));
+    responses.metadata("version".to_string(), serde_json::Value::String("1".to_string()));
+    responses.metadata("debug".to_string(), serde_json::Value::String("true".to_string()));
 
     // Set conversation tracking
     responses.conversation("conv-test-conversation-123");
@@ -461,22 +418,10 @@ fn test_optional_parameters() {
     assert_eq!(responses.request_body.stream, Some(false));
     assert_eq!(responses.request_body.top_logprobs, Some(3));
     assert_eq!(responses.request_body.top_p, Some(0.9));
-    assert!(matches!(
-        responses.request_body.truncation,
-        Some(Truncation::Auto)
-    ));
-    assert_eq!(
-        responses.request_body.conversation,
-        Some("conv-test-conversation-123".to_string())
-    );
-    assert_eq!(
-        responses.request_body.safety_identifier,
-        Some("moderate".to_string())
-    );
-    assert_eq!(
-        responses.request_body.service_tier,
-        Some("default".to_string())
-    );
+    assert!(matches!(responses.request_body.truncation, Some(Truncation::Auto)));
+    assert_eq!(responses.request_body.conversation, Some("conv-test-conversation-123".to_string()));
+    assert_eq!(responses.request_body.safety_identifier, Some("moderate".to_string()));
+    assert_eq!(responses.request_body.service_tier, Some("default".to_string()));
     assert_eq!(responses.request_body.background, Some(false));
     assert!(responses.request_body.metadata.is_some());
     assert!(responses.request_body.reasoning.is_some());
@@ -484,18 +429,9 @@ fn test_optional_parameters() {
 
     // Verify metadata content
     let metadata = responses.request_body.metadata.as_ref().unwrap();
-    assert_eq!(
-        metadata.get("test_type"),
-        Some(&serde_json::Value::String("optional_params".to_string()))
-    );
-    assert_eq!(
-        metadata.get("version"),
-        Some(&serde_json::Value::String("1".to_string()))
-    );
-    assert_eq!(
-        metadata.get("debug"),
-        Some(&serde_json::Value::String("true".to_string()))
-    );
+    assert_eq!(metadata.get("test_type"), Some(&serde_json::Value::String("optional_params".to_string())));
+    assert_eq!(metadata.get("version"), Some(&serde_json::Value::String("1".to_string())));
+    assert_eq!(metadata.get("debug"), Some(&serde_json::Value::String("true".to_string())));
 
     // Verify reasoning configuration
     let reasoning = responses.request_body.reasoning.as_ref().unwrap();
@@ -509,11 +445,7 @@ fn test_optional_parameters() {
 
     // Verify that the request body can be serialized to JSON without errors
     let json_result = serde_json::to_string_pretty(&responses.request_body);
-    assert!(
-        json_result.is_ok(),
-        "Failed to serialize request body to JSON: {:?}",
-        json_result.err()
-    );
+    assert!(json_result.is_ok(), "Failed to serialize request body to JSON: {:?}", json_result.err());
 
     let json_body = json_result.unwrap();
     tracing::info!("Successfully serialized request body with all optional parameters");
@@ -538,7 +470,7 @@ fn test_reasoning_effort_none_serialization() {
     init_tracing();
 
     let mut responses = Responses::new();
-    responses.model(ChatModel::Gpt52);
+    responses.model(ChatModel::Gpt5_2);
     responses.str_message("What is 2+2?");
     responses.reasoning(ReasoningEffort::None, ReasoningSummary::Auto);
 
@@ -554,7 +486,7 @@ fn test_reasoning_effort_xhigh_serialization() {
     init_tracing();
 
     let mut responses = Responses::new();
-    responses.model(ChatModel::Gpt52);
+    responses.model(ChatModel::Gpt5_2);
     responses.str_message("Solve this complex math problem: Find all prime factors of 123456789.");
     responses.reasoning(ReasoningEffort::Xhigh, ReasoningSummary::Detailed);
 
@@ -571,7 +503,7 @@ fn test_text_verbosity_serialization() {
     init_tracing();
 
     let mut responses = Responses::new();
-    responses.model(ChatModel::Gpt52);
+    responses.model(ChatModel::Gpt5_2);
     responses.str_message("Explain quantum computing.");
     responses.text_verbosity(TextVerbosity::High);
 
@@ -588,7 +520,7 @@ fn test_text_verbosity_low_serialization() {
     init_tracing();
 
     let mut responses = Responses::new();
-    responses.model(ChatModel::Gpt52);
+    responses.model(ChatModel::Gpt5_2);
     responses.str_message("What is the capital of Japan?");
     responses.text_verbosity(TextVerbosity::Low);
 
@@ -604,7 +536,7 @@ fn test_combined_reasoning_and_verbosity() {
     init_tracing();
 
     let mut responses = Responses::new();
-    responses.model(ChatModel::Gpt52);
+    responses.model(ChatModel::Gpt5_2);
     responses.str_message("Analyze the impact of AI on society.");
     responses.reasoning(ReasoningEffort::High, ReasoningSummary::Detailed);
     responses.text_verbosity(TextVerbosity::High);
@@ -624,7 +556,7 @@ async fn test_gpt52_with_reasoning_none() {
     init_tracing();
 
     let mut responses = Responses::new();
-    responses.model(ChatModel::Gpt52);
+    responses.model(ChatModel::Gpt5_2);
     responses.str_message("What is 2+2? Reply with just the number.");
     responses.reasoning(ReasoningEffort::None, ReasoningSummary::Auto);
     responses.max_output_tokens(50);
@@ -651,7 +583,7 @@ async fn test_gpt52_with_text_verbosity() {
     init_tracing();
 
     let mut responses = Responses::new();
-    responses.model(ChatModel::Gpt52);
+    responses.model(ChatModel::Gpt5_2);
     responses.str_message("What is photosynthesis?");
     responses.text_verbosity(TextVerbosity::Low);
     responses.max_output_tokens(100);

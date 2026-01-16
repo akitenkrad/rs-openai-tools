@@ -152,17 +152,17 @@ impl ParameterSupport {
 /// # Model Categories
 ///
 /// ## GPT-5 Series (Latest Flagship)
-/// - [`Gpt52`]: GPT-5.2 Thinking - flagship model for coding and agentic tasks
-/// - [`Gpt52ChatLatest`]: GPT-5.2 Instant - fast workhorse for everyday work
-/// - [`Gpt52Pro`]: GPT-5.2 Pro - smartest for difficult questions (Responses API only)
-/// - [`Gpt51`]: GPT-5.1 - configurable reasoning and non-reasoning
-/// - [`Gpt51CodexMax`]: GPT-5.1 Codex Max - powers Codex CLI
+/// - [`Gpt5_2`]: GPT-5.2 Thinking - flagship model for coding and agentic tasks
+/// - [`Gpt5_2ChatLatest`]: GPT-5.2 Instant - fast workhorse for everyday work
+/// - [`Gpt5_2Pro`]: GPT-5.2 Pro - smartest for difficult questions (Responses API only)
+/// - [`Gpt5_1`]: GPT-5.1 - configurable reasoning and non-reasoning
+/// - [`Gpt5_1CodexMax`]: GPT-5.1 Codex Max - powers Codex CLI
 /// - [`Gpt5Mini`]: GPT-5 Mini - smaller, faster variant
 ///
 /// ## GPT-4.1 Series
-/// - [`Gpt41`]: 1M context window flagship
-/// - [`Gpt41Mini`]: Balanced performance and cost
-/// - [`Gpt41Nano`]: Fastest and most cost-efficient
+/// - [`Gpt4_1`]: 1M context window flagship
+/// - [`Gpt4_1Mini`]: Balanced performance and cost
+/// - [`Gpt4_1Nano`]: Fastest and most cost-efficient
 ///
 /// ## GPT-4o Series
 /// - [`Gpt4o`]: High-intelligence flagship model
@@ -198,7 +198,7 @@ impl ParameterSupport {
 /// assert!(model.is_reasoning_model());
 ///
 /// // GPT-5 models are also reasoning models
-/// let gpt5 = ChatModel::Gpt52;
+/// let gpt5 = ChatModel::Gpt5_2;
 /// assert!(gpt5.is_reasoning_model());
 ///
 /// // Get the API model ID string
@@ -213,38 +213,38 @@ pub enum ChatModel {
     /// - Supports: reasoning.effort (none, minimal, low, medium, high, xhigh)
     /// - Supports: verbosity parameter (low, medium, high)
     #[serde(rename = "gpt-5.2")]
-    Gpt52,
+    Gpt5_2,
 
     /// GPT-5.2 Instant - Fast workhorse for everyday work
     ///
     /// Points to the GPT-5.2 snapshot used in ChatGPT
     #[serde(rename = "gpt-5.2-chat-latest")]
-    Gpt52ChatLatest,
+    Gpt5_2ChatLatest,
 
     /// GPT-5.2 Pro - Smartest for difficult questions
     ///
     /// - Available in Responses API only
     /// - Supports: xhigh reasoning effort
     #[serde(rename = "gpt-5.2-pro")]
-    Gpt52Pro,
+    Gpt5_2Pro,
 
     /// GPT-5.1 - Configurable reasoning and non-reasoning
     ///
     /// - Defaults to no reasoning (effort: none)
     /// - Supports: reasoning.effort (none, low, medium, high)
     #[serde(rename = "gpt-5.1")]
-    Gpt51,
+    Gpt5_1,
 
     /// GPT-5.1 Chat Latest - Chat-optimized GPT-5.1
     #[serde(rename = "gpt-5.1-chat-latest")]
-    Gpt51ChatLatest,
+    Gpt5_1ChatLatest,
 
     /// GPT-5.1 Codex Max - Powers Codex and Codex CLI
     ///
     /// - Available in Responses API only
     /// - Supports: reasoning.effort (none, medium, high, xhigh)
     #[serde(rename = "gpt-5.1-codex-max")]
-    Gpt51CodexMax,
+    Gpt5_1CodexMax,
 
     /// GPT-5 Mini - Smaller, faster GPT-5 variant
     #[serde(rename = "gpt-5-mini")]
@@ -253,15 +253,15 @@ pub enum ChatModel {
     // === GPT-4.1 Series ===
     /// GPT-4.1 - Smartest non-reasoning model with 1M token context
     #[serde(rename = "gpt-4.1")]
-    Gpt41,
+    Gpt4_1,
 
     /// GPT-4.1 Mini - Balanced performance and cost
     #[serde(rename = "gpt-4.1-mini")]
-    Gpt41Mini,
+    Gpt4_1Mini,
 
     /// GPT-4.1 Nano - Fastest and most cost-efficient
     #[serde(rename = "gpt-4.1-nano")]
-    Gpt41Nano,
+    Gpt4_1Nano,
 
     // === GPT-4o Series ===
     /// GPT-4o - High-intelligence flagship model (multimodal)
@@ -288,7 +288,7 @@ pub enum ChatModel {
     // === GPT-3.5 Series ===
     /// GPT-3.5 Turbo - Fast and cost-effective
     #[serde(rename = "gpt-3.5-turbo")]
-    Gpt35Turbo,
+    Gpt3_5Turbo,
 
     // === Reasoning Models (o-series) ===
     /// O1 - Full reasoning model for complex tasks
@@ -327,22 +327,22 @@ impl ChatModel {
     ///
     /// assert_eq!(ChatModel::Gpt4oMini.as_str(), "gpt-4o-mini");
     /// assert_eq!(ChatModel::O3Mini.as_str(), "o3-mini");
-    /// assert_eq!(ChatModel::Gpt52.as_str(), "gpt-5.2");
+    /// assert_eq!(ChatModel::Gpt5_2.as_str(), "gpt-5.2");
     /// ```
     pub fn as_str(&self) -> &str {
         match self {
             // GPT-5 Series
-            Self::Gpt52 => "gpt-5.2",
-            Self::Gpt52ChatLatest => "gpt-5.2-chat-latest",
-            Self::Gpt52Pro => "gpt-5.2-pro",
-            Self::Gpt51 => "gpt-5.1",
-            Self::Gpt51ChatLatest => "gpt-5.1-chat-latest",
-            Self::Gpt51CodexMax => "gpt-5.1-codex-max",
+            Self::Gpt5_2 => "gpt-5.2",
+            Self::Gpt5_2ChatLatest => "gpt-5.2-chat-latest",
+            Self::Gpt5_2Pro => "gpt-5.2-pro",
+            Self::Gpt5_1 => "gpt-5.1",
+            Self::Gpt5_1ChatLatest => "gpt-5.1-chat-latest",
+            Self::Gpt5_1CodexMax => "gpt-5.1-codex-max",
             Self::Gpt5Mini => "gpt-5-mini",
             // GPT-4.1 Series
-            Self::Gpt41 => "gpt-4.1",
-            Self::Gpt41Mini => "gpt-4.1-mini",
-            Self::Gpt41Nano => "gpt-4.1-nano",
+            Self::Gpt4_1 => "gpt-4.1",
+            Self::Gpt4_1Mini => "gpt-4.1-mini",
+            Self::Gpt4_1Nano => "gpt-4.1-nano",
             // GPT-4o Series
             Self::Gpt4o => "gpt-4o",
             Self::Gpt4oMini => "gpt-4o-mini",
@@ -351,7 +351,7 @@ impl ChatModel {
             Self::Gpt4Turbo => "gpt-4-turbo",
             Self::Gpt4 => "gpt-4",
             // GPT-3.5 Series
-            Self::Gpt35Turbo => "gpt-3.5-turbo",
+            Self::Gpt3_5Turbo => "gpt-3.5-turbo",
             // Reasoning Models
             Self::O1 => "o1",
             Self::O1Pro => "o1-pro",
@@ -377,16 +377,16 @@ impl ChatModel {
     /// use openai_tools::common::models::ChatModel;
     ///
     /// assert!(ChatModel::O3Mini.is_reasoning_model());
-    /// assert!(ChatModel::Gpt52.is_reasoning_model());
+    /// assert!(ChatModel::Gpt5_2.is_reasoning_model());
     /// assert!(!ChatModel::Gpt4oMini.is_reasoning_model());
-    /// assert!(!ChatModel::Gpt41.is_reasoning_model());
+    /// assert!(!ChatModel::Gpt4_1.is_reasoning_model());
     /// ```
     pub fn is_reasoning_model(&self) -> bool {
         matches!(
             self,
             // GPT-5 series are reasoning models
-            Self::Gpt52 | Self::Gpt52ChatLatest | Self::Gpt52Pro |
-            Self::Gpt51 | Self::Gpt51ChatLatest | Self::Gpt51CodexMax |
+            Self::Gpt5_2 | Self::Gpt5_2ChatLatest | Self::Gpt5_2Pro |
+            Self::Gpt5_1 | Self::Gpt5_1ChatLatest | Self::Gpt5_1CodexMax |
             Self::Gpt5Mini |
             // O-series reasoning models
             Self::O1 | Self::O1Pro | Self::O3 | Self::O3Mini | Self::O4Mini
@@ -460,17 +460,17 @@ impl From<&str> for ChatModel {
     fn from(s: &str) -> Self {
         match s {
             // GPT-5 Series
-            "gpt-5.2" => Self::Gpt52,
-            "gpt-5.2-chat-latest" => Self::Gpt52ChatLatest,
-            "gpt-5.2-pro" => Self::Gpt52Pro,
-            "gpt-5.1" => Self::Gpt51,
-            "gpt-5.1-chat-latest" => Self::Gpt51ChatLatest,
-            "gpt-5.1-codex-max" => Self::Gpt51CodexMax,
+            "gpt-5.2" => Self::Gpt5_2,
+            "gpt-5.2-chat-latest" => Self::Gpt5_2ChatLatest,
+            "gpt-5.2-pro" => Self::Gpt5_2Pro,
+            "gpt-5.1" => Self::Gpt5_1,
+            "gpt-5.1-chat-latest" => Self::Gpt5_1ChatLatest,
+            "gpt-5.1-codex-max" => Self::Gpt5_1CodexMax,
             "gpt-5-mini" => Self::Gpt5Mini,
             // GPT-4.1 Series
-            "gpt-4.1" => Self::Gpt41,
-            "gpt-4.1-mini" => Self::Gpt41Mini,
-            "gpt-4.1-nano" => Self::Gpt41Nano,
+            "gpt-4.1" => Self::Gpt4_1,
+            "gpt-4.1-mini" => Self::Gpt4_1Mini,
+            "gpt-4.1-nano" => Self::Gpt4_1Nano,
             // GPT-4o Series
             "gpt-4o" => Self::Gpt4o,
             "gpt-4o-mini" => Self::Gpt4oMini,
@@ -479,7 +479,7 @@ impl From<&str> for ChatModel {
             "gpt-4-turbo" => Self::Gpt4Turbo,
             "gpt-4" => Self::Gpt4,
             // GPT-3.5 Series
-            "gpt-3.5-turbo" => Self::Gpt35Turbo,
+            "gpt-3.5-turbo" => Self::Gpt3_5Turbo,
             // Reasoning Models
             "o1" => Self::O1,
             "o1-pro" => Self::O1Pro,
@@ -802,13 +802,13 @@ mod tests {
     fn test_chat_model_as_str() {
         assert_eq!(ChatModel::Gpt4oMini.as_str(), "gpt-4o-mini");
         assert_eq!(ChatModel::O3Mini.as_str(), "o3-mini");
-        assert_eq!(ChatModel::Gpt41.as_str(), "gpt-4.1");
+        assert_eq!(ChatModel::Gpt4_1.as_str(), "gpt-4.1");
         // GPT-5 models
-        assert_eq!(ChatModel::Gpt52.as_str(), "gpt-5.2");
-        assert_eq!(ChatModel::Gpt52ChatLatest.as_str(), "gpt-5.2-chat-latest");
-        assert_eq!(ChatModel::Gpt52Pro.as_str(), "gpt-5.2-pro");
-        assert_eq!(ChatModel::Gpt51.as_str(), "gpt-5.1");
-        assert_eq!(ChatModel::Gpt51CodexMax.as_str(), "gpt-5.1-codex-max");
+        assert_eq!(ChatModel::Gpt5_2.as_str(), "gpt-5.2");
+        assert_eq!(ChatModel::Gpt5_2ChatLatest.as_str(), "gpt-5.2-chat-latest");
+        assert_eq!(ChatModel::Gpt5_2Pro.as_str(), "gpt-5.2-pro");
+        assert_eq!(ChatModel::Gpt5_1.as_str(), "gpt-5.1");
+        assert_eq!(ChatModel::Gpt5_1CodexMax.as_str(), "gpt-5.1-codex-max");
         assert_eq!(ChatModel::Gpt5Mini.as_str(), "gpt-5-mini");
     }
 
@@ -820,15 +820,15 @@ mod tests {
         assert!(ChatModel::O3Mini.is_reasoning_model());
         assert!(ChatModel::O4Mini.is_reasoning_model());
         // GPT-5 series are also reasoning models
-        assert!(ChatModel::Gpt52.is_reasoning_model());
-        assert!(ChatModel::Gpt52ChatLatest.is_reasoning_model());
-        assert!(ChatModel::Gpt52Pro.is_reasoning_model());
-        assert!(ChatModel::Gpt51.is_reasoning_model());
-        assert!(ChatModel::Gpt51CodexMax.is_reasoning_model());
+        assert!(ChatModel::Gpt5_2.is_reasoning_model());
+        assert!(ChatModel::Gpt5_2ChatLatest.is_reasoning_model());
+        assert!(ChatModel::Gpt5_2Pro.is_reasoning_model());
+        assert!(ChatModel::Gpt5_1.is_reasoning_model());
+        assert!(ChatModel::Gpt5_1CodexMax.is_reasoning_model());
         assert!(ChatModel::Gpt5Mini.is_reasoning_model());
         // Non-reasoning models
         assert!(!ChatModel::Gpt4oMini.is_reasoning_model());
-        assert!(!ChatModel::Gpt41.is_reasoning_model());
+        assert!(!ChatModel::Gpt4_1.is_reasoning_model());
     }
 
     #[test]
@@ -836,11 +836,11 @@ mod tests {
         assert_eq!(ChatModel::from("gpt-4o-mini"), ChatModel::Gpt4oMini);
         assert_eq!(ChatModel::from("o3-mini"), ChatModel::O3Mini);
         // GPT-5 models
-        assert_eq!(ChatModel::from("gpt-5.2"), ChatModel::Gpt52);
-        assert_eq!(ChatModel::from("gpt-5.2-chat-latest"), ChatModel::Gpt52ChatLatest);
-        assert_eq!(ChatModel::from("gpt-5.2-pro"), ChatModel::Gpt52Pro);
-        assert_eq!(ChatModel::from("gpt-5.1"), ChatModel::Gpt51);
-        assert_eq!(ChatModel::from("gpt-5.1-codex-max"), ChatModel::Gpt51CodexMax);
+        assert_eq!(ChatModel::from("gpt-5.2"), ChatModel::Gpt5_2);
+        assert_eq!(ChatModel::from("gpt-5.2-chat-latest"), ChatModel::Gpt5_2ChatLatest);
+        assert_eq!(ChatModel::from("gpt-5.2-pro"), ChatModel::Gpt5_2Pro);
+        assert_eq!(ChatModel::from("gpt-5.1"), ChatModel::Gpt5_1);
+        assert_eq!(ChatModel::from("gpt-5.1-codex-max"), ChatModel::Gpt5_1CodexMax);
         assert_eq!(ChatModel::from("gpt-5-mini"), ChatModel::Gpt5Mini);
         // Unknown models become Custom
         assert!(matches!(ChatModel::from("unknown-model"), ChatModel::Custom(_)));
@@ -882,7 +882,7 @@ mod tests {
         let json = serde_json::to_string(&model).unwrap();
         assert_eq!(json, "\"gpt-4o-mini\"");
         // GPT-5 serialization
-        let gpt52 = ChatModel::Gpt52;
+        let gpt52 = ChatModel::Gpt5_2;
         let json = serde_json::to_string(&gpt52).unwrap();
         assert_eq!(json, "\"gpt-5.2\"");
     }
@@ -893,7 +893,7 @@ mod tests {
         assert_eq!(model, ChatModel::Gpt4oMini);
         // GPT-5 deserialization
         let gpt52: ChatModel = serde_json::from_str("\"gpt-5.2\"").unwrap();
-        assert_eq!(gpt52, ChatModel::Gpt52);
+        assert_eq!(gpt52, ChatModel::Gpt5_2);
     }
 
     #[test]
@@ -933,7 +933,7 @@ mod tests {
     #[test]
     fn test_parameter_support_gpt5_model() {
         // GPT-5 models are also reasoning models
-        let model = ChatModel::Gpt52;
+        let model = ChatModel::Gpt5_2;
         let support = model.parameter_support();
 
         assert_eq!(support.temperature, ParameterRestriction::FixedValue(1.0));
