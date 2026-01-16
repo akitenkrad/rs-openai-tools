@@ -30,8 +30,10 @@ Set Azure-specific environment variables:
 
 ```text
 AZURE_OPENAI_API_KEY = "xxxxxxxxxxxxxxxxxxxxxxxxxxx"
-AZURE_OPENAI_BASE_URL = "https://my-resource.openai.azure.com/openai/deployments/gpt-4o?api-version=2024-08-01-preview"
+AZURE_OPENAI_BASE_URL = "https://my-resource.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2024-08-01-preview"
 ```
+
+Note: Each API (Chat, Embedding, etc.) requires its own complete endpoint URL including the API path.
 
 ### Provider Detection
 
@@ -53,7 +55,7 @@ let chat = ChatCompletion::detect_provider()?;
 // URL-based detection (auto-detects provider from URL pattern)
 // *.openai.azure.com → Azure, all other URLs → OpenAI-compatible
 let chat = ChatCompletion::with_url(
-    "https://my-resource.openai.azure.com/openai/deployments/gpt-4o?api-version=2024-08-01-preview",
+    "https://my-resource.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2024-08-01-preview",
     "azure-key",
 );
 
@@ -67,7 +69,7 @@ let chat = ChatCompletion::with_url(
 let auth = AuthProvider::Azure(
     AzureAuth::new(
         "api-key",
-        "https://my-resource.openai.azure.com/openai/deployments/gpt-4o?api-version=2024-08-01-preview"
+        "https://my-resource.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2024-08-01-preview"
     )
 );
 let chat = ChatCompletion::with_auth(auth);
@@ -444,14 +446,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 <details>
 <summary>v1.0.3</summary>
 
-- **Breaking Change**: Simplified `AzureAuth` to accept complete base URL
+- **Breaking Change**: Simplified `AzureAuth` to accept complete endpoint URL
   - `AzureAuth::new(api_key, base_url)` - simple 2-argument constructor
+  - `base_url` must be the complete endpoint URL including API path (e.g., `/chat/completions`)
+  - `endpoint()` method now returns `base_url` as-is (path parameter is ignored)
   - Removed `resource_name`, `deployment_name`, `api_version` fields
-  - Removed dynamic URL construction (now uses complete URL directly)
+  - Removed `use_entra_id`, `with_entra_id()`, `is_entra_id()` (Entra ID support removed)
 - **Breaking Change**: Updated `with_url()` method signature
   - Changed from `with_url(url, api_key, deployment_name)` to `with_url(url, api_key)`
 - Environment variable changes:
-  - Use `AZURE_OPENAI_BASE_URL` instead of separate `AZURE_OPENAI_RESOURCE_NAME` and `AZURE_OPENAI_DEPLOYMENT_NAME`
+  - Use `AZURE_OPENAI_BASE_URL` (complete endpoint URL) instead of separate resource/deployment vars
+  - Removed `AZURE_OPENAI_TOKEN` (Entra ID token support removed)
 
 </details>
 
