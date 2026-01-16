@@ -9,6 +9,7 @@ use tokio_tungstenite::{
     MaybeTlsStream, WebSocketStream,
 };
 
+use crate::common::auth::AuthProvider;
 use crate::common::errors::{OpenAIToolError, Result};
 use crate::common::models::RealtimeModel;
 use crate::common::tool::Tool;
@@ -20,8 +21,8 @@ use super::events::server::ServerEvent;
 use super::session::{Modality, RealtimeTool, ResponseCreateConfig, SessionConfig};
 use super::vad::{SemanticVadConfig, ServerVadConfig, TurnDetection};
 
-/// The Realtime API WebSocket endpoint.
-const REALTIME_API_URL: &str = "wss://api.openai.com/v1/realtime";
+/// The Realtime API WebSocket endpoint path.
+const REALTIME_PATH: &str = "realtime";
 
 /// Builder for creating Realtime API connections.
 ///
@@ -29,12 +30,13 @@ const REALTIME_API_URL: &str = "wss://api.openai.com/v1/realtime";
 ///
 /// ```rust,no_run
 /// use openai_tools::realtime::{RealtimeClient, Modality, Voice};
+/// use openai_tools::common::models::RealtimeModel;
 ///
 /// #[tokio::main]
 /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ///     let mut client = RealtimeClient::new();
 ///     client
-///         .model("gpt-4o-realtime-preview")
+///         .model(RealtimeModel::Gpt4oRealtimePreview)
 ///         .modalities(vec![Modality::Text, Modality::Audio])
 ///         .voice(Voice::Alloy)
 ///         .instructions("You are a helpful assistant.");
@@ -47,24 +49,64 @@ const REALTIME_API_URL: &str = "wss://api.openai.com/v1/realtime";
 /// ```
 #[derive(Debug, Clone)]
 pub struct RealtimeClient {
-    api_key: String,
+    /// Authentication provider (OpenAI or Azure)
+    auth: AuthProvider,
     model: RealtimeModel,
     session_config: SessionConfig,
 }
 
 impl RealtimeClient {
-    /// Create a new RealtimeClient.
+    /// Create a new RealtimeClient for OpenAI API.
     ///
     /// Loads the API key from the `OPENAI_API_KEY` environment variable.
     pub fn new() -> Self {
-        dotenvy::dotenv().ok();
-        let api_key = std::env::var("OPENAI_API_KEY").expect("OPENAI_API_KEY must be set");
-        Self { api_key, model: RealtimeModel::default(), session_config: SessionConfig::default() }
+        let auth = AuthProvider::openai_from_env().expect("OPENAI_API_KEY must be set");
+        Self { auth, model: RealtimeModel::default(), session_config: SessionConfig::default() }
+    }
+
+    /// Create a new RealtimeClient with a custom authentication provider.
+    pub fn with_auth(auth: AuthProvider) -> Self {
+        Self { auth, model: RealtimeModel::default(), session_config: SessionConfig::default() }
+    }
+
+    /// Create a new RealtimeClient for Azure OpenAI API.
+    pub fn azure() -> Result<Self> {
+        let auth = AuthProvider::azure_from_env()?;
+        Ok(Self { auth, model: RealtimeModel::default(), session_config: SessionConfig::default() })
+    }
+
+    /// Create a new RealtimeClient by auto-detecting the provider.
+    pub fn detect_provider() -> Result<Self> {
+        let auth = AuthProvider::from_env()?;
+        Ok(Self { auth, model: RealtimeModel::default(), session_config: SessionConfig::default() })
+    }
+
+    /// Creates a new RealtimeClient with URL-based provider detection.
+    pub fn with_url<S: Into<String>>(
+        url: S,
+        api_key: S,
+        deployment_name: Option<S>,
+    ) -> Result<Self> {
+        let auth = AuthProvider::from_url_with_hint(url, api_key, deployment_name)?;
+        Ok(Self { auth, model: RealtimeModel::default(), session_config: SessionConfig::default() })
+    }
+
+    /// Creates a new RealtimeClient from URL using environment variables.
+    pub fn from_url<S: Into<String>>(url: S) -> Result<Self> {
+        let auth = AuthProvider::from_url(url)?;
+        Ok(Self { auth, model: RealtimeModel::default(), session_config: SessionConfig::default() })
     }
 
     /// Create a new RealtimeClient with an explicit API key.
+    #[deprecated(since = "0.3.0", note = "Use `with_auth(AuthProvider::OpenAI(...))` instead")]
     pub fn with_api_key(api_key: impl Into<String>) -> Self {
-        Self { api_key: api_key.into(), model: RealtimeModel::default(), session_config: SessionConfig::default() }
+        let auth = AuthProvider::OpenAI(crate::common::auth::OpenAIAuth::new(api_key));
+        Self { auth, model: RealtimeModel::default(), session_config: SessionConfig::default() }
+    }
+
+    /// Returns the authentication provider.
+    pub fn auth(&self) -> &AuthProvider {
+        &self.auth
     }
 
     /// Set the model for the Realtime API.
@@ -176,16 +218,36 @@ impl RealtimeClient {
     ///
     /// Returns a `RealtimeSession` for sending and receiving events.
     pub async fn connect(&self) -> Result<RealtimeSession> {
-        let url = format!("{}?model={}", REALTIME_API_URL, self.model.as_str());
+        // Get the WebSocket URL based on auth provider
+        let url = self.ws_endpoint();
 
         // Build WebSocket request with headers
         let mut request = url.into_client_request().map_err(|e| OpenAIToolError::Error(format!("Failed to build request: {}", e)))?;
 
         let headers = request.headers_mut();
-        headers.insert(
-            "Authorization",
-            format!("Bearer {}", self.api_key).parse().map_err(|e| OpenAIToolError::Error(format!("Invalid header value: {}", e)))?,
-        );
+
+        // Apply auth headers based on provider
+        match &self.auth {
+            AuthProvider::OpenAI(auth) => {
+                headers.insert(
+                    "Authorization",
+                    format!("Bearer {}", auth.api_key()).parse().map_err(|e| OpenAIToolError::Error(format!("Invalid header value: {}", e)))?,
+                );
+            }
+            AuthProvider::Azure(auth) => {
+                if auth.is_entra_id() {
+                    headers.insert(
+                        "Authorization",
+                        format!("Bearer {}", auth.api_key()).parse().map_err(|e| OpenAIToolError::Error(format!("Invalid header value: {}", e)))?,
+                    );
+                } else {
+                    headers.insert(
+                        "api-key",
+                        auth.api_key().parse().map_err(|e| OpenAIToolError::Error(format!("Invalid header value: {}", e)))?,
+                    );
+                }
+            }
+        }
         headers.insert("OpenAI-Beta", "realtime=v1".parse().map_err(|e| OpenAIToolError::Error(format!("Invalid header value: {}", e)))?);
 
         let (ws_stream, _response) = connect_async_with_config(request, None, false)
@@ -208,6 +270,25 @@ impl RealtimeClient {
         }
 
         Ok(session)
+    }
+
+    /// Get the WebSocket endpoint URL based on auth provider.
+    fn ws_endpoint(&self) -> String {
+        match &self.auth {
+            AuthProvider::OpenAI(_) => {
+                format!("wss://api.openai.com/v1/{}?model={}", REALTIME_PATH, self.model.as_str())
+            }
+            AuthProvider::Azure(auth) => {
+                // Azure WebSocket endpoint format
+                format!(
+                    "wss://{}.openai.azure.com/openai/{}?api-version={}&deployment={}",
+                    auth.resource_name(),
+                    REALTIME_PATH,
+                    auth.api_version(),
+                    auth.deployment_name()
+                )
+            }
+        }
     }
 }
 

@@ -1,3 +1,4 @@
+pub mod auth;
 pub mod client;
 pub mod errors;
 pub mod function;
@@ -9,6 +10,7 @@ pub mod structured_output;
 pub mod tool;
 pub mod usage;
 
+pub use auth::{AuthProvider, AzureAuth, OpenAIAuth};
 pub use client::create_http_client;
 pub use errors::{OpenAIToolError, Result};
 pub use function::Function;

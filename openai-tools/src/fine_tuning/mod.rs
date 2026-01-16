@@ -36,6 +36,7 @@
 //! ```rust,no_run
 //! use openai_tools::fine_tuning::request::{FineTuning, CreateFineTuningJobRequest};
 //! use openai_tools::fine_tuning::response::{FineTuningJobStatus, Hyperparameters};
+//! use openai_tools::common::models::FineTuningModel;
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -48,7 +49,10 @@
 //!         learning_rate_multiplier: None,
 //!     };
 //!
-//!     let request = CreateFineTuningJobRequest::new("gpt-4o-mini-2024-07-18", "file-abc123")
+//!     let request = CreateFineTuningJobRequest::new(
+//!             FineTuningModel::Gpt4oMini_2024_07_18,
+//!             "file-abc123"
+//!         )
 //!         .with_suffix("my-model")
 //!         .with_supervised_method(Some(hyperparams));
 //!

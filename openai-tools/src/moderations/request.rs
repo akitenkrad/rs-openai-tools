@@ -30,15 +30,15 @@
 //! }
 //! ```
 
+use crate::common::auth::AuthProvider;
 use crate::common::client::create_http_client;
 use crate::common::errors::{ErrorResponse, OpenAIToolError, Result};
 use crate::moderations::response::ModerationResponse;
-use dotenvy::dotenv;
 use serde::{Deserialize, Serialize};
-use std::env;
 use std::time::Duration;
 
-const BASE_URL: &str = "https://api.openai.com/v1/moderations";
+/// Default API path for Moderations
+const MODERATIONS_PATH: &str = "moderations";
 
 /// Moderation model options.
 ///
@@ -123,14 +123,14 @@ enum ModerationInput {
 /// }
 /// ```
 pub struct Moderations {
-    /// OpenAI API key for authentication
-    api_key: String,
+    /// Authentication provider (OpenAI or Azure)
+    auth: AuthProvider,
     /// Optional request timeout duration
     timeout: Option<Duration>,
 }
 
 impl Moderations {
-    /// Creates a new Moderations client.
+    /// Creates a new Moderations client for OpenAI API.
     ///
     /// Initializes the client by loading the OpenAI API key from
     /// the environment variable `OPENAI_API_KEY`. Supports `.env` file loading
@@ -149,11 +149,46 @@ impl Moderations {
     /// let moderations = Moderations::new().expect("API key should be set");
     /// ```
     pub fn new() -> Result<Self> {
-        dotenv().ok();
-        let api_key = env::var("OPENAI_API_KEY").map_err(|e| {
-            OpenAIToolError::Error(format!("OPENAI_API_KEY not set in environment: {}", e))
-        })?;
-        Ok(Self { api_key, timeout: None })
+        let auth = AuthProvider::openai_from_env()?;
+        Ok(Self { auth, timeout: None })
+    }
+
+    /// Creates a new Moderations client with a custom authentication provider
+    pub fn with_auth(auth: AuthProvider) -> Self {
+        Self { auth, timeout: None }
+    }
+
+    /// Creates a new Moderations client for Azure OpenAI API
+    pub fn azure() -> Result<Self> {
+        let auth = AuthProvider::azure_from_env()?;
+        Ok(Self { auth, timeout: None })
+    }
+
+    /// Creates a new Moderations client by auto-detecting the provider
+    pub fn detect_provider() -> Result<Self> {
+        let auth = AuthProvider::from_env()?;
+        Ok(Self { auth, timeout: None })
+    }
+
+    /// Creates a new Moderations client with URL-based provider detection
+    pub fn with_url<S: Into<String>>(
+        url: S,
+        api_key: S,
+        deployment_name: Option<S>,
+    ) -> Result<Self> {
+        let auth = AuthProvider::from_url_with_hint(url, api_key, deployment_name)?;
+        Ok(Self { auth, timeout: None })
+    }
+
+    /// Creates a new Moderations client from URL using environment variables
+    pub fn from_url<S: Into<String>>(url: S) -> Result<Self> {
+        let auth = AuthProvider::from_url(url)?;
+        Ok(Self { auth, timeout: None })
+    }
+
+    /// Returns the authentication provider
+    pub fn auth(&self) -> &AuthProvider {
+        &self.auth
     }
 
     /// Sets the request timeout duration.
@@ -174,10 +209,7 @@ impl Moderations {
     fn create_client(&self) -> Result<(request::Client, request::header::HeaderMap)> {
         let client = create_http_client(self.timeout)?;
         let mut headers = request::header::HeaderMap::new();
-        headers.insert(
-            "Authorization",
-            request::header::HeaderValue::from_str(&format!("Bearer {}", self.api_key)).unwrap(),
-        );
+        self.auth.apply_headers(&mut headers)?;
         headers.insert(
             "Content-Type",
             request::header::HeaderValue::from_static("application/json"),
@@ -288,8 +320,9 @@ impl Moderations {
         let body =
             serde_json::to_string(request_body).map_err(OpenAIToolError::SerdeJsonError)?;
 
+        let url = self.auth.endpoint(MODERATIONS_PATH);
         let response = client
-            .post(BASE_URL)
+            .post(&url)
             .headers(headers)
             .body(body)
             .send()

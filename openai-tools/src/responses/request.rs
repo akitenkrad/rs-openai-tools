@@ -1,5 +1,6 @@
 use crate::{
     common::{
+        auth::{AuthProvider, OpenAIAuth},
         client::create_http_client,
         errors::{OpenAIToolError, Result},
         message::Message,
@@ -10,11 +11,9 @@ use crate::{
     responses::response::Response,
 };
 use derive_new::new;
-use dotenvy::dotenv;
 use request;
 use serde::{ser::SerializeStruct, Serialize};
 use std::collections::HashMap;
-use std::env;
 use std::time::Duration;
 use strum::{Display, EnumString};
 
@@ -360,9 +359,10 @@ pub struct Format {
 ///
 /// ```rust
 /// use openai_tools::responses::request::Body;
+/// use openai_tools::common::models::ChatModel;
 ///
 /// let body = Body {
-///     model: "gpt-4".to_string(),
+///     model: ChatModel::Gpt4o,
 ///     plain_text_input: Some("What is the weather like?".to_string()),
 ///     ..Default::default()
 /// };
@@ -374,13 +374,14 @@ pub struct Format {
 /// use openai_tools::responses::request::Body;
 /// use openai_tools::common::message::Message;
 /// use openai_tools::common::role::Role;
+/// use openai_tools::common::models::ChatModel;
 ///
 /// let messages = vec![
 ///     Message::from_string(Role::User, "Help me with coding")
 /// ];
 ///
 /// let body = Body {
-///     model: "gpt-4".to_string(),
+///     model: ChatModel::Gpt4o,
 ///     messages_input: Some(messages),
 ///     instructions: Some("You are a helpful coding assistant".to_string()),
 ///     max_output_tokens: Some(1000),
@@ -993,13 +994,24 @@ impl Serialize for Body {
     }
 }
 
+/// Default API path for Responses
+const RESPONSES_PATH: &str = "responses";
+
 /// Client for making requests to the OpenAI Responses API
 ///
 /// This struct provides a convenient interface for building and executing requests
-/// to the OpenAI Responses API. It handles authentication, request formatting,
-/// and response parsing automatically.
+/// to the OpenAI Responses API and Azure OpenAI API. It handles authentication,
+/// request formatting, and response parsing automatically.
+///
+/// # Providers
+///
+/// The client supports two providers:
+/// - **OpenAI**: Standard OpenAI API (default)
+/// - **Azure**: Azure OpenAI Service
 ///
 /// # Examples
+///
+/// ## OpenAI (existing behavior - unchanged)
 ///
 /// ```rust,no_run
 /// use openai_tools::responses::request::Responses;
@@ -1015,23 +1027,35 @@ impl Serialize for Body {
 /// # Ok(())
 /// # }
 /// ```
-#[derive(Debug, Clone, Default, Serialize)]
+///
+/// ## Azure OpenAI
+///
+/// ```rust,no_run
+/// use openai_tools::responses::request::Responses;
+///
+/// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+/// let mut client = Responses::azure()?;
+/// let response = client
+///     .str_message("Hello!")
+///     .complete()
+///     .await?;
+/// # Ok(())
+/// # }
+/// ```
+#[derive(Debug, Clone)]
 pub struct Responses {
-    /// The API endpoint for the OpenAI Responses service
-    endpoint: String,
-    /// The OpenAI API key used for authentication
-    api_key: String,
+    /// Authentication provider (OpenAI or Azure)
+    auth: AuthProvider,
     /// The User-Agent string to include in requests
     user_agent: String,
     /// The request body containing all parameters for the API call
     pub request_body: Body,
     /// Optional request timeout duration
-    #[serde(skip)]
     timeout: Option<Duration>,
 }
 
 impl Responses {
-    /// Creates a new instance of the Responses client
+    /// Creates a new instance of the Responses client for OpenAI API
     ///
     /// This method initializes a new client by loading the OpenAI API key from
     /// the `OPENAI_API_KEY` environment variable. Make sure to set this environment
@@ -1041,16 +1065,22 @@ impl Responses {
     ///
     /// Panics if the `OPENAI_API_KEY` environment variable is not set.
     pub fn new() -> Self {
-        dotenv().ok();
-        let api_key = env::var("OPENAI_API_KEY").expect("OPENAI_API_KEY is not set.");
-        Self { endpoint: "https://api.openai.com/v1/responses".into(), api_key, user_agent: "".into(), request_body: Body::default(), timeout: None }
+        let auth = AuthProvider::openai_from_env()
+            .map_err(|e| OpenAIToolError::Error(format!("Failed to load OpenAI auth: {}", e)))
+            .unwrap();
+        Self { auth, user_agent: "".into(), request_body: Body::default(), timeout: None }
     }
 
     /// Creates a new instance of the Responses client with a custom endpoint
+    #[deprecated(since = "0.3.0", note = "Use `with_auth()` with custom OpenAIAuth for custom endpoints")]
     pub fn from_endpoint<T: AsRef<str>>(endpoint: T) -> Self {
-        dotenv().ok();
-        let api_key = env::var("OPENAI_API_KEY").expect("OPENAI_API_KEY is not set.");
-        Self { endpoint: endpoint.as_ref().to_string(), api_key, user_agent: "".into(), request_body: Body::default(), timeout: None }
+        let auth = AuthProvider::openai_from_env()
+            .map_err(|e| OpenAIToolError::Error(format!("Failed to load OpenAI auth: {}", e)))
+            .unwrap();
+        // Extract the path from the endpoint and use it
+        let mut responses = Self { auth, user_agent: "".into(), request_body: Body::default(), timeout: None };
+        responses.base_url(endpoint.as_ref().trim_end_matches("/responses"));
+        responses
     }
 
     /// Creates a new Responses client with a specified model.
@@ -1086,29 +1116,157 @@ impl Responses {
     /// reasoning_responses.temperature(0.5); // Warning logged, value ignored
     /// ```
     pub fn with_model(model: ChatModel) -> Self {
-        dotenv().ok();
-        let api_key = env::var("OPENAI_API_KEY").expect("OPENAI_API_KEY is not set.");
+        let auth = AuthProvider::openai_from_env()
+            .map_err(|e| OpenAIToolError::Error(format!("Failed to load OpenAI auth: {}", e)))
+            .unwrap();
         Self {
-            endpoint: "https://api.openai.com/v1/responses".into(),
-            api_key,
+            auth,
             user_agent: "".into(),
             request_body: Body { model, ..Default::default() },
             timeout: None,
         }
     }
 
-    /// Sets a custom API endpoint URL
+    /// Creates a new Responses client with a custom authentication provider
     ///
-    /// Use this to point to alternative OpenAI-compatible APIs (e.g., Azure OpenAI,
-    /// local LLM servers, or proxy servers).
+    /// Use this to explicitly configure OpenAI or Azure authentication.
     ///
     /// # Arguments
     ///
-    /// * `url` - The full URL of the API endpoint
+    /// * `auth` - The authentication provider
+    ///
+    /// # Returns
+    ///
+    /// A new Responses instance with the specified auth provider
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use openai_tools::responses::request::Responses;
+    /// use openai_tools::common::auth::{AuthProvider, AzureAuth};
+    ///
+    /// // Explicit Azure configuration
+    /// let auth = AuthProvider::Azure(
+    ///     AzureAuth::new("api-key", "my-resource", "gpt-4o-deployment")
+    /// );
+    /// let mut responses = Responses::with_auth(auth);
+    /// ```
+    pub fn with_auth(auth: AuthProvider) -> Self {
+        Self { auth, user_agent: "".into(), request_body: Body::default(), timeout: None }
+    }
+
+    /// Creates a new Responses client for Azure OpenAI API
+    ///
+    /// Loads configuration from Azure-specific environment variables.
+    ///
+    /// # Returns
+    ///
+    /// `Result<Responses>` - Configured for Azure or error if env vars missing
+    ///
+    /// # Environment Variables
+    ///
+    /// | Variable | Required | Description |
+    /// |----------|----------|-------------|
+    /// | `AZURE_OPENAI_API_KEY` | Yes* | Azure API key |
+    /// | `AZURE_OPENAI_TOKEN` | Yes* | Entra ID token (alternative to API key) |
+    /// | `AZURE_OPENAI_ENDPOINT` | Yes** | Full endpoint URL |
+    /// | `AZURE_OPENAI_RESOURCE_NAME` | Yes** | Resource name (alternative to endpoint) |
+    /// | `AZURE_OPENAI_DEPLOYMENT_NAME` | Yes | Deployment name |
+    /// | `AZURE_OPENAI_API_VERSION` | No | API version (default: 2024-08-01-preview) |
+    ///
+    /// \* Either API_KEY or TOKEN required
+    /// \*\* Either ENDPOINT or RESOURCE_NAME required
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// use openai_tools::responses::request::Responses;
+    ///
+    /// let mut responses = Responses::azure()?;
+    /// # Ok::<(), openai_tools::common::errors::OpenAIToolError>(())
+    /// ```
+    pub fn azure() -> Result<Self> {
+        let auth = AuthProvider::azure_from_env()?;
+        Ok(Self { auth, user_agent: "".into(), request_body: Body::default(), timeout: None })
+    }
+
+    /// Creates a new Responses client by auto-detecting the provider
+    ///
+    /// Tries Azure first (if AZURE_OPENAI_API_KEY is set), then falls back to OpenAI.
+    ///
+    /// # Returns
+    ///
+    /// `Result<Responses>` - Auto-configured client or error
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// use openai_tools::responses::request::Responses;
+    ///
+    /// // Uses Azure if AZURE_OPENAI_API_KEY is set, otherwise OpenAI
+    /// let mut responses = Responses::detect_provider()?;
+    /// # Ok::<(), openai_tools::common::errors::OpenAIToolError>(())
+    /// ```
+    pub fn detect_provider() -> Result<Self> {
+        let auth = AuthProvider::from_env()?;
+        Ok(Self { auth, user_agent: "".into(), request_body: Body::default(), timeout: None })
+    }
+
+    /// Creates a new Responses instance with URL-based provider detection
+    ///
+    /// Analyzes the URL pattern to determine the provider:
+    /// - URLs containing `.openai.azure.com` → Azure
+    /// - All other URLs → OpenAI-compatible
+    ///
+    /// # Arguments
+    ///
+    /// * `url` - The base URL or endpoint URL
+    /// * `api_key` - The API key or token
+    /// * `deployment_name` - Optional deployment name (required for Azure)
+    pub fn with_url<S: Into<String>>(
+        url: S,
+        api_key: S,
+        deployment_name: Option<S>,
+    ) -> Result<Self> {
+        let auth = AuthProvider::from_url_with_hint(url, api_key, deployment_name)?;
+        Ok(Self { auth, user_agent: "".into(), request_body: Body::default(), timeout: None })
+    }
+
+    /// Creates a new Responses instance from URL using environment variables
+    ///
+    /// Analyzes the URL pattern to determine the provider, then loads
+    /// credentials from the appropriate environment variables.
+    pub fn from_url<S: Into<String>>(url: S) -> Result<Self> {
+        let auth = AuthProvider::from_url(url)?;
+        Ok(Self { auth, user_agent: "".into(), request_body: Body::default(), timeout: None })
+    }
+
+    /// Returns the authentication provider
+    ///
+    /// # Returns
+    ///
+    /// Reference to the authentication provider
+    pub fn auth(&self) -> &AuthProvider {
+        &self.auth
+    }
+
+    /// Sets a custom API endpoint URL (OpenAI only)
+    ///
+    /// Use this to point to alternative OpenAI-compatible APIs (e.g., proxy servers).
+    /// For Azure, use `azure()` or `with_auth()` instead.
+    ///
+    /// # Arguments
+    ///
+    /// * `url` - The base URL (e.g., "https://my-proxy.example.com/v1")
     ///
     /// # Returns
     ///
     /// A mutable reference to self for method chaining
+    ///
+    /// # Note
+    ///
+    /// This method only works with OpenAI authentication. For Azure, the endpoint
+    /// is constructed from resource name and deployment name.
     ///
     /// # Example
     ///
@@ -1116,10 +1274,16 @@ impl Responses {
     /// use openai_tools::responses::request::Responses;
     ///
     /// let mut responses = Responses::new();
-    /// responses.base_url("https://my-proxy.example.com/v1/responses");
+    /// responses.base_url("https://my-proxy.example.com/v1");
     /// ```
     pub fn base_url<T: AsRef<str>>(&mut self, url: T) -> &mut Self {
-        self.endpoint = url.as_ref().to_string();
+        // Only modify if OpenAI provider
+        if let AuthProvider::OpenAI(ref openai_auth) = self.auth {
+            let new_auth = OpenAIAuth::new(openai_auth.api_key()).with_base_url(url.as_ref());
+            self.auth = AuthProvider::OpenAI(new_auth);
+        } else {
+            tracing::warn!("base_url() is only supported for OpenAI provider. Use azure() or with_auth() for Azure.");
+        }
         self
     }
 
@@ -2147,10 +2311,7 @@ impl Responses {
     /// # }
     /// ```
     pub async fn complete(&self) -> Result<Response> {
-        if self.api_key.is_empty() {
-            return Err(OpenAIToolError::Error("API key is not set.".into()));
-        }
-        // Note: Model defaults to ChatModel::Gpt4oMini, so no need to check for empty
+        // Validate that either messages or plain text input is set
         if self.request_body.messages_input.is_none() && self.request_body.plain_text_input.is_none() {
             return Err(OpenAIToolError::Error("Messages are not set.".into()));
         } else if self.request_body.plain_text_input.is_none() && self.request_body.messages_input.is_none() {
@@ -2198,37 +2359,43 @@ impl Responses {
         }
 
         let body = serde_json::to_string(&request_body)?;
-        let url = self.endpoint.clone();
 
         let client = create_http_client(self.timeout)?;
 
         // Set up headers
-        let mut header = request::header::HeaderMap::new();
-        header.insert("Content-Type", request::header::HeaderValue::from_static("application/json"));
-        header.insert("Authorization", request::header::HeaderValue::from_str(&format!("Bearer {}", self.api_key)).unwrap());
+        let mut headers = request::header::HeaderMap::new();
+        headers.insert("Content-Type", request::header::HeaderValue::from_static("application/json"));
         if !self.user_agent.is_empty() {
-            header.insert("User-Agent", request::header::HeaderValue::from_str(&self.user_agent).unwrap());
+            headers.insert("User-Agent", request::header::HeaderValue::from_str(&self.user_agent).unwrap());
         }
 
+        // Apply provider-specific authentication headers
+        self.auth.apply_headers(&mut headers)?;
+
+        // Get the endpoint URL from the auth provider
+        let endpoint = self.auth.endpoint(RESPONSES_PATH);
+
         if cfg!(test) {
-            tracing::info!("Endpoint: {}", self.endpoint);
+            tracing::info!("Endpoint: {}", endpoint);
             // Replace API key with a placeholder for security
-            let body_for_debug = serde_json::to_string_pretty(&request_body).unwrap().replace(&self.api_key, "*************");
+            let body_for_debug = serde_json::to_string_pretty(&request_body)
+                .unwrap()
+                .replace(self.auth.api_key(), "*************");
             // Log the request body for debugging purposes
             tracing::info!("Request body: {}", body_for_debug);
         }
 
         // Send the request and handle the response
-        match client.post(url).headers(header).body(body).send().await.map_err(OpenAIToolError::RequestError) {
+        match client.post(&endpoint).headers(headers).body(body).send().await.map_err(OpenAIToolError::RequestError) {
             Err(e) => {
                 tracing::error!("Request error: {}", e);
-                return Err(e);
+                Err(e)
             }
             Ok(response) if !response.status().is_success() => {
                 let status = response.status();
                 let error_text = response.text().await.unwrap_or_else(|_| "Failed to read error response".to_string());
                 tracing::error!("API error (status: {}): {}", status, error_text);
-                return Err(OpenAIToolError::Error(format!("API request failed with status {}: {}", status, error_text)));
+                Err(OpenAIToolError::Error(format!("API request failed with status {}: {}", status, error_text)))
             }
             Ok(response) => {
                 let content = response.text().await.map_err(OpenAIToolError::RequestError)?;
@@ -2237,8 +2404,7 @@ impl Responses {
                     tracing::info!("Response content: {}", content);
                 }
 
-                let data = serde_json::from_str::<Response>(&content).map_err(OpenAIToolError::SerdeJsonError);
-                return data;
+                serde_json::from_str::<Response>(&content).map_err(OpenAIToolError::SerdeJsonError)
             }
         }
     }

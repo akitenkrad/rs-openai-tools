@@ -17,20 +17,21 @@
 //!
 //! ```rust,no_run
 //! use openai_tools::embedding::request::Embedding;
+//! use openai_tools::common::models::EmbeddingModel;
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     // Initialize the embedding client
 //!     let mut embedding = Embedding::new()?;
-//!     
+//!
 //!     // Configure the model and input text
 //!     embedding
-//!         .model("text-embedding-3-small")
+//!         .model(EmbeddingModel::TextEmbedding3Small)
 //!         .input_text("Hello, world!");
-//!     
+//!
 //!     // Generate embedding
 //!     let response = embedding.embed().await?;
-//!     
+//!
 //!     // Access the embedding vector
 //!     let vector = response.data[0].embedding.as_1d().unwrap();
 //!     println!("Embedding dimension: {}", vector.len());
@@ -44,21 +45,22 @@
 //!
 //! ```rust,no_run
 //! use openai_tools::embedding::request::Embedding;
+//! use openai_tools::common::models::EmbeddingModel;
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     let mut embedding = Embedding::new()?;
-//!     
+//!
 //!     embedding
-//!         .model("text-embedding-3-small")
+//!         .model(EmbeddingModel::TextEmbedding3Small)
 //!         .input_text("The quick brown fox jumps over the lazy dog.");
-//!     
+//!
 //!     let response = embedding.embed().await?;
-//!     
+//!
 //!     // The response contains embedding data
 //!     assert_eq!(response.object, "list");
 //!     assert_eq!(response.data.len(), 1);
-//!     
+//!
 //!     let vector = response.data[0].embedding.as_1d().unwrap();
 //!     println!("Generated embedding with {} dimensions", vector.len());
 //!     Ok(())
@@ -69,24 +71,25 @@
 //!
 //! ```rust,no_run
 //! use openai_tools::embedding::request::Embedding;
+//! use openai_tools::common::models::EmbeddingModel;
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     let mut embedding = Embedding::new()?;
-//!     
+//!
 //!     // Embed multiple texts at once
 //!     let texts = vec![
 //!         "Hello, world!",
-//!         "こんにちは、世界！",
+//!         "こんにちは，世界！",
 //!         "Bonjour le monde!",
 //!     ];
-//!     
+//!
 //!     embedding
-//!         .model("text-embedding-3-small")
+//!         .model(EmbeddingModel::TextEmbedding3Small)
 //!         .input_text_array(texts);
-//!     
+//!
 //!     let response = embedding.embed().await?;
-//!     
+//!
 //!     // Each input text gets its own embedding
 //!     for (i, data) in response.data.iter().enumerate() {
 //!         let vector = data.embedding.as_1d().unwrap();
@@ -100,16 +103,17 @@
 //!
 //! ```rust,no_run
 //! use openai_tools::embedding::request::Embedding;
+//! use openai_tools::common::models::EmbeddingModel;
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     let mut embedding = Embedding::new()?;
-//!     
+//!
 //!     embedding
-//!         .model("text-embedding-3-small")
+//!         .model(EmbeddingModel::TextEmbedding3Small)
 //!         .input_text("Sample text for embedding")
 //!         .encoding_format("float"); // or "base64"
-//!     
+//!
 //!     let response = embedding.embed().await?;
 //!     println!("Model used: {}", response.model);
 //!     println!("Token usage: {:?}", response.usage);

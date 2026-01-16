@@ -18,12 +18,13 @@
 //! use openai_tools::realtime::{RealtimeClient, Modality, Voice};
 //! use openai_tools::realtime::vad::ServerVadConfig;
 //! use openai_tools::realtime::events::server::ServerEvent;
+//! use openai_tools::common::models::RealtimeModel;
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     let mut client = RealtimeClient::new();
 //!     client
-//!         .model("gpt-4o-realtime-preview")
+//!         .model(RealtimeModel::Gpt4oRealtimePreview)
 //!         .modalities(vec![Modality::Text, Modality::Audio])
 //!         .voice(Voice::Alloy)
 //!         .instructions("You are a helpful voice assistant.");

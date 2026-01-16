@@ -30,15 +30,15 @@
 //! ```
 
 use crate::batch::response::{BatchListResponse, BatchObject};
+use crate::common::auth::AuthProvider;
 use crate::common::client::create_http_client;
 use crate::common::errors::{OpenAIToolError, Result};
-use dotenvy::dotenv;
 use serde::Serialize;
 use std::collections::HashMap;
-use std::env;
 use std::time::Duration;
 
-const BASE_URL: &str = "https://api.openai.com/v1/batches";
+/// Default API path for Batches
+const BATCHES_PATH: &str = "batches";
 
 /// The API endpoint to use for batch requests.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -172,14 +172,14 @@ impl CreateBatchRequest {
 /// }
 /// ```
 pub struct Batches {
-    /// OpenAI API key for authentication
-    api_key: String,
+    /// Authentication provider (OpenAI or Azure)
+    auth: AuthProvider,
     /// Optional request timeout duration
     timeout: Option<Duration>,
 }
 
 impl Batches {
-    /// Creates a new Batches client.
+    /// Creates a new Batches client for OpenAI API.
     ///
     /// Initializes the client by loading the OpenAI API key from
     /// the environment variable `OPENAI_API_KEY`. Supports `.env` file loading
@@ -198,11 +198,46 @@ impl Batches {
     /// let batches = Batches::new().expect("API key should be set");
     /// ```
     pub fn new() -> Result<Self> {
-        dotenv().ok();
-        let api_key = env::var("OPENAI_API_KEY").map_err(|e| {
-            OpenAIToolError::Error(format!("OPENAI_API_KEY not set in environment: {}", e))
-        })?;
-        Ok(Self { api_key, timeout: None })
+        let auth = AuthProvider::openai_from_env()?;
+        Ok(Self { auth, timeout: None })
+    }
+
+    /// Creates a new Batches client with a custom authentication provider
+    pub fn with_auth(auth: AuthProvider) -> Self {
+        Self { auth, timeout: None }
+    }
+
+    /// Creates a new Batches client for Azure OpenAI API
+    pub fn azure() -> Result<Self> {
+        let auth = AuthProvider::azure_from_env()?;
+        Ok(Self { auth, timeout: None })
+    }
+
+    /// Creates a new Batches client by auto-detecting the provider
+    pub fn detect_provider() -> Result<Self> {
+        let auth = AuthProvider::from_env()?;
+        Ok(Self { auth, timeout: None })
+    }
+
+    /// Creates a new Batches client with URL-based provider detection
+    pub fn with_url<S: Into<String>>(
+        url: S,
+        api_key: S,
+        deployment_name: Option<S>,
+    ) -> Result<Self> {
+        let auth = AuthProvider::from_url_with_hint(url, api_key, deployment_name)?;
+        Ok(Self { auth, timeout: None })
+    }
+
+    /// Creates a new Batches client from URL using environment variables
+    pub fn from_url<S: Into<String>>(url: S) -> Result<Self> {
+        let auth = AuthProvider::from_url(url)?;
+        Ok(Self { auth, timeout: None })
+    }
+
+    /// Returns the authentication provider
+    pub fn auth(&self) -> &AuthProvider {
+        &self.auth
     }
 
     /// Sets the request timeout duration.
@@ -223,10 +258,7 @@ impl Batches {
     fn create_client(&self) -> Result<(request::Client, request::header::HeaderMap)> {
         let client = create_http_client(self.timeout)?;
         let mut headers = request::header::HeaderMap::new();
-        headers.insert(
-            "Authorization",
-            request::header::HeaderValue::from_str(&format!("Bearer {}", self.api_key)).unwrap(),
-        );
+        self.auth.apply_headers(&mut headers)?;
         headers.insert(
             "Content-Type",
             request::header::HeaderValue::from_static("application/json"),
@@ -275,8 +307,9 @@ impl Batches {
 
         let body = serde_json::to_string(&request).map_err(OpenAIToolError::SerdeJsonError)?;
 
+        let url = self.auth.endpoint(BATCHES_PATH);
         let response = client
-            .post(BASE_URL)
+            .post(&url)
             .headers(headers)
             .body(body)
             .send()
@@ -322,7 +355,7 @@ impl Batches {
     /// ```
     pub async fn retrieve(&self, batch_id: &str) -> Result<BatchObject> {
         let (client, headers) = self.create_client()?;
-        let url = format!("{}/{}", BASE_URL, batch_id);
+        let url = format!("{}/{}", self.auth.endpoint(BATCHES_PATH), batch_id);
 
         let response = client
             .get(&url)
@@ -369,7 +402,7 @@ impl Batches {
     /// ```
     pub async fn cancel(&self, batch_id: &str) -> Result<BatchObject> {
         let (client, headers) = self.create_client()?;
-        let url = format!("{}/{}/cancel", BASE_URL, batch_id);
+        let url = format!("{}/{}/cancel", self.auth.endpoint(BATCHES_PATH), batch_id);
 
         let response = client
             .post(&url)
@@ -434,7 +467,7 @@ impl Batches {
     ) -> Result<BatchListResponse> {
         let (client, headers) = self.create_client()?;
 
-        let mut url = BASE_URL.to_string();
+        let mut url = self.auth.endpoint(BATCHES_PATH);
         let mut params = Vec::new();
 
         if let Some(l) = limit {

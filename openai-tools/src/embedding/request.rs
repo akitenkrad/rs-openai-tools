@@ -15,19 +15,20 @@
 //!
 //! ```rust,no_run
 //! use openai_tools::embedding::request::Embedding;
+//! use openai_tools::common::models::EmbeddingModel;
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     // Initialize the embedding client
 //!     let mut embedding = Embedding::new()?;
-//!     
+//!
 //!     // Generate embedding for a single text
 //!     let response = embedding
-//!         .model("text-embedding-3-small")
+//!         .model(EmbeddingModel::TextEmbedding3Small)
 //!         .input_text("Hello, world!")
 //!         .embed()
 //!         .await?;
-//!         
+//!
 //!     let vector = response.data[0].embedding.as_1d().unwrap();
 //!     println!("Embedding dimension: {}", vector.len());
 //!     Ok(())
@@ -38,20 +39,21 @@
 //!
 //! ```rust,no_run
 //! use openai_tools::embedding::request::Embedding;
+//! use openai_tools::common::models::EmbeddingModel;
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     let mut embedding = Embedding::new()?;
-//!     
+//!
 //!     // Embed multiple texts in a single request
 //!     let texts = vec!["First text", "Second text", "Third text"];
-//!     
+//!
 //!     let response = embedding
-//!         .model("text-embedding-3-small")
+//!         .model(EmbeddingModel::TextEmbedding3Small)
 //!         .input_text_array(texts)
 //!         .embed()
 //!         .await?;
-//!         
+//!
 //!     for data in &response.data {
 //!         println!("Index {}: {} dimensions",
 //!                  data.index,
@@ -61,14 +63,13 @@
 //! }
 //! ```
 
+use crate::common::auth::{AuthProvider, OpenAIAuth};
 use crate::common::client::create_http_client;
 use crate::common::errors::{ErrorResponse, OpenAIToolError, Result};
 use crate::common::models::EmbeddingModel;
 use crate::embedding::response::Response;
 use core::str;
-use dotenvy::dotenv;
 use serde::{Deserialize, Serialize};
-use std::env;
 use std::time::Duration;
 
 /// Internal structure for handling input text in embedding requests.
@@ -151,8 +152,8 @@ struct Body {
     encoding_format: Option<String>,
 }
 
-/// Default API endpoint for Embeddings
-const DEFAULT_ENDPOINT: &str = "https://api.openai.com/v1/embeddings";
+/// Default API path for Embeddings
+const EMBEDDINGS_PATH: &str = "embeddings";
 
 /// Main struct for building and sending embedding requests to the OpenAI API.
 ///
@@ -160,17 +161,24 @@ const DEFAULT_ENDPOINT: &str = "https://api.openai.com/v1/embeddings";
 /// requests with various parameters. Use [`Embedding::new()`] to create a new
 /// instance, then chain methods to configure the request before calling [`embed()`].
 ///
+/// # Providers
+///
+/// The client supports two providers:
+/// - **OpenAI**: Standard OpenAI API (default)
+/// - **Azure**: Azure OpenAI Service
+///
 /// # Example
 ///
 /// ```rust,no_run
 /// use openai_tools::embedding::request::Embedding;
+/// use openai_tools::common::models::EmbeddingModel;
 ///
 /// #[tokio::main]
 /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ///     let mut embedding = Embedding::new()?;
 ///
 ///     let response = embedding
-///         .model("text-embedding-3-small")
+///         .model(EmbeddingModel::TextEmbedding3Small)
 ///         .input_text("Sample text")
 ///         .embed()
 ///         .await?;
@@ -179,10 +187,8 @@ const DEFAULT_ENDPOINT: &str = "https://api.openai.com/v1/embeddings";
 /// }
 /// ```
 pub struct Embedding {
-    /// The API endpoint URL
-    endpoint: String,
-    /// OpenAI API key for authentication
-    api_key: String,
+    /// Authentication provider (OpenAI or Azure)
+    auth: AuthProvider,
     /// Request body containing model and input parameters
     body: Body,
     /// Optional request timeout duration
@@ -190,7 +196,7 @@ pub struct Embedding {
 }
 
 impl Embedding {
-    /// Creates a new Embedding instance.
+    /// Creates a new Embedding instance for OpenAI API.
     ///
     /// Initializes the embedding client by loading the OpenAI API key from
     /// the environment variable `OPENAI_API_KEY`. Supports `.env` file loading
@@ -209,25 +215,98 @@ impl Embedding {
     /// let embedding = Embedding::new().expect("API key should be set");
     /// ```
     pub fn new() -> Result<Self> {
-        dotenv().ok();
-        let api_key = env::var("OPENAI_API_KEY").map_err(|e| OpenAIToolError::Error(format!("OPENAI_API_KEY not set in environment: {}", e)))?;
+        let auth = AuthProvider::openai_from_env()?;
         let body = Body::default();
-        Ok(Self { endpoint: DEFAULT_ENDPOINT.to_string(), api_key, body, timeout: None })
+        Ok(Self { auth, body, timeout: None })
     }
 
-    /// Sets a custom API endpoint URL
+    /// Creates a new Embedding instance with a custom authentication provider
+    ///
+    /// Use this to explicitly configure OpenAI or Azure authentication.
+    ///
+    /// # Arguments
+    ///
+    /// * `auth` - The authentication provider
+    ///
+    /// # Returns
+    ///
+    /// A new Embedding instance with the specified auth provider
+    pub fn with_auth(auth: AuthProvider) -> Self {
+        Self { auth, body: Body::default(), timeout: None }
+    }
+
+    /// Creates a new Embedding instance for Azure OpenAI API
+    ///
+    /// Loads configuration from Azure-specific environment variables.
+    ///
+    /// # Returns
+    ///
+    /// `Result<Embedding>` - Configured for Azure or error if env vars missing
+    pub fn azure() -> Result<Self> {
+        let auth = AuthProvider::azure_from_env()?;
+        Ok(Self { auth, body: Body::default(), timeout: None })
+    }
+
+    /// Creates a new Embedding instance by auto-detecting the provider
+    ///
+    /// Tries Azure first (if AZURE_OPENAI_API_KEY is set), then falls back to OpenAI.
+    pub fn detect_provider() -> Result<Self> {
+        let auth = AuthProvider::from_env()?;
+        Ok(Self { auth, body: Body::default(), timeout: None })
+    }
+
+    /// Creates a new Embedding instance with URL-based provider detection
+    ///
+    /// Analyzes the URL pattern to determine the provider:
+    /// - URLs containing `.openai.azure.com` → Azure
+    /// - All other URLs → OpenAI-compatible
+    ///
+    /// # Arguments
+    ///
+    /// * `url` - The base URL or endpoint URL
+    /// * `api_key` - The API key or token
+    /// * `deployment_name` - Optional deployment name (required for Azure)
+    pub fn with_url<S: Into<String>>(
+        url: S,
+        api_key: S,
+        deployment_name: Option<S>,
+    ) -> Result<Self> {
+        let auth = AuthProvider::from_url_with_hint(url, api_key, deployment_name)?;
+        Ok(Self { auth, body: Body::default(), timeout: None })
+    }
+
+    /// Creates a new Embedding instance from URL using environment variables
+    ///
+    /// Analyzes the URL pattern to determine the provider, then loads
+    /// credentials from the appropriate environment variables.
+    pub fn from_url<S: Into<String>>(url: S) -> Result<Self> {
+        let auth = AuthProvider::from_url(url)?;
+        Ok(Self { auth, body: Body::default(), timeout: None })
+    }
+
+    /// Returns the authentication provider
+    pub fn auth(&self) -> &AuthProvider {
+        &self.auth
+    }
+
+    /// Sets a custom API endpoint URL (OpenAI only)
     ///
     /// Use this to point to alternative OpenAI-compatible APIs.
     ///
     /// # Arguments
     ///
-    /// * `url` - The full URL of the API endpoint
+    /// * `url` - The base URL (e.g., "https://my-proxy.example.com/v1")
     ///
     /// # Returns
     ///
     /// A mutable reference to self for method chaining
     pub fn base_url<T: AsRef<str>>(&mut self, url: T) -> &mut Self {
-        self.endpoint = url.as_ref().to_string();
+        if let AuthProvider::OpenAI(ref openai_auth) = self.auth {
+            let new_auth = OpenAIAuth::new(openai_auth.api_key()).with_base_url(url.as_ref());
+            self.auth = AuthProvider::OpenAI(new_auth);
+        } else {
+            tracing::warn!("base_url() is only supported for OpenAI provider. Use azure() or with_auth() for Azure.");
+        }
         self
     }
 
@@ -287,9 +366,10 @@ impl Embedding {
     /// ```rust,no_run
     /// use std::time::Duration;
     /// use openai_tools::embedding::request::Embedding;
+    /// use openai_tools::common::models::EmbeddingModel;
     ///
     /// let mut embedding = Embedding::new().unwrap();
-    /// embedding.model("text-embedding-3-small")
+    /// embedding.model(EmbeddingModel::TextEmbedding3Small)
     ///     .timeout(Duration::from_secs(30));
     /// ```
     pub fn timeout(&mut self, timeout: Duration) -> &mut Self {
@@ -402,11 +482,12 @@ impl Embedding {
     ///
     /// ```rust,no_run
     /// # use openai_tools::embedding::request::Embedding;
+    /// # use openai_tools::common::models::EmbeddingModel;
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// let mut embedding = Embedding::new()?;
     /// let response = embedding
-    ///     .model("text-embedding-3-small")
+    ///     .model(EmbeddingModel::TextEmbedding3Small)
     ///     .input_text("Hello, world!")
     ///     .embed()
     ///     .await?;
@@ -414,10 +495,7 @@ impl Embedding {
     /// # }
     /// ```
     pub async fn embed(&self) -> Result<Response> {
-        if self.api_key.is_empty() {
-            return Err(OpenAIToolError::Error("API key is not set.".into()));
-        }
-        // Note: Model defaults to EmbeddingModel::TextEmbedding3Small, so no need to check for empty
+        // Validate that input text is set
         if self.body.input.input_text.is_empty() && self.body.input.input_text_array.is_empty() {
             return Err(OpenAIToolError::Error("Input text is not set.".into()));
         }
@@ -425,18 +503,25 @@ impl Embedding {
         let body = serde_json::to_string(&self.body)?;
 
         let client = create_http_client(self.timeout)?;
-        let mut header = request::header::HeaderMap::new();
-        header.insert("Content-Type", request::header::HeaderValue::from_static("application/json"));
-        header.insert("Authorization", request::header::HeaderValue::from_str(&format!("Bearer {}", self.api_key)).unwrap());
-        header.insert("User-Agent", request::header::HeaderValue::from_static("openai-tools-rust"));
+        let mut headers = request::header::HeaderMap::new();
+        headers.insert("Content-Type", request::header::HeaderValue::from_static("application/json"));
+        headers.insert("User-Agent", request::header::HeaderValue::from_static("openai-tools-rust"));
+
+        // Apply provider-specific authentication headers
+        self.auth.apply_headers(&mut headers)?;
 
         if cfg!(test) {
             // Replace API key with a placeholder in debug mode
-            let body_for_debug = serde_json::to_string_pretty(&self.body).unwrap().replace(&self.api_key, "*************");
+            let body_for_debug = serde_json::to_string_pretty(&self.body)
+                .unwrap()
+                .replace(self.auth.api_key(), "*************");
             tracing::info!("Request body: {}", body_for_debug);
         }
 
-        let response = client.post(&self.endpoint).headers(header).body(body).send().await.map_err(OpenAIToolError::RequestError)?;
+        // Get the endpoint URL from the auth provider
+        let endpoint = self.auth.endpoint(EMBEDDINGS_PATH);
+
+        let response = client.post(&endpoint).headers(headers).body(body).send().await.map_err(OpenAIToolError::RequestError)?;
         let status = response.status();
         let content = response.text().await.map_err(OpenAIToolError::RequestError)?;
 

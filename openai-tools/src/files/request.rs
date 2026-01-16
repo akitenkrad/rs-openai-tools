@@ -30,17 +30,17 @@
 //! }
 //! ```
 
+use crate::common::auth::{AuthProvider, OpenAIAuth};
 use crate::common::client::create_http_client;
 use crate::common::errors::{ErrorResponse, OpenAIToolError, Result};
 use crate::files::response::{DeleteResponse, File, FileListResponse};
-use dotenvy::dotenv;
 use request::multipart::{Form, Part};
 use serde::{Deserialize, Serialize};
-use std::env;
 use std::path::Path;
 use std::time::Duration;
 
-const BASE_URL: &str = "https://api.openai.com/v1/files";
+/// Default API path for Files
+const FILES_PATH: &str = "files";
 
 /// The intended purpose of the uploaded file.
 ///
@@ -93,6 +93,12 @@ impl std::fmt::Display for FilePurpose {
 /// This struct provides methods to upload, list, retrieve, delete files,
 /// and get file content. Use [`Files::new()`] to create a new instance.
 ///
+/// # Providers
+///
+/// The client supports two providers:
+/// - **OpenAI**: Standard OpenAI API (default)
+/// - **Azure**: Azure OpenAI Service
+///
 /// # Example
 ///
 /// ```rust,no_run
@@ -110,16 +116,14 @@ impl std::fmt::Display for FilePurpose {
 /// }
 /// ```
 pub struct Files {
-    /// The API endpoint URL
-    endpoint: String,
-    /// OpenAI API key for authentication
-    api_key: String,
+    /// Authentication provider (OpenAI or Azure)
+    auth: AuthProvider,
     /// Optional request timeout duration
     timeout: Option<Duration>,
 }
 
 impl Files {
-    /// Creates a new Files client.
+    /// Creates a new Files client for OpenAI API.
     ///
     /// Initializes the client by loading the OpenAI API key from
     /// the environment variable `OPENAI_API_KEY`. Supports `.env` file loading
@@ -138,26 +142,66 @@ impl Files {
     /// let files = Files::new().expect("API key should be set");
     /// ```
     pub fn new() -> Result<Self> {
-        dotenv().ok();
-        let api_key = env::var("OPENAI_API_KEY").map_err(|e| {
-            OpenAIToolError::Error(format!("OPENAI_API_KEY not set in environment: {}", e))
-        })?;
-        Ok(Self { endpoint: BASE_URL.to_string(), api_key, timeout: None })
+        let auth = AuthProvider::openai_from_env()?;
+        Ok(Self { auth, timeout: None })
     }
 
-    /// Sets a custom API endpoint URL
+    /// Creates a new Files client with a custom authentication provider
+    pub fn with_auth(auth: AuthProvider) -> Self {
+        Self { auth, timeout: None }
+    }
+
+    /// Creates a new Files client for Azure OpenAI API
+    pub fn azure() -> Result<Self> {
+        let auth = AuthProvider::azure_from_env()?;
+        Ok(Self { auth, timeout: None })
+    }
+
+    /// Creates a new Files client by auto-detecting the provider
+    pub fn detect_provider() -> Result<Self> {
+        let auth = AuthProvider::from_env()?;
+        Ok(Self { auth, timeout: None })
+    }
+
+    /// Creates a new Files client with URL-based provider detection
+    pub fn with_url<S: Into<String>>(
+        url: S,
+        api_key: S,
+        deployment_name: Option<S>,
+    ) -> Result<Self> {
+        let auth = AuthProvider::from_url_with_hint(url, api_key, deployment_name)?;
+        Ok(Self { auth, timeout: None })
+    }
+
+    /// Creates a new Files client from URL using environment variables
+    pub fn from_url<S: Into<String>>(url: S) -> Result<Self> {
+        let auth = AuthProvider::from_url(url)?;
+        Ok(Self { auth, timeout: None })
+    }
+
+    /// Returns the authentication provider
+    pub fn auth(&self) -> &AuthProvider {
+        &self.auth
+    }
+
+    /// Sets a custom API endpoint URL (OpenAI only)
     ///
     /// Use this to point to alternative OpenAI-compatible APIs.
     ///
     /// # Arguments
     ///
-    /// * `url` - The base URL of the API endpoint (without trailing paths)
+    /// * `url` - The base URL (e.g., "https://my-proxy.example.com/v1")
     ///
     /// # Returns
     ///
     /// A mutable reference to self for method chaining
     pub fn base_url<T: AsRef<str>>(&mut self, url: T) -> &mut Self {
-        self.endpoint = url.as_ref().to_string();
+        if let AuthProvider::OpenAI(ref openai_auth) = self.auth {
+            let new_auth = OpenAIAuth::new(openai_auth.api_key()).with_base_url(url.as_ref());
+            self.auth = AuthProvider::OpenAI(new_auth);
+        } else {
+            tracing::warn!("base_url() is only supported for OpenAI provider. Use azure() or with_auth() for Azure.");
+        }
         self
     }
 
@@ -189,10 +233,7 @@ impl Files {
     fn create_client(&self) -> Result<(request::Client, request::header::HeaderMap)> {
         let client = create_http_client(self.timeout)?;
         let mut headers = request::header::HeaderMap::new();
-        headers.insert(
-            "Authorization",
-            request::header::HeaderValue::from_str(&format!("Bearer {}", self.api_key)).unwrap(),
-        );
+        self.auth.apply_headers(&mut headers)?;
         headers.insert(
             "User-Agent",
             request::header::HeaderValue::from_static("openai-tools-rust"),
@@ -292,8 +333,9 @@ impl Files {
             .part("file", file_part)
             .text("purpose", purpose.as_str().to_string());
 
+        let endpoint = self.auth.endpoint(FILES_PATH);
         let response = client
-            .post(&self.endpoint)
+            .post(&endpoint)
             .headers(headers)
             .multipart(form)
             .send()
@@ -353,9 +395,10 @@ impl Files {
     pub async fn list(&self, purpose: Option<FilePurpose>) -> Result<FileListResponse> {
         let (client, headers) = self.create_client()?;
 
+        let endpoint = self.auth.endpoint(FILES_PATH);
         let url = match purpose {
-            Some(p) => format!("{}?purpose={}", self.endpoint, p.as_str()),
-            None => self.endpoint.clone(),
+            Some(p) => format!("{}?purpose={}", endpoint, p.as_str()),
+            None => endpoint,
         };
 
         let response = client
@@ -411,7 +454,7 @@ impl Files {
     /// ```
     pub async fn retrieve(&self, file_id: &str) -> Result<File> {
         let (client, headers) = self.create_client()?;
-        let url = format!("{}/{}", self.endpoint, file_id);
+        let url = format!("{}/{}", self.auth.endpoint(FILES_PATH), file_id);
 
         let response = client
             .get(&url)
@@ -466,7 +509,7 @@ impl Files {
     /// ```
     pub async fn delete(&self, file_id: &str) -> Result<DeleteResponse> {
         let (client, headers) = self.create_client()?;
-        let url = format!("{}/{}", self.endpoint, file_id);
+        let url = format!("{}/{}", self.auth.endpoint(FILES_PATH), file_id);
 
         let response = client
             .delete(&url)
@@ -521,7 +564,7 @@ impl Files {
     /// ```
     pub async fn content(&self, file_id: &str) -> Result<Vec<u8>> {
         let (client, headers) = self.create_client()?;
-        let url = format!("{}/{}/content", self.endpoint, file_id);
+        let url = format!("{}/{}/content", self.auth.endpoint(FILES_PATH), file_id);
 
         let response = client
             .get(&url)

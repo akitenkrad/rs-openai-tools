@@ -28,14 +28,14 @@
 //! }
 //! ```
 
+use crate::common::auth::AuthProvider;
 use crate::common::client::create_http_client;
 use crate::common::errors::{ErrorResponse, OpenAIToolError, Result};
 use crate::models::response::{DeleteResponse, Model, ModelsListResponse};
-use dotenvy::dotenv;
-use std::env;
 use std::time::Duration;
 
-const BASE_URL: &str = "https://api.openai.com/v1/models";
+/// Default API path for Models
+const MODELS_PATH: &str = "models";
 
 /// Client for interacting with the OpenAI Models API.
 ///
@@ -59,14 +59,14 @@ const BASE_URL: &str = "https://api.openai.com/v1/models";
 /// }
 /// ```
 pub struct Models {
-    /// OpenAI API key for authentication
-    api_key: String,
+    /// Authentication provider (OpenAI or Azure)
+    auth: AuthProvider,
     /// Optional request timeout duration
     timeout: Option<Duration>,
 }
 
 impl Models {
-    /// Creates a new Models client.
+    /// Creates a new Models client for OpenAI API.
     ///
     /// Initializes the client by loading the OpenAI API key from
     /// the environment variable `OPENAI_API_KEY`. Supports `.env` file loading
@@ -85,11 +85,46 @@ impl Models {
     /// let models = Models::new().expect("API key should be set");
     /// ```
     pub fn new() -> Result<Self> {
-        dotenv().ok();
-        let api_key = env::var("OPENAI_API_KEY").map_err(|e| {
-            OpenAIToolError::Error(format!("OPENAI_API_KEY not set in environment: {}", e))
-        })?;
-        Ok(Self { api_key, timeout: None })
+        let auth = AuthProvider::openai_from_env()?;
+        Ok(Self { auth, timeout: None })
+    }
+
+    /// Creates a new Models client with a custom authentication provider
+    pub fn with_auth(auth: AuthProvider) -> Self {
+        Self { auth, timeout: None }
+    }
+
+    /// Creates a new Models client for Azure OpenAI API
+    pub fn azure() -> Result<Self> {
+        let auth = AuthProvider::azure_from_env()?;
+        Ok(Self { auth, timeout: None })
+    }
+
+    /// Creates a new Models client by auto-detecting the provider
+    pub fn detect_provider() -> Result<Self> {
+        let auth = AuthProvider::from_env()?;
+        Ok(Self { auth, timeout: None })
+    }
+
+    /// Creates a new Models client with URL-based provider detection
+    pub fn with_url<S: Into<String>>(
+        url: S,
+        api_key: S,
+        deployment_name: Option<S>,
+    ) -> Result<Self> {
+        let auth = AuthProvider::from_url_with_hint(url, api_key, deployment_name)?;
+        Ok(Self { auth, timeout: None })
+    }
+
+    /// Creates a new Models client from URL using environment variables
+    pub fn from_url<S: Into<String>>(url: S) -> Result<Self> {
+        let auth = AuthProvider::from_url(url)?;
+        Ok(Self { auth, timeout: None })
+    }
+
+    /// Returns the authentication provider
+    pub fn auth(&self) -> &AuthProvider {
+        &self.auth
     }
 
     /// Sets the request timeout duration.
@@ -120,10 +155,7 @@ impl Models {
     fn create_client(&self) -> Result<(request::Client, request::header::HeaderMap)> {
         let client = create_http_client(self.timeout)?;
         let mut headers = request::header::HeaderMap::new();
-        headers.insert(
-            "Authorization",
-            request::header::HeaderValue::from_str(&format!("Bearer {}", self.api_key)).unwrap(),
-        );
+        self.auth.apply_headers(&mut headers)?;
         headers.insert(
             "User-Agent",
             request::header::HeaderValue::from_static("openai-tools-rust"),
@@ -160,8 +192,9 @@ impl Models {
     pub async fn list(&self) -> Result<ModelsListResponse> {
         let (client, headers) = self.create_client()?;
 
+        let url = self.auth.endpoint(MODELS_PATH);
         let response = client
-            .get(BASE_URL)
+            .get(&url)
             .headers(headers)
             .send()
             .await
@@ -216,7 +249,7 @@ impl Models {
     /// ```
     pub async fn retrieve(&self, model_id: &str) -> Result<Model> {
         let (client, headers) = self.create_client()?;
-        let url = format!("{}/{}", BASE_URL, model_id);
+        let url = format!("{}/{}", self.auth.endpoint(MODELS_PATH), model_id);
 
         let response = client
             .get(&url)
@@ -275,7 +308,7 @@ impl Models {
     /// ```
     pub async fn delete(&self, model_id: &str) -> Result<DeleteResponse> {
         let (client, headers) = self.create_client()?;
-        let url = format!("{}/{}", BASE_URL, model_id);
+        let url = format!("{}/{}", self.auth.endpoint(MODELS_PATH), model_id);
 
         let response = client
             .delete(&url)

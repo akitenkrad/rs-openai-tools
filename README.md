@@ -14,14 +14,61 @@ To start using the `openai-tools`, add it to your projects's dependencies in the
 cargo add openai-tools
 ```
 
-API key is necessary to access OpenAI API.
-Set it in the `.env` file:
+## Environment Setup
+
+### OpenAI API
+
+Set the API key in the `.env` file:
 
 ```text
 OPENAI_API_KEY = "xxxxxxxxxxxxxxxxxxxxxxxxxxx"
 ```
 
-Then, import the necesarry modules in your code:
+### Azure OpenAI API
+
+Set Azure-specific environment variables:
+
+```text
+AZURE_OPENAI_API_KEY = "xxxxxxxxxxxxxxxxxxxxxxxxxxx"
+AZURE_OPENAI_RESOURCE_NAME = "my-resource"
+AZURE_OPENAI_DEPLOYMENT_NAME = "gpt-4o-deployment"
+```
+
+### Provider Detection
+
+All API clients support multiple ways to configure authentication:
+
+```rust
+use openai_tools::chat::request::ChatCompletion;
+use openai_tools::common::auth::{AuthProvider, AzureAuth};
+
+// OpenAI (default)
+let chat = ChatCompletion::new();
+
+// Azure
+let chat = ChatCompletion::azure()?;
+
+// Auto-detect provider from environment variables
+let chat = ChatCompletion::detect_provider()?;
+
+// URL-based detection (auto-detects provider from URL pattern)
+let chat = ChatCompletion::with_url(
+    "https://my-resource.openai.azure.com",
+    "azure-key",
+    Some("gpt-4o-deployment")
+)?;
+
+// OpenAI-compatible APIs (Ollama, vLLM, LocalAI, etc.)
+let chat = ChatCompletion::with_url(
+    "http://localhost:11434/v1",
+    "ollama",
+    None
+)?;
+```
+
+## Modules
+
+Import the necessary modules in your code:
 
 ```rust
 use openai_tools::chat::ChatCompletion;
@@ -386,6 +433,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ```
 
 ## Update History
+
+<details>
+<summary>v1.0.2</summary>
+
+- Added URL-based provider detection for all API clients
+  - `with_url(url, api_key, deployment_name)` - auto-detect provider from URL pattern
+  - `from_url(url)` - auto-detect with env var credentials
+  - `*.openai.azure.com` → Azure, all other URLs → OpenAI-compatible
+- Support for OpenAI-compatible APIs (Ollama, vLLM, LocalAI, etc.)
+- Added Azure OpenAI support with `azure()` and environment variable configuration
+- Added `AuthProvider` abstraction for unified authentication handling
+
+</details>
 
 <details>
 <summary>v1.0.1</summary>

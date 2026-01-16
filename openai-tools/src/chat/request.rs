@@ -195,6 +195,7 @@
 
 use crate::chat::response::Response;
 use crate::common::{
+    auth::{AuthProvider, OpenAIAuth},
     client::create_http_client,
     errors::{ErrorResponse, OpenAIToolError, Result},
     message::Message,
@@ -203,10 +204,8 @@ use crate::common::{
     tool::Tool,
 };
 use core::str;
-use dotenvy::dotenv;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::env;
 use std::time::Duration;
 
 /// Response format structure for OpenAI API requests
@@ -307,22 +306,72 @@ struct Body {
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// # }
 /// ```
-/// Default API endpoint for Chat Completions
-const DEFAULT_ENDPOINT: &str = "https://api.openai.com/v1/chat/completions";
+/// Default API path for Chat Completions
+const CHAT_COMPLETIONS_PATH: &str = "chat/completions";
 
-#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+/// OpenAI Chat Completions API client
+///
+/// This structure manages interactions with the OpenAI Chat Completions API
+/// and Azure OpenAI API. It handles authentication, request parameter
+/// configuration, and API calls.
+///
+/// # Providers
+///
+/// The client supports two providers:
+/// - **OpenAI**: Standard OpenAI API (default)
+/// - **Azure**: Azure OpenAI Service
+///
+/// # Examples
+///
+/// ## OpenAI (existing behavior - unchanged)
+///
+/// ```rust,no_run
+/// use openai_tools::chat::request::ChatCompletion;
+/// use openai_tools::common::message::Message;
+/// use openai_tools::common::role::Role;
+///
+/// # #[tokio::main]
+/// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// let mut chat = ChatCompletion::new();
+/// let messages = vec![Message::from_string(Role::User, "Hello!")];
+///
+/// let response = chat
+///     .model_id("gpt-4o-mini")
+///     .messages(messages)
+///     .chat()
+///     .await?;
+/// # Ok(())
+/// # }
+/// ```
+///
+/// ## Azure OpenAI
+///
+/// ```rust,no_run
+/// use openai_tools::chat::request::ChatCompletion;
+/// use openai_tools::common::message::Message;
+/// use openai_tools::common::role::Role;
+///
+/// # #[tokio::main]
+/// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// // From environment variables
+/// let mut chat = ChatCompletion::azure()?;
+///
+/// let messages = vec![Message::from_string(Role::User, "Hello!")];
+/// let response = chat.messages(messages).chat().await?;
+/// # Ok(())
+/// # }
+/// ```
+#[derive(Debug, Clone)]
 pub struct ChatCompletion {
-    /// The API endpoint URL
-    endpoint: String,
-    api_key: String,
+    /// Authentication provider (OpenAI or Azure)
+    auth: AuthProvider,
     request_body: Body,
     /// Optional request timeout duration
-    #[serde(skip)]
     timeout: Option<Duration>,
 }
 
 impl ChatCompletion {
-    /// Creates a new ChatCompletion instance
+    /// Creates a new ChatCompletion instance for OpenAI API
     ///
     /// Loads the API key from the `OPENAI_API_KEY` environment variable.
     /// If a `.env` file exists, it will also be loaded.
@@ -333,15 +382,23 @@ impl ChatCompletion {
     ///
     /// # Returns
     ///
-    /// A new ChatCompletion instance
+    /// A new ChatCompletion instance configured for OpenAI API
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// use openai_tools::chat::request::ChatCompletion;
+    ///
+    /// let mut chat = ChatCompletion::new();
+    /// ```
     pub fn new() -> Self {
-        dotenv().ok();
-        let api_key =
-            env::var("OPENAI_API_KEY").map_err(|e| OpenAIToolError::Error(format!("OPENAI_API_KEY not set in environment: {}", e))).unwrap();
-        Self { endpoint: DEFAULT_ENDPOINT.to_string(), api_key, request_body: Body::default(), timeout: None }
+        let auth = AuthProvider::openai_from_env()
+            .map_err(|e| OpenAIToolError::Error(format!("Failed to load OpenAI auth: {}", e)))
+            .unwrap();
+        Self { auth, request_body: Body::default(), timeout: None }
     }
 
-    /// Creates a new ChatCompletion instance with a specified model.
+    /// Creates a new ChatCompletion instance with a specified model
     ///
     /// This is the recommended constructor as it enables parameter validation
     /// at setter time. When you set parameters like `temperature()`, the model's
@@ -373,29 +430,210 @@ impl ChatCompletion {
     /// reasoning_chat.temperature(0.5); // Warning logged, value ignored
     /// ```
     pub fn with_model(model: ChatModel) -> Self {
-        dotenv().ok();
-        let api_key =
-            env::var("OPENAI_API_KEY").map_err(|e| OpenAIToolError::Error(format!("OPENAI_API_KEY not set in environment: {}", e))).unwrap();
+        let auth = AuthProvider::openai_from_env()
+            .map_err(|e| OpenAIToolError::Error(format!("Failed to load OpenAI auth: {}", e)))
+            .unwrap();
         Self {
-            endpoint: DEFAULT_ENDPOINT.to_string(),
-            api_key,
+            auth,
             request_body: Body { model, ..Default::default() },
             timeout: None,
         }
     }
 
-    /// Sets a custom API endpoint URL
+    /// Creates a new ChatCompletion instance with a custom authentication provider
     ///
-    /// Use this to point to alternative OpenAI-compatible APIs (e.g., Azure OpenAI,
-    /// local LLM servers, or proxy servers).
+    /// Use this to explicitly configure OpenAI or Azure authentication.
     ///
     /// # Arguments
     ///
-    /// * `url` - The full URL of the API endpoint
+    /// * `auth` - The authentication provider
+    ///
+    /// # Returns
+    ///
+    /// A new ChatCompletion instance with the specified auth provider
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use openai_tools::chat::request::ChatCompletion;
+    /// use openai_tools::common::auth::{AuthProvider, AzureAuth};
+    ///
+    /// // Explicit Azure configuration
+    /// let auth = AuthProvider::Azure(
+    ///     AzureAuth::new("api-key", "my-resource", "gpt-4o-deployment")
+    /// );
+    /// let mut chat = ChatCompletion::with_auth(auth);
+    /// ```
+    pub fn with_auth(auth: AuthProvider) -> Self {
+        Self { auth, request_body: Body::default(), timeout: None }
+    }
+
+    /// Creates a new ChatCompletion instance for Azure OpenAI API
+    ///
+    /// Loads configuration from Azure-specific environment variables.
+    ///
+    /// # Returns
+    ///
+    /// `Result<ChatCompletion>` - Configured for Azure or error if env vars missing
+    ///
+    /// # Environment Variables
+    ///
+    /// | Variable | Required | Description |
+    /// |----------|----------|-------------|
+    /// | `AZURE_OPENAI_API_KEY` | Yes* | Azure API key |
+    /// | `AZURE_OPENAI_TOKEN` | Yes* | Entra ID token (alternative to API key) |
+    /// | `AZURE_OPENAI_ENDPOINT` | Yes** | Full endpoint URL |
+    /// | `AZURE_OPENAI_RESOURCE_NAME` | Yes** | Resource name (alternative to endpoint) |
+    /// | `AZURE_OPENAI_DEPLOYMENT_NAME` | Yes | Deployment name |
+    /// | `AZURE_OPENAI_API_VERSION` | No | API version (default: 2024-08-01-preview) |
+    ///
+    /// \* Either API_KEY or TOKEN required
+    /// \*\* Either ENDPOINT or RESOURCE_NAME required
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// use openai_tools::chat::request::ChatCompletion;
+    ///
+    /// let mut chat = ChatCompletion::azure()?;
+    /// # Ok::<(), openai_tools::common::errors::OpenAIToolError>(())
+    /// ```
+    pub fn azure() -> Result<Self> {
+        let auth = AuthProvider::azure_from_env()?;
+        Ok(Self { auth, request_body: Body::default(), timeout: None })
+    }
+
+    /// Creates a new ChatCompletion instance by auto-detecting the provider
+    ///
+    /// Tries Azure first (if AZURE_OPENAI_API_KEY is set), then falls back to OpenAI.
+    ///
+    /// # Returns
+    ///
+    /// `Result<ChatCompletion>` - Auto-configured client or error
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// use openai_tools::chat::request::ChatCompletion;
+    ///
+    /// // Uses Azure if AZURE_OPENAI_API_KEY is set, otherwise OpenAI
+    /// let mut chat = ChatCompletion::detect_provider()?;
+    /// # Ok::<(), openai_tools::common::errors::OpenAIToolError>(())
+    /// ```
+    pub fn detect_provider() -> Result<Self> {
+        let auth = AuthProvider::from_env()?;
+        Ok(Self { auth, request_body: Body::default(), timeout: None })
+    }
+
+    /// Creates a new ChatCompletion instance with URL-based provider detection
+    ///
+    /// Analyzes the URL pattern to determine the provider:
+    /// - URLs containing `.openai.azure.com` → Azure
+    /// - All other URLs → OpenAI-compatible
+    ///
+    /// # Arguments
+    ///
+    /// * `url` - The base URL or endpoint URL
+    /// * `api_key` - The API key or token
+    /// * `deployment_name` - Optional deployment name (required for Azure, can fall back to env var)
+    ///
+    /// # Returns
+    ///
+    /// `Result<ChatCompletion>` - Configured client or error
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use openai_tools::chat::request::ChatCompletion;
+    ///
+    /// // OpenAI-compatible API (e.g., local Ollama)
+    /// let chat = ChatCompletion::with_url(
+    ///     "http://localhost:11434/v1",
+    ///     "ollama",
+    ///     None
+    /// ).unwrap();
+    ///
+    /// // Azure OpenAI
+    /// let azure_chat = ChatCompletion::with_url(
+    ///     "https://my-resource.openai.azure.com",
+    ///     "azure-key",
+    ///     Some("gpt-4o-deployment")
+    /// ).unwrap();
+    /// ```
+    pub fn with_url<S: Into<String>>(
+        url: S,
+        api_key: S,
+        deployment_name: Option<S>,
+    ) -> Result<Self> {
+        let auth = AuthProvider::from_url_with_hint(url, api_key, deployment_name)?;
+        Ok(Self { auth, request_body: Body::default(), timeout: None })
+    }
+
+    /// Creates a new ChatCompletion instance from URL using environment variables
+    ///
+    /// Analyzes the URL pattern to determine the provider, then loads
+    /// credentials from the appropriate environment variables.
+    ///
+    /// # Arguments
+    ///
+    /// * `url` - The base URL or endpoint URL
+    ///
+    /// # Environment Variables
+    ///
+    /// For Azure URLs (`*.openai.azure.com`):
+    /// - `AZURE_OPENAI_API_KEY` or `AZURE_OPENAI_TOKEN` (required)
+    /// - `AZURE_OPENAI_DEPLOYMENT_NAME` (required)
+    ///
+    /// For other URLs:
+    /// - `OPENAI_API_KEY` (required)
+    ///
+    /// # Returns
+    ///
+    /// `Result<ChatCompletion>` - Configured client or error
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// use openai_tools::chat::request::ChatCompletion;
+    ///
+    /// // Uses OPENAI_API_KEY from environment
+    /// let chat = ChatCompletion::from_url("https://api.openai.com/v1")?;
+    ///
+    /// // Uses AZURE_OPENAI_* vars from environment
+    /// let azure = ChatCompletion::from_url("https://my-resource.openai.azure.com")?;
+    /// # Ok::<(), openai_tools::common::errors::OpenAIToolError>(())
+    /// ```
+    pub fn from_url<S: Into<String>>(url: S) -> Result<Self> {
+        let auth = AuthProvider::from_url(url)?;
+        Ok(Self { auth, request_body: Body::default(), timeout: None })
+    }
+
+    /// Returns the authentication provider
+    ///
+    /// # Returns
+    ///
+    /// Reference to the authentication provider
+    pub fn auth(&self) -> &AuthProvider {
+        &self.auth
+    }
+
+    /// Sets a custom API endpoint URL (OpenAI only)
+    ///
+    /// Use this to point to alternative OpenAI-compatible APIs (e.g., proxy servers).
+    /// For Azure, use `azure()` or `with_auth()` instead.
+    ///
+    /// # Arguments
+    ///
+    /// * `url` - The base URL (e.g., "https://my-proxy.example.com/v1")
     ///
     /// # Returns
     ///
     /// A mutable reference to self for method chaining
+    ///
+    /// # Note
+    ///
+    /// This method only works with OpenAI authentication. For Azure, the endpoint
+    /// is constructed from resource name and deployment name.
     ///
     /// # Example
     ///
@@ -403,10 +641,16 @@ impl ChatCompletion {
     /// use openai_tools::chat::request::ChatCompletion;
     ///
     /// let mut chat = ChatCompletion::new();
-    /// chat.base_url("https://my-proxy.example.com/v1/chat/completions");
+    /// chat.base_url("https://my-proxy.example.com/v1");
     /// ```
     pub fn base_url<T: AsRef<str>>(&mut self, url: T) -> &mut Self {
-        self.endpoint = url.as_ref().to_string();
+        // Only modify if OpenAI provider
+        if let AuthProvider::OpenAI(ref openai_auth) = self.auth {
+            let new_auth = OpenAIAuth::new(openai_auth.api_key()).with_base_url(url.as_ref());
+            self.auth = AuthProvider::OpenAI(new_auth);
+        } else {
+            tracing::warn!("base_url() is only supported for OpenAI provider. Use azure() or with_auth() for Azure.");
+        }
         self
     }
 
@@ -912,11 +1156,7 @@ impl ChatCompletion {
     /// # }
     /// ```
     pub async fn chat(&mut self) -> Result<Response> {
-        // Check if the API key is set & body is built.
-        if self.api_key.is_empty() {
-            return Err(OpenAIToolError::Error("API key is not set.".into()));
-        }
-        // Note: Model defaults to ChatModel::Gpt4oMini, so no need to check for empty
+        // Validate that messages are set
         if self.request_body.messages.is_empty() {
             return Err(OpenAIToolError::Error("Messages are not set.".into()));
         }
@@ -1005,18 +1245,25 @@ impl ChatCompletion {
         let body = serde_json::to_string(&self.request_body)?;
 
         let client = create_http_client(self.timeout)?;
-        let mut header = request::header::HeaderMap::new();
-        header.insert("Content-Type", request::header::HeaderValue::from_static("application/json"));
-        header.insert("Authorization", request::header::HeaderValue::from_str(&format!("Bearer {}", self.api_key)).unwrap());
-        header.insert("User-Agent", request::header::HeaderValue::from_static("openai-tools-rust"));
+        let mut headers = request::header::HeaderMap::new();
+        headers.insert("Content-Type", request::header::HeaderValue::from_static("application/json"));
+        headers.insert("User-Agent", request::header::HeaderValue::from_static("openai-tools-rust"));
+
+        // Apply provider-specific authentication headers
+        self.auth.apply_headers(&mut headers)?;
 
         if cfg!(debug_assertions) {
             // Replace API key with a placeholder in debug mode
-            let body_for_debug = serde_json::to_string_pretty(&self.request_body).unwrap().replace(&self.api_key, "*************");
+            let body_for_debug = serde_json::to_string_pretty(&self.request_body)
+                .unwrap()
+                .replace(self.auth.api_key(), "*************");
             tracing::info!("Request body: {}", body_for_debug);
         }
 
-        let response = client.post(&self.endpoint).headers(header).body(body).send().await.map_err(OpenAIToolError::RequestError)?;
+        // Get the endpoint URL from the auth provider
+        let endpoint = self.auth.endpoint(CHAT_COMPLETIONS_PATH);
+
+        let response = client.post(&endpoint).headers(headers).body(body).send().await.map_err(OpenAIToolError::RequestError)?;
         let status = response.status();
         let content = response.text().await.map_err(OpenAIToolError::RequestError)?;
 

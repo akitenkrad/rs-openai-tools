@@ -141,6 +141,7 @@ rs-openai-tools/
   - `response.rs`: `FineTuningJob`, `FineTuningEvent`, `FineTuningCheckpoint`
 
 - **`common/`**: Shared types across all APIs
+  - `auth.rs`: Authentication abstraction (`AuthProvider`, `OpenAIAuth`, `AzureAuth`) for OpenAI and Azure OpenAI APIs
   - `client.rs`: HTTP client utilities with timeout configuration (`create_http_client`)
   - `message.rs`: `Message`, `Content`, `ToolCall`
   - `role.rs`: `Role` enum (User, Assistant, System, Tool)
@@ -451,10 +452,82 @@ for event in &events.data {
 
 ## Environment Setup
 
+### OpenAI API
+
 Requires `OPENAI_API_KEY` environment variable or in `.env` file:
 ```
 OPENAI_API_KEY=sk-...
 ```
+
+### Azure OpenAI API
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `AZURE_OPENAI_API_KEY` | Yes* | Azure API key |
+| `AZURE_OPENAI_TOKEN` | Yes* | Entra ID token (alternative to API key) |
+| `AZURE_OPENAI_ENDPOINT` | Yes** | Full endpoint URL |
+| `AZURE_OPENAI_RESOURCE_NAME` | Yes** | Resource name (alternative to endpoint) |
+| `AZURE_OPENAI_DEPLOYMENT_NAME` | Yes | Deployment name |
+| `AZURE_OPENAI_API_VERSION` | No | API version (default: 2024-08-01-preview) |
+
+\* Either `AZURE_OPENAI_API_KEY` or `AZURE_OPENAI_TOKEN` required
+\*\* Either `AZURE_OPENAI_ENDPOINT` or `AZURE_OPENAI_RESOURCE_NAME` required
+
+### Provider Detection
+
+All API clients support multiple ways to configure authentication:
+
+```rust
+use openai_tools::chat::request::ChatCompletion;
+use openai_tools::common::auth::{AuthProvider, AzureAuth};
+
+// 1. OpenAI (default) - from OPENAI_API_KEY env var
+let chat = ChatCompletion::new();
+
+// 2. Azure - from AZURE_OPENAI_* env vars
+let chat = ChatCompletion::azure()?;
+
+// 3. Auto-detect - Azure if AZURE_OPENAI_API_KEY is set, otherwise OpenAI
+let chat = ChatCompletion::detect_provider()?;
+
+// 4. URL-based detection - auto-detects provider from URL pattern
+//    *.openai.azure.com → Azure, others → OpenAI-compatible
+let chat = ChatCompletion::with_url(
+    "https://my-resource.openai.azure.com",
+    "azure-key",
+    Some("gpt-4o-deployment")
+)?;
+
+// 5. URL-based with env var credentials
+let chat = ChatCompletion::from_url("https://api.openai.com/v1")?;
+
+// 6. Explicit auth configuration
+let auth = AuthProvider::Azure(
+    AzureAuth::new("api-key", "my-resource", "gpt-4o-deployment")
+);
+let chat = ChatCompletion::with_auth(auth);
+
+// 7. OpenAI-compatible APIs (Ollama, vLLM, LocalAI, etc.)
+let chat = ChatCompletion::with_url(
+    "http://localhost:11434/v1",
+    "ollama",
+    None
+)?;
+```
+
+### URL-based Provider Detection
+
+The `with_url()` and `from_url()` methods automatically detect the provider based on URL pattern:
+
+| URL Pattern | Detected Provider |
+|-------------|-------------------|
+| `*.openai.azure.com*` | Azure OpenAI |
+| All other URLs | OpenAI-compatible |
+
+This is useful for:
+- Supporting multiple providers with a single configuration
+- Connecting to local OpenAI-compatible servers (Ollama, vLLM, LocalAI)
+- Dynamic provider switching based on environment
 
 ## Feature Status
 

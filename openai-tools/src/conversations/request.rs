@@ -38,19 +38,19 @@
 //! }
 //! ```
 
+use crate::common::auth::AuthProvider;
 use crate::common::client::create_http_client;
 use crate::common::errors::{ErrorResponse, OpenAIToolError, Result};
 use crate::conversations::response::{
     Conversation, ConversationItemListResponse, ConversationListResponse,
     DeleteConversationResponse, InputItem,
 };
-use dotenvy::dotenv;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::env;
 use std::time::Duration;
 
-const BASE_URL: &str = "https://api.openai.com/v1/conversations";
+/// Default API path for Conversations
+const CONVERSATIONS_PATH: &str = "conversations";
 
 /// Specifies additional data to include in conversation item responses.
 ///
@@ -139,14 +139,14 @@ struct CreateItemsRequest {
 /// }
 /// ```
 pub struct Conversations {
-    /// OpenAI API key for authentication
-    api_key: String,
+    /// Authentication provider (OpenAI or Azure)
+    auth: AuthProvider,
     /// Optional request timeout duration
     timeout: Option<Duration>,
 }
 
 impl Conversations {
-    /// Creates a new Conversations client.
+    /// Creates a new Conversations client for OpenAI API.
     ///
     /// Initializes the client by loading the OpenAI API key from
     /// the environment variable `OPENAI_API_KEY`. Supports `.env` file loading
@@ -165,11 +165,46 @@ impl Conversations {
     /// let conversations = Conversations::new().expect("API key should be set");
     /// ```
     pub fn new() -> Result<Self> {
-        dotenv().ok();
-        let api_key = env::var("OPENAI_API_KEY").map_err(|e| {
-            OpenAIToolError::Error(format!("OPENAI_API_KEY not set in environment: {}", e))
-        })?;
-        Ok(Self { api_key, timeout: None })
+        let auth = AuthProvider::openai_from_env()?;
+        Ok(Self { auth, timeout: None })
+    }
+
+    /// Creates a new Conversations client with a custom authentication provider
+    pub fn with_auth(auth: AuthProvider) -> Self {
+        Self { auth, timeout: None }
+    }
+
+    /// Creates a new Conversations client for Azure OpenAI API
+    pub fn azure() -> Result<Self> {
+        let auth = AuthProvider::azure_from_env()?;
+        Ok(Self { auth, timeout: None })
+    }
+
+    /// Creates a new Conversations client by auto-detecting the provider
+    pub fn detect_provider() -> Result<Self> {
+        let auth = AuthProvider::from_env()?;
+        Ok(Self { auth, timeout: None })
+    }
+
+    /// Creates a new Conversations client with URL-based provider detection
+    pub fn with_url<S: Into<String>>(
+        url: S,
+        api_key: S,
+        deployment_name: Option<S>,
+    ) -> Result<Self> {
+        let auth = AuthProvider::from_url_with_hint(url, api_key, deployment_name)?;
+        Ok(Self { auth, timeout: None })
+    }
+
+    /// Creates a new Conversations client from URL using environment variables
+    pub fn from_url<S: Into<String>>(url: S) -> Result<Self> {
+        let auth = AuthProvider::from_url(url)?;
+        Ok(Self { auth, timeout: None })
+    }
+
+    /// Returns the authentication provider
+    pub fn auth(&self) -> &AuthProvider {
+        &self.auth
     }
 
     /// Sets the request timeout duration.
@@ -190,10 +225,7 @@ impl Conversations {
     fn create_client(&self) -> Result<(request::Client, request::header::HeaderMap)> {
         let client = create_http_client(self.timeout)?;
         let mut headers = request::header::HeaderMap::new();
-        headers.insert(
-            "Authorization",
-            request::header::HeaderValue::from_str(&format!("Bearer {}", self.api_key)).unwrap(),
-        );
+        self.auth.apply_headers(&mut headers)?;
         headers.insert(
             "Content-Type",
             request::header::HeaderValue::from_static("application/json"),
@@ -261,8 +293,9 @@ impl Conversations {
         let request_body = CreateConversationRequest { metadata, items };
         let body = serde_json::to_string(&request_body)?;
 
+        let url = self.auth.endpoint(CONVERSATIONS_PATH);
         let response = client
-            .post(BASE_URL)
+            .post(&url)
             .headers(headers)
             .body(body)
             .send()
@@ -311,7 +344,7 @@ impl Conversations {
     /// ```
     pub async fn retrieve(&self, conversation_id: &str) -> Result<Conversation> {
         let (client, headers) = self.create_client()?;
-        let url = format!("{}/{}", BASE_URL, conversation_id);
+        let url = format!("{}/{}", self.auth.endpoint(CONVERSATIONS_PATH), conversation_id);
 
         let response = client
             .get(&url)
@@ -370,7 +403,7 @@ impl Conversations {
         metadata: HashMap<String, String>,
     ) -> Result<Conversation> {
         let (client, headers) = self.create_client()?;
-        let url = format!("{}/{}", BASE_URL, conversation_id);
+        let url = format!("{}/{}", self.auth.endpoint(CONVERSATIONS_PATH), conversation_id);
 
         let request_body = UpdateConversationRequest { metadata };
         let body = serde_json::to_string(&request_body)?;
@@ -426,7 +459,7 @@ impl Conversations {
     /// ```
     pub async fn delete(&self, conversation_id: &str) -> Result<DeleteConversationResponse> {
         let (client, headers) = self.create_client()?;
-        let url = format!("{}/{}", BASE_URL, conversation_id);
+        let url = format!("{}/{}", self.auth.endpoint(CONVERSATIONS_PATH), conversation_id);
 
         let response = client
             .delete(&url)
@@ -490,7 +523,7 @@ impl Conversations {
         items: Vec<InputItem>,
     ) -> Result<ConversationItemListResponse> {
         let (client, headers) = self.create_client()?;
-        let url = format!("{}/{}/items", BASE_URL, conversation_id);
+        let url = format!("{}/{}/items", self.auth.endpoint(CONVERSATIONS_PATH), conversation_id);
 
         let request_body = CreateItemsRequest { items };
         let body = serde_json::to_string(&request_body)?;
@@ -585,9 +618,9 @@ impl Conversations {
         }
 
         let url = if params.is_empty() {
-            format!("{}/{}/items", BASE_URL, conversation_id)
+            format!("{}/{}/items", self.auth.endpoint(CONVERSATIONS_PATH), conversation_id)
         } else {
-            format!("{}/{}/items?{}", BASE_URL, conversation_id, params.join("&"))
+            format!("{}/{}/items?{}", self.auth.endpoint(CONVERSATIONS_PATH), conversation_id, params.join("&"))
         };
 
         let response = client
@@ -659,9 +692,9 @@ impl Conversations {
         }
 
         let url = if params.is_empty() {
-            BASE_URL.to_string()
+            self.auth.endpoint(CONVERSATIONS_PATH)
         } else {
-            format!("{}?{}", BASE_URL, params.join("&"))
+            format!("{}?{}", self.auth.endpoint(CONVERSATIONS_PATH), params.join("&"))
         };
 
         let response = client

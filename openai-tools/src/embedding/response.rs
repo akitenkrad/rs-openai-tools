@@ -234,12 +234,13 @@ pub struct EmbeddingUsage {
 ///
 /// ```rust,no_run
 /// use openai_tools::embedding::request::Embedding;
+/// use openai_tools::common::models::EmbeddingModel;
 ///
 /// #[tokio::main]
 /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ///     let mut embedding = Embedding::new()?;
 ///     let response = embedding
-///         .model("text-embedding-3-small")
+///         .model(EmbeddingModel::TextEmbedding3Small)
 ///         .input_text("Hello, world!")
 ///         .embed()
 ///         .await?;
