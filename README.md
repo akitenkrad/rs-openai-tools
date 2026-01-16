@@ -14,6 +14,25 @@ To start using the `openai-tools`, add it to your projects's dependencies in the
 cargo add openai-tools
 ```
 
+## Quick Example
+
+```rust
+use openai_tools::chat::request::ChatCompletion;
+use openai_tools::common::{message::Message, role::Role, models::ChatModel};
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let response = ChatCompletion::new()
+        .model(ChatModel::Gpt4oMini)
+        .messages(vec![Message::from_string(Role::User, "Hello!")])
+        .chat()
+        .await?;
+
+    println!("{:?}", response.choices[0].message.content);
+    Ok(())
+}
+```
+
 ## Environment Setup
 
 ### OpenAI API
@@ -54,17 +73,15 @@ let chat = ChatCompletion::detect_provider()?;
 
 // URL-based detection (auto-detects provider from URL pattern)
 let chat = ChatCompletion::with_url(
-    "https://my-resource.openai.azure.com",
+    "https://my-resource.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2024-08-01-preview",
     "azure-key",
-    Some("gpt-4o-deployment")
-)?;
+);
 
 // OpenAI-compatible APIs (Ollama, vLLM, LocalAI, etc.)
 let chat = ChatCompletion::with_url(
     "http://localhost:11434/v1",
     "ollama",
-    None
-)?;
+);
 ```
 
 ## Modules
@@ -86,18 +103,22 @@ use openai_tools::batch::Batches;
 use openai_tools::fine_tuning::FineTuning;
 ```
 
-# Features
+# Supported APIs
 
-| Feature | Chat | Responses | Conversations | Embedding | Realtime | Models | Files | Moderations | Images | Audio | Batch | Fine-tuning |
-|---------|:----:|:---------:|:-------------:|:---------:|:--------:|:------:|:-----:|:-----------:|:------:|:-----:|:-----:|:-----------:|
-| Basic   | ✅   | ✅        | ✅            | ✅        | ✅       | ✅     | ✅    | ✅          | ✅     | ✅    | ✅    | ✅          |
-| Structured Output | ✅ | ✅ | - | - | - | - | - | - | - | - | - | - |
-| Function Calling  | ✅ | ✅ | - | - | ✅ | - | - | - | - | - | - | - |
-| Image Input       | ✅ | ✅ | - | - | - | - | - | - | - | - | - | - |
-| Audio Input/Output | - | - | - | - | ✅ | - | - | - | - | ✅ | - | - |
-| VAD | - | - | - | - | ✅ | - | - | - | - | - | - | - |
-| WebSocket | - | - | - | - | ✅ | - | - | - | - | - | - | - |
-| Multipart Upload | - | - | - | - | - | - | ✅ | - | ✅ | ✅ | - | - |
+| API | Endpoint | Features |
+|-----|----------|----------|
+| **Chat** | `/v1/chat/completions` | Structured Output, Function Calling, Image Input |
+| **Responses** | `/v1/responses` | CRUD, Structured Output, Function Calling, Image Input, Reasoning, Tool Choice, Prompt Templates |
+| **Conversations** | `/v1/conversations` | CRUD |
+| **Embedding** | `/v1/embeddings` | Basic |
+| **Realtime** | `wss://api.openai.com/v1/realtime` | Function Calling, Audio I/O, VAD, WebSocket |
+| **Models** | `/v1/models` | CRUD |
+| **Files** | `/v1/files` | CRUD, Multipart Upload |
+| **Moderations** | `/v1/moderations` | Basic |
+| **Images** | `/v1/images` | Multipart Upload |
+| **Audio** | `/v1/audio` | Audio I/O, Multipart Upload |
+| **Batch** | `/v1/batches` | CRUD |
+| **Fine-tuning** | `/v1/fine_tuning/jobs` | CRUD |
 
 ## Chat Completions API
 
