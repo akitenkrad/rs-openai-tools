@@ -458,9 +458,12 @@ impl ChatCompletion {
     /// use openai_tools::chat::request::ChatCompletion;
     /// use openai_tools::common::auth::{AuthProvider, AzureAuth};
     ///
-    /// // Explicit Azure configuration
+    /// // Explicit Azure configuration with complete base URL
     /// let auth = AuthProvider::Azure(
-    ///     AzureAuth::new("api-key", "my-resource", "gpt-4o-deployment")
+    ///     AzureAuth::new(
+    ///         "api-key",
+    ///         "https://my-resource.openai.azure.com/openai/deployments/gpt-4o?api-version=2024-08-01-preview"
+    ///     )
     /// );
     /// let mut chat = ChatCompletion::with_auth(auth);
     /// ```
@@ -533,13 +536,12 @@ impl ChatCompletion {
     ///
     /// # Arguments
     ///
-    /// * `url` - The base URL or endpoint URL
+    /// * `base_url` - The complete base URL for API requests
     /// * `api_key` - The API key or token
-    /// * `deployment_name` - Optional deployment name (required for Azure, can fall back to env var)
     ///
     /// # Returns
     ///
-    /// `Result<ChatCompletion>` - Configured client or error
+    /// `ChatCompletion` - Configured client
     ///
     /// # Example
     ///
@@ -550,23 +552,17 @@ impl ChatCompletion {
     /// let chat = ChatCompletion::with_url(
     ///     "http://localhost:11434/v1",
     ///     "ollama",
-    ///     None
-    /// ).unwrap();
+    /// );
     ///
-    /// // Azure OpenAI
+    /// // Azure OpenAI (complete base URL)
     /// let azure_chat = ChatCompletion::with_url(
-    ///     "https://my-resource.openai.azure.com",
+    ///     "https://my-resource.openai.azure.com/openai/deployments/gpt-4o?api-version=2024-08-01-preview",
     ///     "azure-key",
-    ///     Some("gpt-4o-deployment")
-    /// ).unwrap();
+    /// );
     /// ```
-    pub fn with_url<S: Into<String>>(
-        url: S,
-        api_key: S,
-        deployment_name: Option<S>,
-    ) -> Result<Self> {
-        let auth = AuthProvider::from_url_with_hint(url, api_key, deployment_name)?;
-        Ok(Self { auth, request_body: Body::default(), timeout: None })
+    pub fn with_url<S: Into<String>>(base_url: S, api_key: S) -> Self {
+        let auth = AuthProvider::from_url_with_key(base_url, api_key);
+        Self { auth, request_body: Body::default(), timeout: None }
     }
 
     /// Creates a new ChatCompletion instance from URL using environment variables
@@ -576,13 +572,12 @@ impl ChatCompletion {
     ///
     /// # Arguments
     ///
-    /// * `url` - The base URL or endpoint URL
+    /// * `base_url` - The complete base URL for API requests
     ///
     /// # Environment Variables
     ///
     /// For Azure URLs (`*.openai.azure.com`):
     /// - `AZURE_OPENAI_API_KEY` or `AZURE_OPENAI_TOKEN` (required)
-    /// - `AZURE_OPENAI_DEPLOYMENT_NAME` (required)
     ///
     /// For other URLs:
     /// - `OPENAI_API_KEY` (required)
@@ -599,12 +594,14 @@ impl ChatCompletion {
     /// // Uses OPENAI_API_KEY from environment
     /// let chat = ChatCompletion::from_url("https://api.openai.com/v1")?;
     ///
-    /// // Uses AZURE_OPENAI_* vars from environment
-    /// let azure = ChatCompletion::from_url("https://my-resource.openai.azure.com")?;
+    /// // Uses AZURE_OPENAI_API_KEY from environment (complete base URL)
+    /// let azure = ChatCompletion::from_url(
+    ///     "https://my-resource.openai.azure.com/openai/deployments/gpt-4o?api-version=2024-08-01-preview"
+    /// )?;
     /// # Ok::<(), openai_tools::common::errors::OpenAIToolError>(())
     /// ```
-    pub fn from_url<S: Into<String>>(url: S) -> Result<Self> {
-        let auth = AuthProvider::from_url(url)?;
+    pub fn from_url<S: Into<String>>(base_url: S) -> Result<Self> {
+        let auth = AuthProvider::from_url(base_url)?;
         Ok(Self { auth, request_body: Body::default(), timeout: None })
     }
 

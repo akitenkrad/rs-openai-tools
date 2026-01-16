@@ -82,13 +82,9 @@ impl RealtimeClient {
     }
 
     /// Creates a new RealtimeClient with URL-based provider detection.
-    pub fn with_url<S: Into<String>>(
-        url: S,
-        api_key: S,
-        deployment_name: Option<S>,
-    ) -> Result<Self> {
-        let auth = AuthProvider::from_url_with_hint(url, api_key, deployment_name)?;
-        Ok(Self { auth, model: RealtimeModel::default(), session_config: SessionConfig::default() })
+    pub fn with_url<S: Into<String>>(base_url: S, api_key: S) -> Self {
+        let auth = AuthProvider::from_url_with_key(base_url, api_key);
+        Self { auth, model: RealtimeModel::default(), session_config: SessionConfig::default() }
     }
 
     /// Creates a new RealtimeClient from URL using environment variables.
@@ -279,14 +275,18 @@ impl RealtimeClient {
                 format!("wss://api.openai.com/v1/{}?model={}", REALTIME_PATH, self.model.as_str())
             }
             AuthProvider::Azure(auth) => {
-                // Azure WebSocket endpoint format
-                format!(
-                    "wss://{}.openai.azure.com/openai/{}?api-version={}&deployment={}",
-                    auth.resource_name(),
-                    REALTIME_PATH,
-                    auth.api_version(),
-                    auth.deployment_name()
-                )
+                // Azure WebSocket endpoint: convert https to wss and use the base_url directly
+                // User should provide a WebSocket-compatible URL like:
+                // "wss://my-resource.openai.azure.com/openai/realtime?api-version=2024-10-01-preview&deployment=my-deployment"
+                // or if they provide https, we convert it to wss
+                let base = auth.base_url();
+                if base.starts_with("https://") {
+                    base.replacen("https://", "wss://", 1)
+                } else if base.starts_with("http://") {
+                    base.replacen("http://", "ws://", 1)
+                } else {
+                    base.to_string()
+                }
             }
         }
     }

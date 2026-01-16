@@ -107,13 +107,9 @@ impl Models {
     }
 
     /// Creates a new Models client with URL-based provider detection
-    pub fn with_url<S: Into<String>>(
-        url: S,
-        api_key: S,
-        deployment_name: Option<S>,
-    ) -> Result<Self> {
-        let auth = AuthProvider::from_url_with_hint(url, api_key, deployment_name)?;
-        Ok(Self { auth, timeout: None })
+    pub fn with_url<S: Into<String>>(base_url: S, api_key: S) -> Self {
+        let auth = AuthProvider::from_url_with_key(base_url, api_key);
+        Self { auth, timeout: None }
     }
 
     /// Creates a new Models client from URL using environment variables

@@ -465,13 +465,14 @@ OPENAI_API_KEY=sk-...
 |----------|----------|-------------|
 | `AZURE_OPENAI_API_KEY` | Yes* | Azure API key |
 | `AZURE_OPENAI_TOKEN` | Yes* | Entra ID token (alternative to API key) |
-| `AZURE_OPENAI_ENDPOINT` | Yes** | Full endpoint URL |
-| `AZURE_OPENAI_RESOURCE_NAME` | Yes** | Resource name (alternative to endpoint) |
-| `AZURE_OPENAI_DEPLOYMENT_NAME` | Yes | Deployment name |
-| `AZURE_OPENAI_API_VERSION` | No | API version (default: 2024-08-01-preview) |
+| `AZURE_OPENAI_BASE_URL` | Yes | Complete base URL including deployment and api-version |
 
 \* Either `AZURE_OPENAI_API_KEY` or `AZURE_OPENAI_TOKEN` required
-\*\* Either `AZURE_OPENAI_ENDPOINT` or `AZURE_OPENAI_RESOURCE_NAME` required
+
+Example `AZURE_OPENAI_BASE_URL` format:
+```
+https://my-resource.openai.azure.com/openai/deployments/gpt-4o?api-version=2024-08-01-preview
+```
 
 ### Provider Detection
 
@@ -484,7 +485,7 @@ use openai_tools::common::auth::{AuthProvider, AzureAuth};
 // 1. OpenAI (default) - from OPENAI_API_KEY env var
 let chat = ChatCompletion::new();
 
-// 2. Azure - from AZURE_OPENAI_* env vars
+// 2. Azure - from AZURE_OPENAI_API_KEY and AZURE_OPENAI_BASE_URL env vars
 let chat = ChatCompletion::azure()?;
 
 // 3. Auto-detect - Azure if AZURE_OPENAI_API_KEY is set, otherwise OpenAI
@@ -493,36 +494,27 @@ let chat = ChatCompletion::detect_provider()?;
 // 4. URL-based detection - auto-detects provider from URL pattern
 //    *.openai.azure.com → Azure, others → OpenAI-compatible
 let chat = ChatCompletion::with_url(
-    "https://my-resource.openai.azure.com",
-    "azure-key",
-    Some("gpt-4o-deployment")
-)?;
+    "https://my-resource.openai.azure.com/openai/deployments/gpt-4o?api-version=2024-08-01-preview",
+    "azure-key"
+);
 
 // 5. URL-based with env var credentials
 let chat = ChatCompletion::from_url("https://api.openai.com/v1")?;
 
-// 6. Explicit auth configuration
+// 6. Explicit auth configuration with complete base URL
 let auth = AuthProvider::Azure(
-    AzureAuth::new("api-key", "my-resource", "gpt-4o-deployment")
+    AzureAuth::new(
+        "api-key",
+        "https://my-resource.openai.azure.com/openai/deployments/gpt-4o?api-version=2024-08-01-preview"
+    )
 );
 let chat = ChatCompletion::with_auth(auth);
 
 // 7. OpenAI-compatible APIs (Ollama, vLLM, LocalAI, etc.)
 let chat = ChatCompletion::with_url(
     "http://localhost:11434/v1",
-    "ollama",
-    None
-)?;
-
-// 8. Azure with complete base URL (no dynamic URL construction)
-//    Useful when you want full control over the endpoint URL
-let auth = AuthProvider::Azure(
-    AzureAuth::with_base_url(
-        "api-key",
-        "https://my-resource.openai.azure.com/openai/deployments/gpt-4o?api-version=2024-08-01-preview"
-    )
+    "ollama"
 );
-let chat = ChatCompletion::with_auth(auth);
 ```
 
 ### URL-based Provider Detection
@@ -539,36 +531,24 @@ This is useful for:
 - Connecting to local OpenAI-compatible servers (Ollama, vLLM, LocalAI)
 - Dynamic provider switching based on environment
 
-### Azure URL Construction Modes
+### Azure URL Construction
 
-Azure OpenAI supports two URL construction modes:
-
-| Mode | Method | URL Construction |
-|------|--------|------------------|
-| **Dynamic** (default) | `AzureAuth::new()`, `AzureAuth::with_endpoint()` | `{base}/openai/deployments/{deployment}/{path}?api-version={version}` |
-| **Static** | `AzureAuth::with_base_url()` | `{base_url}/{path}` (no dynamic construction) |
-
-**Static mode** is useful when:
-- You have a complete endpoint URL from an external configuration
-- You want full control over the URL structure
-- You're using a proxy or custom Azure endpoint
+Azure OpenAI uses a complete base URL that includes the deployment and api-version:
 
 ```rust
 use openai_tools::common::auth::AzureAuth;
 
-// Dynamic mode: URL is constructed from components
-let auth = AzureAuth::new("key", "my-resource", "gpt-4o");
-// Endpoint: https://my-resource.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2024-08-01-preview
-
-// Static mode: base_url is used directly
-let auth = AzureAuth::with_base_url(
-    "key",
+// Create Azure auth with complete base URL
+let auth = AzureAuth::new(
+    "api-key",
     "https://my-resource.openai.azure.com/openai/deployments/gpt-4o?api-version=2024-08-01-preview"
 );
-// Endpoint: https://my-resource.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2024-08-01-preview
+
+// Endpoint for chat/completions:
+// https://my-resource.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2024-08-01-preview
 ```
 
-If the base URL contains query parameters (e.g., `?api-version=...`), the path is inserted before the query string.
+If the base URL contains query parameters (e.g., `?api-version=...`), the API path is inserted before the query string.
 
 ## Feature Status
 

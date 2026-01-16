@@ -1145,9 +1145,12 @@ impl Responses {
     /// use openai_tools::responses::request::Responses;
     /// use openai_tools::common::auth::{AuthProvider, AzureAuth};
     ///
-    /// // Explicit Azure configuration
+    /// // Explicit Azure configuration with complete base URL
     /// let auth = AuthProvider::Azure(
-    ///     AzureAuth::new("api-key", "my-resource", "gpt-4o-deployment")
+    ///     AzureAuth::new(
+    ///         "api-key",
+    ///         "https://my-resource.openai.azure.com/openai/deployments/gpt-4o?api-version=2024-08-01-preview"
+    ///     )
     /// );
     /// let mut responses = Responses::with_auth(auth);
     /// ```
@@ -1220,16 +1223,11 @@ impl Responses {
     ///
     /// # Arguments
     ///
-    /// * `url` - The base URL or endpoint URL
+    /// * `base_url` - The complete base URL for API requests
     /// * `api_key` - The API key or token
-    /// * `deployment_name` - Optional deployment name (required for Azure)
-    pub fn with_url<S: Into<String>>(
-        url: S,
-        api_key: S,
-        deployment_name: Option<S>,
-    ) -> Result<Self> {
-        let auth = AuthProvider::from_url_with_hint(url, api_key, deployment_name)?;
-        Ok(Self { auth, user_agent: "".into(), request_body: Body::default(), timeout: None })
+    pub fn with_url<S: Into<String>>(base_url: S, api_key: S) -> Self {
+        let auth = AuthProvider::from_url_with_key(base_url, api_key);
+        Self { auth, user_agent: "".into(), request_body: Body::default(), timeout: None }
     }
 
     /// Creates a new Responses instance from URL using environment variables

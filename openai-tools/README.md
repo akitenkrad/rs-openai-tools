@@ -30,8 +30,7 @@ Set Azure-specific environment variables:
 
 ```text
 AZURE_OPENAI_API_KEY = "xxxxxxxxxxxxxxxxxxxxxxxxxxx"
-AZURE_OPENAI_RESOURCE_NAME = "my-resource"
-AZURE_OPENAI_DEPLOYMENT_NAME = "gpt-4o-deployment"
+AZURE_OPENAI_BASE_URL = "https://my-resource.openai.azure.com/openai/deployments/gpt-4o?api-version=2024-08-01-preview"
 ```
 
 ### Provider Detection
@@ -45,46 +44,34 @@ use openai_tools::common::auth::{AuthProvider, AzureAuth};
 // OpenAI (default)
 let chat = ChatCompletion::new();
 
-// Azure
+// Azure (from environment variables)
 let chat = ChatCompletion::azure()?;
 
 // Auto-detect provider from environment variables
 let chat = ChatCompletion::detect_provider()?;
 
 // URL-based detection (auto-detects provider from URL pattern)
+// *.openai.azure.com → Azure, all other URLs → OpenAI-compatible
 let chat = ChatCompletion::with_url(
-    "https://my-resource.openai.azure.com",
+    "https://my-resource.openai.azure.com/openai/deployments/gpt-4o?api-version=2024-08-01-preview",
     "azure-key",
-    Some("gpt-4o-deployment")
-)?;
+);
 
 // OpenAI-compatible APIs (Ollama, vLLM, LocalAI, etc.)
 let chat = ChatCompletion::with_url(
     "http://localhost:11434/v1",
     "ollama",
-    None
-)?;
+);
 
-// Azure with complete base URL (no dynamic URL construction)
+// Explicit Azure auth configuration
 let auth = AuthProvider::Azure(
-    AzureAuth::with_base_url(
+    AzureAuth::new(
         "api-key",
         "https://my-resource.openai.azure.com/openai/deployments/gpt-4o?api-version=2024-08-01-preview"
     )
 );
 let chat = ChatCompletion::with_auth(auth);
 ```
-
-### Azure URL Construction Modes
-
-Azure OpenAI supports two URL construction modes:
-
-| Mode | Method | Description |
-|------|--------|-------------|
-| **Dynamic** | `AzureAuth::new()` | Constructs URL from `resource_name`, `deployment_name`, and `api_version` |
-| **Static** | `AzureAuth::with_base_url()` | Uses complete base URL directly (no dynamic construction) |
-
-Static mode is useful when you have a complete endpoint URL from external configuration or need full control over the URL structure.
 
 ## Modules
 
@@ -453,6 +440,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ```
 
 ## Update History
+
+<details>
+<summary>v1.0.3</summary>
+
+- **Breaking Change**: Simplified `AzureAuth` to accept complete base URL
+  - `AzureAuth::new(api_key, base_url)` - simple 2-argument constructor
+  - Removed `resource_name`, `deployment_name`, `api_version` fields
+  - Removed dynamic URL construction (now uses complete URL directly)
+- **Breaking Change**: Updated `with_url()` method signature
+  - Changed from `with_url(url, api_key, deployment_name)` to `with_url(url, api_key)`
+- Environment variable changes:
+  - Use `AZURE_OPENAI_BASE_URL` instead of separate `AZURE_OPENAI_RESOURCE_NAME` and `AZURE_OPENAI_DEPLOYMENT_NAME`
+
+</details>
 
 <details>
 <summary>v1.0.2</summary>

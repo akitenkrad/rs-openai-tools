@@ -263,16 +263,11 @@ impl Embedding {
     ///
     /// # Arguments
     ///
-    /// * `url` - The base URL or endpoint URL
+    /// * `base_url` - The complete base URL for API requests
     /// * `api_key` - The API key or token
-    /// * `deployment_name` - Optional deployment name (required for Azure)
-    pub fn with_url<S: Into<String>>(
-        url: S,
-        api_key: S,
-        deployment_name: Option<S>,
-    ) -> Result<Self> {
-        let auth = AuthProvider::from_url_with_hint(url, api_key, deployment_name)?;
-        Ok(Self { auth, body: Body::default(), timeout: None })
+    pub fn with_url<S: Into<String>>(base_url: S, api_key: S) -> Self {
+        let auth = AuthProvider::from_url_with_key(base_url, api_key);
+        Self { auth, body: Body::default(), timeout: None }
     }
 
     /// Creates a new Embedding instance from URL using environment variables

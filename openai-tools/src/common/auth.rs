@@ -23,34 +23,40 @@
 //! ```rust,no_run
 //! use openai_tools::common::auth::{AuthProvider, AzureAuth};
 //!
-//! // From environment variables
+//! // From environment variables (AZURE_OPENAI_API_KEY, AZURE_OPENAI_BASE_URL)
 //! let auth = AuthProvider::azure_from_env()?;
 //!
-//! // Or explicit configuration (dynamic URL construction)
+//! // Or explicit configuration with complete base URL
 //! let auth = AuthProvider::Azure(
-//!     AzureAuth::new("your-api-key", "my-resource", "gpt-4o-deployment")
-//!         .with_api_version("2024-08-01-preview")
-//! );
-//! # Ok::<(), openai_tools::common::errors::OpenAIToolError>(())
-//! ```
-//!
-//! ## Azure with Complete Base URL
-//!
-//! Use `with_base_url` when you want to provide a complete URL without dynamic construction:
-//!
-//! ```rust
-//! use openai_tools::common::auth::{AuthProvider, AzureAuth};
-//!
-//! // Static URL mode - no dynamic URL construction
-//! let auth = AuthProvider::Azure(
-//!     AzureAuth::with_base_url(
+//!     AzureAuth::new(
 //!         "your-api-key",
 //!         "https://my-resource.openai.azure.com/openai/deployments/gpt-4o?api-version=2024-08-01-preview"
 //!     )
 //! );
+//! # Ok::<(), openai_tools::common::errors::OpenAIToolError>(())
 //! ```
 //!
-//! ## Auto-detection
+//! ## URL-based Provider Detection
+//!
+//! Use `from_url_with_key` to auto-detect the provider based on URL pattern:
+//!
+//! ```rust
+//! use openai_tools::common::auth::AuthProvider;
+//!
+//! // Azure URL detected automatically (*.openai.azure.com)
+//! let auth = AuthProvider::from_url_with_key(
+//!     "https://my-resource.openai.azure.com/openai/deployments/gpt-4o?api-version=2024-08-01-preview",
+//!     "your-api-key"
+//! );
+//!
+//! // OpenAI-compatible URL (non-Azure URLs)
+//! let auth = AuthProvider::from_url_with_key(
+//!     "http://localhost:11434/v1",  // Ollama, vLLM, etc.
+//!     "ollama"
+//! );
+//! ```
+//!
+//! ## Auto-detection from Environment
 //!
 //! ```rust,no_run
 //! use openai_tools::common::auth::AuthProvider;
@@ -67,9 +73,6 @@ use std::env;
 
 /// Default OpenAI API base URL
 const OPENAI_DEFAULT_BASE_URL: &str = "https://api.openai.com/v1";
-
-/// Default Azure OpenAI API version
-const AZURE_DEFAULT_API_VERSION: &str = "2024-08-01-preview";
 
 /// Authentication provider for OpenAI APIs
 ///
@@ -226,38 +229,34 @@ impl OpenAIAuth {
 /// Authorization: Bearer {token}
 /// ```
 ///
-/// # Endpoint Format (Dynamic Mode - Default)
+/// # Endpoint Format
 ///
-/// ```text
-/// https://{resource}.openai.azure.com/openai/deployments/{deployment}/{path}?api-version={version}
-/// ```
-///
-/// # Endpoint Format (Static Base URL Mode)
-///
-/// When using `with_base_url`, the URL is constructed as:
+/// The `base_url` should be a complete URL including everything except the API path.
+/// If the base URL contains query parameters (e.g., `?api-version=...`), the path
+/// will be inserted before the query string.
 ///
 /// ```text
 /// {base_url}/{path}
 /// ```
 ///
-/// The `base_url` should include everything except the API path, including
-/// the `api-version` query parameter if needed.
+/// # Example
+///
+/// ```rust
+/// use openai_tools::common::auth::AzureAuth;
+///
+/// let auth = AzureAuth::new(
+///     "your-api-key",
+///     "https://my-resource.openai.azure.com/openai/deployments/gpt-4o?api-version=2024-08-01-preview"
+/// );
+/// ```
 #[derive(Debug, Clone)]
 pub struct AzureAuth {
     /// API key or Entra ID token
     api_key: String,
-    /// Azure resource name (used in dynamic URL mode)
-    resource_name: String,
-    /// Deployment name (used in dynamic URL mode)
-    deployment_name: String,
-    /// API version (used in dynamic URL mode)
-    api_version: String,
+    /// Complete base URL for API requests
+    base_url: String,
     /// Whether using Entra ID (Azure AD) authentication
     use_entra_id: bool,
-    /// Complete base URL (overrides dynamic URL construction)
-    base_url: Option<String>,
-    /// Whether to dynamically construct the URL (default: true)
-    use_dynamic_url: bool,
 }
 
 impl AzureAuth {
@@ -266,134 +265,28 @@ impl AzureAuth {
     /// # Arguments
     ///
     /// * `api_key` - Azure OpenAI API key
-    /// * `resource_name` - Azure resource name (the name before .openai.azure.com)
-    /// * `deployment_name` - Model deployment name
+    /// * `base_url` - Complete base URL including deployment path and api-version
     ///
     /// # Returns
     ///
-    /// A new `AzureAuth` instance with default API version
+    /// A new `AzureAuth` instance
     ///
     /// # Example
     ///
     /// ```rust
     /// use openai_tools::common::auth::AzureAuth;
     ///
-    /// let auth = AzureAuth::new("your-api-key", "my-resource", "gpt-4o-deployment");
-    /// ```
-    pub fn new<T: Into<String>>(api_key: T, resource_name: T, deployment_name: T) -> Self {
-        Self {
-            api_key: api_key.into(),
-            resource_name: resource_name.into(),
-            deployment_name: deployment_name.into(),
-            api_version: AZURE_DEFAULT_API_VERSION.to_string(),
-            use_entra_id: false,
-            base_url: None,
-            use_dynamic_url: true,
-        }
-    }
-
-    /// Creates a new Azure OpenAI auth with a custom endpoint URL
-    ///
-    /// Use this when you have a full endpoint URL instead of resource name.
-    /// This method still uses dynamic URL construction, appending the deployment path
-    /// and api-version query parameter.
-    ///
-    /// # Arguments
-    ///
-    /// * `api_key` - Azure OpenAI API key
-    /// * `endpoint` - Base endpoint URL (e.g., https://my-resource.openai.azure.com)
-    /// * `deployment_name` - Model deployment name
-    ///
-    /// # Returns
-    ///
-    /// A new `AzureAuth` instance that constructs URLs dynamically
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use openai_tools::common::auth::AzureAuth;
-    ///
-    /// let auth = AzureAuth::with_endpoint(
-    ///     "your-api-key",
-    ///     "https://my-resource.openai.azure.com",
-    ///     "gpt-4o-deployment"
-    /// );
-    /// // Endpoint will be: https://my-resource.openai.azure.com/openai/deployments/gpt-4o-deployment/{path}?api-version=...
-    /// ```
-    pub fn with_endpoint<T: Into<String>>(api_key: T, endpoint: T, deployment_name: T) -> Self {
-        Self {
-            api_key: api_key.into(),
-            resource_name: String::new(),
-            deployment_name: deployment_name.into(),
-            api_version: AZURE_DEFAULT_API_VERSION.to_string(),
-            use_entra_id: false,
-            base_url: Some(endpoint.into()),
-            use_dynamic_url: true,
-        }
-    }
-
-    /// Creates a new Azure OpenAI auth with a complete base URL
-    ///
-    /// Use this when you want to provide a complete base URL without dynamic URL construction.
-    /// The URL should include everything except the API path (e.g., "chat/completions").
-    ///
-    /// If the base URL contains query parameters (e.g., `?api-version=...`), the path will be
-    /// inserted before the query string.
-    ///
-    /// # Arguments
-    ///
-    /// * `api_key` - Azure OpenAI API key
-    /// * `base_url` - Complete base URL including deployment path and optionally api-version
-    ///
-    /// # Returns
-    ///
-    /// A new `AzureAuth` instance that uses the base URL directly
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use openai_tools::common::auth::AzureAuth;
-    ///
-    /// // Without api-version (simpler form)
-    /// let auth = AzureAuth::with_base_url(
-    ///     "your-api-key",
-    ///     "https://my-resource.openai.azure.com/openai/deployments/gpt-4o"
-    /// );
-    /// // Endpoint for "chat/completions" will be:
-    /// // https://my-resource.openai.azure.com/openai/deployments/gpt-4o/chat/completions
-    ///
-    /// // With api-version included
-    /// let auth = AzureAuth::with_base_url(
+    /// let auth = AzureAuth::new(
     ///     "your-api-key",
     ///     "https://my-resource.openai.azure.com/openai/deployments/gpt-4o?api-version=2024-08-01-preview"
     /// );
-    /// // Endpoint for "chat/completions" will be:
-    /// // https://my-resource.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2024-08-01-preview
     /// ```
-    pub fn with_base_url<T: Into<String>>(api_key: T, base_url: T) -> Self {
+    pub fn new<T: Into<String>>(api_key: T, base_url: T) -> Self {
         Self {
             api_key: api_key.into(),
-            resource_name: String::new(),
-            deployment_name: String::new(),
-            api_version: String::new(),
+            base_url: base_url.into(),
             use_entra_id: false,
-            base_url: Some(base_url.into()),
-            use_dynamic_url: false,
         }
-    }
-
-    /// Sets the API version
-    ///
-    /// # Arguments
-    ///
-    /// * `version` - API version string (e.g., "2024-08-01-preview")
-    ///
-    /// # Returns
-    ///
-    /// Self for method chaining
-    pub fn with_api_version<T: Into<String>>(mut self, version: T) -> Self {
-        self.api_version = version.into();
-        self
     }
 
     /// Enables Entra ID (Azure AD) authentication
@@ -414,43 +307,14 @@ impl AzureAuth {
         &self.api_key
     }
 
-    /// Returns the resource name
-    pub fn resource_name(&self) -> &str {
-        &self.resource_name
-    }
-
-    /// Returns the deployment name
-    pub fn deployment_name(&self) -> &str {
-        &self.deployment_name
-    }
-
-    /// Returns the API version
-    pub fn api_version(&self) -> &str {
-        &self.api_version
+    /// Returns the base URL
+    pub fn base_url(&self) -> &str {
+        &self.base_url
     }
 
     /// Returns whether Entra ID authentication is enabled
     pub fn is_entra_id(&self) -> bool {
         self.use_entra_id
-    }
-
-    /// Returns the base URL if set
-    pub fn base_url(&self) -> Option<&str> {
-        self.base_url.as_deref()
-    }
-
-    /// Returns whether dynamic URL construction is enabled
-    pub fn is_dynamic_url(&self) -> bool {
-        self.use_dynamic_url
-    }
-
-    /// Constructs the base endpoint URL for dynamic mode
-    fn dynamic_base_endpoint(&self) -> String {
-        if let Some(ref url) = self.base_url {
-            url.trim_end_matches('/').to_string()
-        } else {
-            format!("https://{}.openai.azure.com", self.resource_name)
-        }
     }
 
     /// Constructs the full endpoint URL for a given path
@@ -461,40 +325,20 @@ impl AzureAuth {
     ///
     /// # Returns
     ///
-    /// Full Azure OpenAI URL
-    ///
-    /// # URL Construction Modes
-    ///
-    /// - **Dynamic mode** (`use_dynamic_url = true`): Constructs URL as
-    ///   `{base}/openai/deployments/{deployment}/{path}?api-version={version}`
-    ///
-    /// - **Static mode** (`use_dynamic_url = false`): Constructs URL as
-    ///   `{base_url}/{path}`. If base_url contains query parameters,
-    ///   the path is inserted before the query string.
+    /// Full Azure OpenAI URL. If base_url contains query parameters,
+    /// the path is inserted before the query string.
     fn endpoint(&self, path: &str) -> String {
-        if self.use_dynamic_url {
-            // Dynamic URL construction (original behavior)
-            format!(
-                "{}/openai/deployments/{}/{}?api-version={}",
-                self.dynamic_base_endpoint(),
-                self.deployment_name,
-                path.trim_start_matches('/'),
-                self.api_version
-            )
-        } else {
-            // Static base URL mode
-            let base = self.base_url.as_deref().unwrap_or("");
-            let path = path.trim_start_matches('/');
+        let base = &self.base_url;
+        let path = path.trim_start_matches('/');
 
-            // Check if base URL contains query parameters
-            if let Some(query_pos) = base.find('?') {
-                // Insert path before query string
-                let (url_path, query) = base.split_at(query_pos);
-                format!("{}/{}{}", url_path.trim_end_matches('/'), path, query)
-            } else {
-                // Simple concatenation
-                format!("{}/{}", base.trim_end_matches('/'), path)
-            }
+        // Check if base URL contains query parameters
+        if let Some(query_pos) = base.find('?') {
+            // Insert path before query string
+            let (url_path, query) = base.split_at(query_pos);
+            format!("{}/{}{}", url_path.trim_end_matches('/'), path, query)
+        } else {
+            // Simple concatenation
+            format!("{}/{}", base.trim_end_matches('/'), path)
         }
     }
 
@@ -562,13 +406,9 @@ impl AuthProvider {
     /// |----------|----------|-------------|
     /// | `AZURE_OPENAI_API_KEY` | Yes* | Azure API key |
     /// | `AZURE_OPENAI_TOKEN` | Yes* | Entra ID token (alternative to API key) |
-    /// | `AZURE_OPENAI_ENDPOINT` | Yes** | Full endpoint URL |
-    /// | `AZURE_OPENAI_RESOURCE_NAME` | Yes** | Resource name (alternative to endpoint) |
-    /// | `AZURE_OPENAI_DEPLOYMENT_NAME` | Yes | Deployment name |
-    /// | `AZURE_OPENAI_API_VERSION` | No | API version (default: 2024-08-01-preview) |
+    /// | `AZURE_OPENAI_BASE_URL` | Yes | Complete base URL including deployment and api-version |
     ///
     /// \* Either `AZURE_OPENAI_API_KEY` or `AZURE_OPENAI_TOKEN` required
-    /// \*\* Either `AZURE_OPENAI_ENDPOINT` or `AZURE_OPENAI_RESOURCE_NAME` required
     ///
     /// # Example
     ///
@@ -577,8 +417,7 @@ impl AuthProvider {
     ///
     /// // With environment variables:
     /// // AZURE_OPENAI_API_KEY=xxx
-    /// // AZURE_OPENAI_RESOURCE_NAME=my-resource
-    /// // AZURE_OPENAI_DEPLOYMENT_NAME=gpt-4o
+    /// // AZURE_OPENAI_BASE_URL=https://my-resource.openai.azure.com/openai/deployments/gpt-4o?api-version=2024-08-01-preview
     /// let auth = AuthProvider::azure_from_env()?;
     /// # Ok::<(), openai_tools::common::errors::OpenAIToolError>(())
     /// ```
@@ -596,25 +435,11 @@ impl AuthProvider {
             ));
         };
 
-        // Get deployment name (required)
-        let deployment_name = env::var("AZURE_OPENAI_DEPLOYMENT_NAME")
-            .map_err(|_| OpenAIToolError::Error("AZURE_OPENAI_DEPLOYMENT_NAME environment variable not set".into()))?;
+        // Get base URL (required)
+        let base_url = env::var("AZURE_OPENAI_BASE_URL")
+            .map_err(|_| OpenAIToolError::Error("AZURE_OPENAI_BASE_URL environment variable not set".into()))?;
 
-        // Get endpoint or resource name
-        let mut auth = if let Ok(endpoint) = env::var("AZURE_OPENAI_ENDPOINT") {
-            AzureAuth::with_endpoint(api_key, endpoint, deployment_name)
-        } else if let Ok(resource_name) = env::var("AZURE_OPENAI_RESOURCE_NAME") {
-            AzureAuth::new(api_key, resource_name, deployment_name)
-        } else {
-            return Err(OpenAIToolError::Error(
-                "Neither AZURE_OPENAI_ENDPOINT nor AZURE_OPENAI_RESOURCE_NAME environment variable is set".into(),
-            ));
-        };
-
-        // Apply optional API version
-        if let Ok(version) = env::var("AZURE_OPENAI_API_VERSION") {
-            auth = auth.with_api_version(version);
-        }
+        let mut auth = AzureAuth::new(api_key, base_url);
 
         // Apply Entra ID if using token
         if use_entra_id {
@@ -751,9 +576,8 @@ impl AuthProvider {
     ///
     /// # Arguments
     ///
-    /// * `url` - The base URL or endpoint URL
+    /// * `base_url` - The complete base URL for API requests
     /// * `api_key` - The API key or token
-    /// * `deployment_name` - Optional deployment name (required for Azure, can fall back to env var)
     ///
     /// # URL Detection
     ///
@@ -764,13 +588,7 @@ impl AuthProvider {
     ///
     /// # Returns
     ///
-    /// `Result<AuthProvider>` - Detected provider or error
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if:
-    /// - Azure URL is detected but `deployment_name` is not provided and
-    ///   `AZURE_OPENAI_DEPLOYMENT_NAME` environment variable is not set
+    /// `AuthProvider` - Detected provider
     ///
     /// # Example
     ///
@@ -778,64 +596,36 @@ impl AuthProvider {
     /// use openai_tools::common::auth::AuthProvider;
     ///
     /// // OpenAI compatible API
-    /// let openai = AuthProvider::from_url_with_hint(
+    /// let openai = AuthProvider::from_url_with_key(
     ///     "https://api.openai.com/v1",
     ///     "sk-key",
-    ///     None
-    /// ).unwrap();
+    /// );
     /// assert!(openai.is_openai());
     ///
-    /// // Azure OpenAI
-    /// let azure = AuthProvider::from_url_with_hint(
-    ///     "https://my-resource.openai.azure.com",
+    /// // Azure OpenAI (complete base URL)
+    /// let azure = AuthProvider::from_url_with_key(
+    ///     "https://my-resource.openai.azure.com/openai/deployments/gpt-4o?api-version=2024-08-01-preview",
     ///     "azure-key",
-    ///     Some("gpt-4o-deployment")
-    /// ).unwrap();
+    /// );
     /// assert!(azure.is_azure());
     ///
     /// // Local API (Ollama, LocalAI, etc.)
-    /// let local = AuthProvider::from_url_with_hint(
+    /// let local = AuthProvider::from_url_with_key(
     ///     "http://localhost:11434/v1",
     ///     "dummy-key",
-    ///     None
-    /// ).unwrap();
+    /// );
     /// assert!(local.is_openai());  // Treated as OpenAI-compatible
     /// ```
-    pub fn from_url_with_hint<S: Into<String>>(
-        url: S,
-        api_key: S,
-        deployment_name: Option<S>,
-    ) -> Result<Self> {
-        let url_str = url.into();
+    pub fn from_url_with_key<S: Into<String>>(base_url: S, api_key: S) -> Self {
+        let url_str = base_url.into();
         let api_key_str = api_key.into();
 
         // Check if URL matches Azure pattern
         if url_str.contains(".openai.azure.com") {
-            // Azure OpenAI detected
-            let deployment = if let Some(name) = deployment_name {
-                name.into()
-            } else {
-                // Try to get from environment variable
-                dotenv().ok();
-                env::var("AZURE_OPENAI_DEPLOYMENT_NAME").map_err(|_| {
-                    OpenAIToolError::Error(
-                        "Azure URL detected but deployment_name not provided. \
-                         Either pass deployment_name or set AZURE_OPENAI_DEPLOYMENT_NAME environment variable."
-                            .into(),
-                    )
-                })?
-            };
-
-            Ok(Self::Azure(AzureAuth::with_endpoint(
-                api_key_str,
-                url_str,
-                deployment,
-            )))
+            Self::Azure(AzureAuth::new(api_key_str, url_str))
         } else {
             // OpenAI or compatible API
-            Ok(Self::OpenAI(
-                OpenAIAuth::new(api_key_str).with_base_url(url_str),
-            ))
+            Self::OpenAI(OpenAIAuth::new(api_key_str).with_base_url(url_str))
         }
     }
 
@@ -846,13 +636,12 @@ impl AuthProvider {
     ///
     /// # Arguments
     ///
-    /// * `url` - The base URL or endpoint URL
+    /// * `base_url` - The complete base URL for API requests
     ///
     /// # Environment Variables
     ///
     /// For Azure URLs (`*.openai.azure.com`):
     /// - `AZURE_OPENAI_API_KEY` or `AZURE_OPENAI_TOKEN` (required)
-    /// - `AZURE_OPENAI_DEPLOYMENT_NAME` (required)
     ///
     /// For other URLs:
     /// - `OPENAI_API_KEY` (required)
@@ -865,12 +654,14 @@ impl AuthProvider {
     /// // Uses OPENAI_API_KEY from environment
     /// let auth = AuthProvider::from_url("https://api.openai.com/v1")?;
     ///
-    /// // Uses AZURE_OPENAI_API_KEY and AZURE_OPENAI_DEPLOYMENT_NAME from environment
-    /// let azure = AuthProvider::from_url("https://my-resource.openai.azure.com")?;
+    /// // Uses AZURE_OPENAI_API_KEY from environment
+    /// let azure = AuthProvider::from_url(
+    ///     "https://my-resource.openai.azure.com/openai/deployments/gpt-4o?api-version=2024-08-01-preview"
+    /// )?;
     /// # Ok::<(), openai_tools::common::errors::OpenAIToolError>(())
     /// ```
-    pub fn from_url<S: Into<String>>(url: S) -> Result<Self> {
-        let url_str = url.into();
+    pub fn from_url<S: Into<String>>(base_url: S) -> Result<Self> {
+        let url_str = base_url.into();
         dotenv().ok();
 
         if url_str.contains(".openai.azure.com") {
@@ -884,15 +675,7 @@ impl AuthProvider {
                     )
                 })?;
 
-            let deployment = env::var("AZURE_OPENAI_DEPLOYMENT_NAME").map_err(|_| {
-                OpenAIToolError::Error(
-                    "Azure URL detected but AZURE_OPENAI_DEPLOYMENT_NAME is not set".into(),
-                )
-            })?;
-
-            Ok(Self::Azure(AzureAuth::with_endpoint(
-                api_key, url_str, deployment,
-            )))
+            Ok(Self::Azure(AzureAuth::new(api_key, url_str)))
         } else {
             // OpenAI: get credentials from OpenAI env var
             let api_key = env::var("OPENAI_API_KEY").map_err(|_| {
@@ -909,6 +692,8 @@ impl AuthProvider {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // OpenAI Auth Tests
 
     #[test]
     fn test_openai_auth_new() {
@@ -940,40 +725,53 @@ mod tests {
     }
 
     #[test]
+    fn test_openai_endpoint_trailing_slash_handling() {
+        let auth = OpenAIAuth::new("key").with_base_url("https://example.com/v1/");
+        assert_eq!(auth.endpoint("chat/completions"), "https://example.com/v1/chat/completions");
+        assert_eq!(auth.endpoint("/chat/completions"), "https://example.com/v1/chat/completions");
+    }
+
+    // Azure Auth Tests (Simplified API - base_url only)
+
+    #[test]
     fn test_azure_auth_new() {
-        let auth = AzureAuth::new("api-key", "my-resource", "gpt-4o-deploy");
+        let auth = AzureAuth::new(
+            "api-key",
+            "https://my-resource.openai.azure.com/openai/deployments/gpt-4o?api-version=2024-08-01-preview",
+        );
         assert_eq!(auth.api_key(), "api-key");
-        assert_eq!(auth.resource_name(), "my-resource");
-        assert_eq!(auth.deployment_name(), "gpt-4o-deploy");
-        assert_eq!(auth.api_version(), AZURE_DEFAULT_API_VERSION);
+        assert_eq!(
+            auth.base_url(),
+            "https://my-resource.openai.azure.com/openai/deployments/gpt-4o?api-version=2024-08-01-preview"
+        );
         assert!(!auth.is_entra_id());
     }
 
     #[test]
-    fn test_azure_auth_with_endpoint() {
-        let auth = AzureAuth::with_endpoint("api-key", "https://custom.openai.azure.com", "deploy");
-        assert_eq!(
-            auth.base_url(),
-            Some("https://custom.openai.azure.com")
-        );
-        assert!(auth.is_dynamic_url());
-    }
-
-    #[test]
-    fn test_azure_auth_with_api_version() {
-        let auth = AzureAuth::new("key", "resource", "deploy").with_api_version("2025-01-01");
-        assert_eq!(auth.api_version(), "2025-01-01");
-    }
-
-    #[test]
     fn test_azure_auth_with_entra_id() {
-        let auth = AzureAuth::new("token", "resource", "deploy").with_entra_id();
+        let auth = AzureAuth::new("token", "https://my-resource.openai.azure.com").with_entra_id();
         assert!(auth.is_entra_id());
     }
 
     #[test]
-    fn test_azure_endpoint() {
-        let auth = AzureAuth::new("key", "my-resource", "gpt-4o");
+    fn test_azure_endpoint_simple() {
+        let auth = AzureAuth::new(
+            "key",
+            "https://my-resource.openai.azure.com/openai/deployments/gpt-4o",
+        );
+        let endpoint = auth.endpoint("chat/completions");
+        assert_eq!(
+            endpoint,
+            "https://my-resource.openai.azure.com/openai/deployments/gpt-4o/chat/completions"
+        );
+    }
+
+    #[test]
+    fn test_azure_endpoint_with_query_params() {
+        let auth = AzureAuth::new(
+            "key",
+            "https://my-resource.openai.azure.com/openai/deployments/gpt-4o?api-version=2024-08-01-preview",
+        );
         let endpoint = auth.endpoint("chat/completions");
         assert_eq!(
             endpoint,
@@ -982,18 +780,21 @@ mod tests {
     }
 
     #[test]
-    fn test_azure_endpoint_with_custom_url() {
-        let auth = AzureAuth::with_endpoint("key", "https://custom.example.com", "gpt-4o");
-        let endpoint = auth.endpoint("chat/completions");
+    fn test_azure_endpoint_trailing_slash_handling() {
+        let auth = AzureAuth::new(
+            "key",
+            "https://my-resource.openai.azure.com/openai/deployments/gpt-4o/",
+        );
+        let endpoint = auth.endpoint("/chat/completions");
         assert_eq!(
             endpoint,
-            "https://custom.example.com/openai/deployments/gpt-4o/chat/completions?api-version=2024-08-01-preview"
+            "https://my-resource.openai.azure.com/openai/deployments/gpt-4o/chat/completions"
         );
     }
 
     #[test]
     fn test_azure_apply_headers_api_key() {
-        let auth = AzureAuth::new("my-api-key", "resource", "deploy");
+        let auth = AzureAuth::new("my-api-key", "https://my-resource.openai.azure.com");
         let mut headers = HeaderMap::new();
         auth.apply_headers(&mut headers).unwrap();
 
@@ -1003,13 +804,16 @@ mod tests {
 
     #[test]
     fn test_azure_apply_headers_entra_id() {
-        let auth = AzureAuth::new("my-token", "resource", "deploy").with_entra_id();
+        let auth =
+            AzureAuth::new("my-token", "https://my-resource.openai.azure.com").with_entra_id();
         let mut headers = HeaderMap::new();
         auth.apply_headers(&mut headers).unwrap();
 
         assert_eq!(headers.get("Authorization").unwrap(), "Bearer my-token");
         assert!(headers.get("api-key").is_none());
     }
+
+    // AuthProvider Tests
 
     #[test]
     fn test_auth_provider_openai() {
@@ -1021,7 +825,10 @@ mod tests {
 
     #[test]
     fn test_auth_provider_azure() {
-        let auth = AuthProvider::Azure(AzureAuth::new("key", "resource", "deploy"));
+        let auth = AuthProvider::Azure(AzureAuth::new(
+            "key",
+            "https://my-resource.openai.azure.com/openai/deployments/gpt-4o",
+        ));
         assert!(auth.is_azure());
         assert!(!auth.is_openai());
         assert_eq!(auth.api_key(), "key");
@@ -1030,14 +837,22 @@ mod tests {
     #[test]
     fn test_auth_provider_endpoint_openai() {
         let auth = AuthProvider::OpenAI(OpenAIAuth::new("key"));
-        assert_eq!(auth.endpoint("chat/completions"), "https://api.openai.com/v1/chat/completions");
+        assert_eq!(
+            auth.endpoint("chat/completions"),
+            "https://api.openai.com/v1/chat/completions"
+        );
     }
 
     #[test]
     fn test_auth_provider_endpoint_azure() {
-        let auth = AuthProvider::Azure(AzureAuth::new("key", "my-resource", "gpt-4o"));
-        assert!(auth.endpoint("chat/completions").contains("my-resource.openai.azure.com"));
-        assert!(auth.endpoint("chat/completions").contains("gpt-4o"));
+        let auth = AuthProvider::Azure(AzureAuth::new(
+            "key",
+            "https://my-resource.openai.azure.com/openai/deployments/gpt-4o?api-version=2024-08-01-preview",
+        ));
+        let endpoint = auth.endpoint("chat/completions");
+        assert!(endpoint.contains("my-resource.openai.azure.com"));
+        assert!(endpoint.contains("gpt-4o"));
+        assert!(endpoint.contains("api-version=2024-08-01-preview"));
     }
 
     #[test]
@@ -1046,152 +861,43 @@ mod tests {
         let openai_auth = AuthProvider::OpenAI(OpenAIAuth::new("sk-key"));
         let mut headers = HeaderMap::new();
         openai_auth.apply_headers(&mut headers).unwrap();
-        assert!(headers.get("Authorization").unwrap().to_str().unwrap().starts_with("Bearer"));
+        assert!(headers
+            .get("Authorization")
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .starts_with("Bearer"));
 
         // Azure
-        let azure_auth = AuthProvider::Azure(AzureAuth::new("azure-key", "resource", "deploy"));
+        let azure_auth = AuthProvider::Azure(AzureAuth::new(
+            "azure-key",
+            "https://my-resource.openai.azure.com",
+        ));
         let mut headers = HeaderMap::new();
         azure_auth.apply_headers(&mut headers).unwrap();
         assert_eq!(headers.get("api-key").unwrap(), "azure-key");
     }
 
-    // Note: Testing `from_env` methods with missing keys is inherently flaky
-    // because dotenv() loads from .env file. Instead, we test valid construction.
-
     #[test]
     fn test_from_env_returns_correct_provider_type() {
-        // This test verifies the provider detection logic without
-        // modifying environment variables (which would be flaky due to .env loading)
-
         // Test direct construction (which from_env uses internally)
         let openai = AuthProvider::OpenAI(OpenAIAuth::new("sk-test"));
         assert!(openai.is_openai());
         assert!(!openai.is_azure());
 
-        let azure = AuthProvider::Azure(AzureAuth::new("key", "resource", "deploy"));
+        let azure = AuthProvider::Azure(AzureAuth::new(
+            "key",
+            "https://my-resource.openai.azure.com/openai/deployments/gpt-4o",
+        ));
         assert!(azure.is_azure());
         assert!(!azure.is_openai());
     }
 
-    #[test]
-    fn test_azure_auth_env_parsing_logic() {
-        // Test the parsing logic that azure_from_env uses
-        // without actually calling azure_from_env (which depends on env state)
-
-        // With resource name
-        let auth = AzureAuth::new("test-key", "my-resource", "gpt-4o-deployment");
-        assert_eq!(auth.api_key(), "test-key");
-        assert_eq!(auth.resource_name(), "my-resource");
-        assert_eq!(auth.deployment_name(), "gpt-4o-deployment");
-        assert_eq!(auth.api_version(), AZURE_DEFAULT_API_VERSION);
-
-        // With custom endpoint
-        let auth = AzureAuth::with_endpoint("test-key", "https://custom.azure.com", "gpt-4o");
-        assert_eq!(auth.base_url(), Some("https://custom.azure.com"));
-
-        // With Entra ID
-        let auth = AzureAuth::new("bearer-token", "resource", "deploy").with_entra_id();
-        assert!(auth.is_entra_id());
-    }
+    // URL-based provider detection tests (from_url_with_key)
 
     #[test]
-    fn test_openai_endpoint_trailing_slash_handling() {
-        let auth = OpenAIAuth::new("key").with_base_url("https://example.com/v1/");
-        assert_eq!(auth.endpoint("chat/completions"), "https://example.com/v1/chat/completions");
-        assert_eq!(auth.endpoint("/chat/completions"), "https://example.com/v1/chat/completions");
-    }
-
-    #[test]
-    fn test_azure_endpoint_trailing_slash_handling() {
-        let auth = AzureAuth::with_endpoint("key", "https://example.openai.azure.com/", "deploy");
-        let endpoint = auth.endpoint("/chat/completions");
-        assert!(endpoint.contains("/chat/completions?api-version="));
-        assert!(!endpoint.contains("//chat/completions"));
-    }
-
-    // Static base URL tests (with_base_url)
-
-    #[test]
-    fn test_azure_with_base_url_simple() {
-        let auth = AzureAuth::with_base_url(
-            "api-key",
-            "https://my-resource.openai.azure.com/openai/deployments/gpt-4o",
-        );
-        assert_eq!(
-            auth.base_url(),
-            Some("https://my-resource.openai.azure.com/openai/deployments/gpt-4o")
-        );
-        assert!(!auth.is_dynamic_url());
-        assert_eq!(
-            auth.endpoint("chat/completions"),
-            "https://my-resource.openai.azure.com/openai/deployments/gpt-4o/chat/completions"
-        );
-    }
-
-    #[test]
-    fn test_azure_with_base_url_with_query_params() {
-        let auth = AzureAuth::with_base_url(
-            "api-key",
-            "https://my-resource.openai.azure.com/openai/deployments/gpt-4o?api-version=2024-08-01-preview",
-        );
-        assert!(!auth.is_dynamic_url());
-        assert_eq!(
-            auth.endpoint("chat/completions"),
-            "https://my-resource.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2024-08-01-preview"
-        );
-    }
-
-    #[test]
-    fn test_azure_with_base_url_trailing_slash() {
-        let auth = AzureAuth::with_base_url(
-            "api-key",
-            "https://my-resource.openai.azure.com/openai/deployments/gpt-4o/",
-        );
-        assert_eq!(
-            auth.endpoint("chat/completions"),
-            "https://my-resource.openai.azure.com/openai/deployments/gpt-4o/chat/completions"
-        );
-    }
-
-    #[test]
-    fn test_azure_with_base_url_leading_slash_path() {
-        let auth = AzureAuth::with_base_url(
-            "api-key",
-            "https://my-resource.openai.azure.com/openai/deployments/gpt-4o",
-        );
-        assert_eq!(
-            auth.endpoint("/chat/completions"),
-            "https://my-resource.openai.azure.com/openai/deployments/gpt-4o/chat/completions"
-        );
-    }
-
-    #[test]
-    fn test_azure_with_base_url_headers() {
-        let auth = AzureAuth::with_base_url("my-api-key", "https://example.com");
-        let mut headers = HeaderMap::new();
-        auth.apply_headers(&mut headers).unwrap();
-        assert_eq!(headers.get("api-key").unwrap(), "my-api-key");
-    }
-
-    #[test]
-    fn test_azure_with_base_url_entra_id() {
-        let auth = AzureAuth::with_base_url("my-token", "https://example.com").with_entra_id();
-        assert!(auth.is_entra_id());
-        let mut headers = HeaderMap::new();
-        auth.apply_headers(&mut headers).unwrap();
-        assert_eq!(headers.get("Authorization").unwrap(), "Bearer my-token");
-    }
-
-    // URL-based provider detection tests
-
-    #[test]
-    fn test_from_url_with_hint_openai_api() {
-        let auth = AuthProvider::from_url_with_hint(
-            "https://api.openai.com/v1",
-            "sk-test-key",
-            None::<&str>,
-        )
-        .unwrap();
+    fn test_from_url_with_key_openai_api() {
+        let auth = AuthProvider::from_url_with_key("https://api.openai.com/v1", "sk-test-key");
 
         assert!(auth.is_openai());
         assert!(!auth.is_azure());
@@ -1203,13 +909,11 @@ mod tests {
     }
 
     #[test]
-    fn test_from_url_with_hint_azure() {
-        let auth = AuthProvider::from_url_with_hint(
-            "https://my-resource.openai.azure.com",
+    fn test_from_url_with_key_azure() {
+        let auth = AuthProvider::from_url_with_key(
+            "https://my-resource.openai.azure.com/openai/deployments/gpt-4o?api-version=2024-08-01-preview",
             "azure-api-key",
-            Some("gpt-4o-deployment"),
-        )
-        .unwrap();
+        );
 
         assert!(auth.is_azure());
         assert!(!auth.is_openai());
@@ -1217,19 +921,14 @@ mod tests {
 
         let endpoint = auth.endpoint("chat/completions");
         assert!(endpoint.contains("my-resource.openai.azure.com"));
-        assert!(endpoint.contains("gpt-4o-deployment"));
+        assert!(endpoint.contains("gpt-4o"));
         assert!(endpoint.contains("api-version="));
     }
 
     #[test]
-    fn test_from_url_with_hint_local_api_ollama() {
+    fn test_from_url_with_key_local_api_ollama() {
         // Local APIs like Ollama should be treated as OpenAI-compatible
-        let auth = AuthProvider::from_url_with_hint(
-            "http://localhost:11434/v1",
-            "ollama",
-            None::<&str>,
-        )
-        .unwrap();
+        let auth = AuthProvider::from_url_with_key("http://localhost:11434/v1", "ollama");
 
         assert!(auth.is_openai());
         assert_eq!(
@@ -1239,14 +938,10 @@ mod tests {
     }
 
     #[test]
-    fn test_from_url_with_hint_custom_openai_compatible() {
+    fn test_from_url_with_key_custom_openai_compatible() {
         // Custom OpenAI-compatible endpoints (e.g., vLLM, LocalAI)
-        let auth = AuthProvider::from_url_with_hint(
-            "https://my-proxy.example.com/openai/v1",
-            "proxy-key",
-            None::<&str>,
-        )
-        .unwrap();
+        let auth =
+            AuthProvider::from_url_with_key("https://my-proxy.example.com/openai/v1", "proxy-key");
 
         assert!(auth.is_openai());
         assert_eq!(
@@ -1256,61 +951,23 @@ mod tests {
     }
 
     #[test]
-    fn test_from_url_with_hint_azure_various_patterns() {
+    fn test_from_url_with_key_azure_various_patterns() {
         // Test various Azure URL patterns
         let patterns = [
-            "https://eastus.openai.azure.com",
-            "https://my-company-resource.openai.azure.com",
-            "https://test.openai.azure.com/",
-            "https://resource-name.openai.azure.com/some/path",
+            "https://eastus.openai.azure.com/openai/deployments/gpt-4o",
+            "https://my-company-resource.openai.azure.com/openai/deployments/gpt-4o",
+            "https://test.openai.azure.com/openai/deployments/gpt-4o?api-version=2024-08-01-preview",
         ];
 
         for url in patterns {
-            let result = AuthProvider::from_url_with_hint(url, "key", Some("deploy"));
-            assert!(
-                result.is_ok(),
-                "Should detect Azure for URL: {}",
-                url
-            );
-            assert!(
-                result.unwrap().is_azure(),
-                "Should be Azure provider for URL: {}",
-                url
-            );
+            let auth = AuthProvider::from_url_with_key(url, "key");
+            assert!(auth.is_azure(), "Should be Azure provider for URL: {}", url);
         }
     }
 
     #[test]
-    fn test_from_url_with_hint_azure_missing_deployment_no_env() {
-        // When Azure URL is detected but deployment_name is None and env var is not set,
-        // the function should return an error (unless AZURE_OPENAI_DEPLOYMENT_NAME is in .env)
-        // This test verifies the error message format
-        let result = AuthProvider::from_url_with_hint(
-            "https://test.openai.azure.com",
-            "key",
-            None::<&str>,
-        );
-
-        // If AZURE_OPENAI_DEPLOYMENT_NAME is in .env, this will succeed
-        // If not, it will fail with a specific error message
-        if result.is_err() {
-            let err = result.unwrap_err().to_string();
-            assert!(
-                err.contains("deployment_name") || err.contains("AZURE_OPENAI_DEPLOYMENT_NAME"),
-                "Error should mention deployment_name requirement"
-            );
-        }
-        // If it succeeds, it means the env var is set (from .env file)
-    }
-
-    #[test]
-    fn test_from_url_with_hint_headers_openai() {
-        let auth = AuthProvider::from_url_with_hint(
-            "https://api.openai.com/v1",
-            "sk-secret-key",
-            None::<&str>,
-        )
-        .unwrap();
+    fn test_from_url_with_key_headers_openai() {
+        let auth = AuthProvider::from_url_with_key("https://api.openai.com/v1", "sk-secret-key");
 
         let mut headers = HeaderMap::new();
         auth.apply_headers(&mut headers).unwrap();
@@ -1322,13 +979,11 @@ mod tests {
     }
 
     #[test]
-    fn test_from_url_with_hint_headers_azure() {
-        let auth = AuthProvider::from_url_with_hint(
-            "https://resource.openai.azure.com",
+    fn test_from_url_with_key_headers_azure() {
+        let auth = AuthProvider::from_url_with_key(
+            "https://resource.openai.azure.com/openai/deployments/gpt-4o",
             "azure-secret",
-            Some("deployment"),
-        )
-        .unwrap();
+        );
 
         let mut headers = HeaderMap::new();
         auth.apply_headers(&mut headers).unwrap();
