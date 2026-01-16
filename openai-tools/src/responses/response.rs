@@ -111,6 +111,8 @@ pub struct Response {
     pub object: Option<String>,
     /// Unix timestamp when the response was created
     pub created_at: Option<usize>,
+    /// Unix timestamp when the response completed
+    pub completed_at: Option<u64>,
     /// Status of the response processing
     pub status: Option<String>,
     /// Whether the response was processed in the background
@@ -189,4 +191,104 @@ impl Response {
         };
         content.text.clone()
     }
+}
+
+/// Response for delete operations
+///
+/// Returned when a response is successfully deleted via the DELETE endpoint.
+///
+/// # API Reference
+///
+/// <https://platform.openai.com/docs/api-reference/responses/delete>
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+pub struct DeleteResponseResult {
+    /// The ID of the deleted response
+    pub id: String,
+    /// Object type, typically "response.deleted"
+    pub object: String,
+    /// Whether the deletion was successful
+    pub deleted: bool,
+}
+
+/// Input item in a response
+///
+/// Represents a single input item that was part of the request.
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+pub struct ResponseInputItem {
+    /// Unique identifier for this input item
+    pub id: String,
+    /// The type of input item (e.g., "message", "function_call_output")
+    #[serde(rename = "type")]
+    pub item_type: String,
+    /// The role of the input item (e.g., "user", "assistant")
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub role: Option<String>,
+    /// The content of the input item
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub content: Option<Value>,
+    /// The status of the input item
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub status: Option<String>,
+}
+
+/// Response for listing input items
+///
+/// Returned when listing input items for a response via the GET endpoint.
+///
+/// # API Reference
+///
+/// <https://platform.openai.com/docs/api-reference/responses/list-input-items>
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+pub struct InputItemsListResponse {
+    /// Object type, typically "list"
+    pub object: String,
+    /// The list of input items
+    pub data: Vec<ResponseInputItem>,
+    /// ID of the first item in the list
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub first_id: Option<String>,
+    /// ID of the last item in the list
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_id: Option<String>,
+    /// Whether there are more items to fetch
+    pub has_more: bool,
+}
+
+/// Response for compact operation
+///
+/// Returned when a response is compacted to reduce its size.
+///
+/// # API Reference
+///
+/// <https://platform.openai.com/docs/api-reference/responses/compact>
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+pub struct CompactedResponse {
+    /// Unique identifier for the compacted response
+    pub id: String,
+    /// Object type, typically "response"
+    pub object: String,
+    /// Unix timestamp when the response was created
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub created_at: Option<u64>,
+    /// The compacted output
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub output: Option<Vec<Value>>,
+    /// Token usage statistics
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub usage: Option<Usage>,
+}
+
+/// Response for input token counting
+///
+/// Returned when counting input tokens for a potential request.
+///
+/// # API Reference
+///
+/// <https://platform.openai.com/docs/api-reference/responses/input-tokens>
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+pub struct InputTokensResponse {
+    /// Object type, typically "input_tokens"
+    pub object: String,
+    /// The number of input tokens
+    pub input_tokens: u64,
 }

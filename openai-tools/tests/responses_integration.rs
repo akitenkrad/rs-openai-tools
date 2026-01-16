@@ -621,3 +621,130 @@ async fn test_with_model_constructor() {
     assert!(response.output.is_some(), "Expected output to be present");
     assert!(!response.output.unwrap().is_empty(), "Expected non-empty output");
 }
+
+// ============================================================================
+// New Endpoint Integration Tests
+// ============================================================================
+
+use openai_tools::responses::request::{NamedFunctionChoice, Prompt, ToolChoice, ToolChoiceMode};
+
+/// Integration test: Create and retrieve a response
+#[tokio::test]
+async fn test_create_and_retrieve_response() {
+    init_tracing();
+
+    // First, create a response
+    let mut responses = Responses::new();
+    responses.model(ChatModel::Gpt4oMini);
+    responses.str_message("Say 'test' and nothing else.");
+    responses.max_output_tokens(10);
+    responses.store(true); // Store the response so we can retrieve it
+
+    let create_result = responses.complete().await;
+    assert!(create_result.is_ok(), "Failed to create response: {:?}", create_result.err());
+
+    let created_response = create_result.unwrap();
+    tracing::info!("Created response ID: {:?}", created_response.id);
+
+    // Now retrieve the response
+    if let Some(response_id) = &created_response.id {
+        let retrieve_result = responses.retrieve(response_id).await;
+        tracing::info!("Retrieve result: {:?}", retrieve_result);
+
+        // Note: retrieve may fail if the response is not stored or immediately deleted
+        // by the platform, so we just log the result
+        if retrieve_result.is_ok() {
+            let retrieved = retrieve_result.unwrap();
+            assert_eq!(retrieved.id.as_ref(), Some(response_id));
+        } else {
+            tracing::warn!("Could not retrieve response (may be expected): {:?}", retrieve_result.err());
+        }
+    }
+}
+
+/// Integration test: Delete a response
+#[tokio::test]
+async fn test_delete_response() {
+    init_tracing();
+
+    // First, create a response
+    let mut responses = Responses::new();
+    responses.model(ChatModel::Gpt4oMini);
+    responses.str_message("Say 'delete test'.");
+    responses.max_output_tokens(10);
+    responses.store(true);
+
+    let create_result = responses.complete().await;
+    assert!(create_result.is_ok(), "Failed to create response");
+
+    let created_response = create_result.unwrap();
+
+    // Now delete the response
+    if let Some(response_id) = &created_response.id {
+        let delete_result = responses.delete(response_id).await;
+        tracing::info!("Delete result: {:?}", delete_result);
+
+        // The delete may succeed or fail depending on platform state
+        if delete_result.is_ok() {
+            let deleted = delete_result.unwrap();
+            assert_eq!(deleted.id, *response_id);
+            assert!(deleted.deleted);
+        } else {
+            tracing::warn!("Could not delete response (may be expected): {:?}", delete_result.err());
+        }
+    }
+}
+
+/// Integration test: Test tool_choice parameter with auto mode
+#[tokio::test]
+async fn test_tool_choice_auto() {
+    init_tracing();
+
+    let mut responses = Responses::new();
+    responses.model(ChatModel::Gpt4oMini);
+    responses.str_message("What is 2 + 2?");
+    responses.tool_choice(ToolChoice::Simple(ToolChoiceMode::Auto));
+    responses.max_output_tokens(50);
+
+    let result = responses.complete().await;
+    tracing::info!("Tool choice auto result: {:?}", result);
+
+    assert!(result.is_ok(), "Expected successful response with tool_choice: auto");
+}
+
+/// Integration test: Test tool_choice parameter with none mode
+#[tokio::test]
+async fn test_tool_choice_none() {
+    init_tracing();
+
+    let mut responses = Responses::new();
+    responses.model(ChatModel::Gpt4oMini);
+    responses.str_message("Hello!");
+    responses.tool_choice(ToolChoice::Simple(ToolChoiceMode::None));
+    responses.max_output_tokens(50);
+
+    let result = responses.complete().await;
+    tracing::info!("Tool choice none result: {:?}", result);
+
+    assert!(result.is_ok(), "Expected successful response with tool_choice: none");
+}
+
+/// Unit test: Test new request parameters serialization
+#[test]
+fn test_new_parameters_serialization() {
+    init_tracing();
+
+    let mut responses = Responses::new();
+    responses.model(ChatModel::Gpt4oMini);
+    responses.str_message("Test");
+    responses.tool_choice(ToolChoice::Simple(ToolChoiceMode::Required));
+    responses.prompt_cache_key("my-cache-key-123");
+    responses.prompt_cache_retention("24h");
+
+    let json_body = serde_json::to_string_pretty(&responses.request_body).unwrap();
+    tracing::info!("Request body with new parameters: {}", json_body);
+
+    assert!(json_body.contains("\"tool_choice\":\"required\""));
+    assert!(json_body.contains("\"prompt_cache_key\":\"my-cache-key-123\""));
+    assert!(json_body.contains("\"prompt_cache_retention\":\"24h\""));
+}

@@ -618,4 +618,175 @@ mod tests {
         assert!(json_body.contains("\"text\""));
         assert!(json_body.contains("\"verbosity\":\"high\""));
     }
+
+    // ================================================
+    // Tests for new ToolChoice, Prompt, and endpoint types
+    // ================================================
+
+    use crate::responses::request::{NamedFunctionChoice, Prompt, ToolChoice, ToolChoiceMode};
+
+    #[test]
+    fn test_tool_choice_mode_auto_serialization() {
+        let mode = ToolChoiceMode::Auto;
+        let json = serde_json::to_string(&mode).unwrap();
+        assert_eq!(json, "\"auto\"");
+    }
+
+    #[test]
+    fn test_tool_choice_mode_none_serialization() {
+        let mode = ToolChoiceMode::None;
+        let json = serde_json::to_string(&mode).unwrap();
+        assert_eq!(json, "\"none\"");
+    }
+
+    #[test]
+    fn test_tool_choice_mode_required_serialization() {
+        let mode = ToolChoiceMode::Required;
+        let json = serde_json::to_string(&mode).unwrap();
+        assert_eq!(json, "\"required\"");
+    }
+
+    #[test]
+    fn test_named_function_choice_new() {
+        let choice = NamedFunctionChoice::new("get_weather");
+        assert_eq!(choice.type_name, "function");
+        assert_eq!(choice.name, "get_weather");
+    }
+
+    #[test]
+    fn test_named_function_choice_serialization() {
+        let choice = NamedFunctionChoice::new("calculate");
+        let json = serde_json::to_string(&choice).unwrap();
+        assert!(json.contains("\"type\":\"function\""));
+        assert!(json.contains("\"name\":\"calculate\""));
+    }
+
+    #[test]
+    fn test_tool_choice_simple_serialization() {
+        let choice = ToolChoice::Simple(ToolChoiceMode::Auto);
+        let json = serde_json::to_string(&choice).unwrap();
+        assert_eq!(json, "\"auto\"");
+
+        let choice = ToolChoice::Simple(ToolChoiceMode::Required);
+        let json = serde_json::to_string(&choice).unwrap();
+        assert_eq!(json, "\"required\"");
+    }
+
+    #[test]
+    fn test_tool_choice_function_serialization() {
+        let choice = ToolChoice::Function(NamedFunctionChoice::new("search"));
+        let json = serde_json::to_string(&choice).unwrap();
+        assert!(json.contains("\"type\":\"function\""));
+        assert!(json.contains("\"name\":\"search\""));
+    }
+
+    #[test]
+    fn test_prompt_new() {
+        let prompt = Prompt::new("prompt-abc123");
+        assert_eq!(prompt.id, "prompt-abc123");
+        assert!(prompt.variables.is_none());
+    }
+
+    #[test]
+    fn test_prompt_with_variables() {
+        let mut vars = std::collections::HashMap::new();
+        vars.insert("name".to_string(), "Alice".to_string());
+        vars.insert("topic".to_string(), "AI".to_string());
+
+        let prompt = Prompt::with_variables("prompt-xyz", vars);
+        assert_eq!(prompt.id, "prompt-xyz");
+        assert!(prompt.variables.is_some());
+
+        let variables = prompt.variables.as_ref().unwrap();
+        assert_eq!(variables.get("name"), Some(&"Alice".to_string()));
+        assert_eq!(variables.get("topic"), Some(&"AI".to_string()));
+    }
+
+    #[test]
+    fn test_prompt_serialization_without_variables() {
+        let prompt = Prompt::new("prompt-123");
+        let json = serde_json::to_string(&prompt).unwrap();
+        assert!(json.contains("\"id\":\"prompt-123\""));
+        // variables should be skipped when None
+        assert!(!json.contains("variables"));
+    }
+
+    #[test]
+    fn test_prompt_serialization_with_variables() {
+        let mut vars = std::collections::HashMap::new();
+        vars.insert("key".to_string(), "value".to_string());
+
+        let prompt = Prompt::with_variables("prompt-456", vars);
+        let json = serde_json::to_string(&prompt).unwrap();
+        assert!(json.contains("\"id\":\"prompt-456\""));
+        assert!(json.contains("\"variables\""));
+        assert!(json.contains("\"key\":\"value\""));
+    }
+
+    #[test]
+    fn test_responses_builder_tool_choice_simple() {
+        let mut responses = Responses::new();
+        responses.tool_choice(ToolChoice::Simple(ToolChoiceMode::Required));
+
+        assert!(responses.request_body.tool_choice.is_some());
+    }
+
+    #[test]
+    fn test_responses_builder_tool_choice_function() {
+        let mut responses = Responses::new();
+        responses.tool_choice(ToolChoice::Function(NamedFunctionChoice::new("my_function")));
+
+        assert!(responses.request_body.tool_choice.is_some());
+    }
+
+    #[test]
+    fn test_responses_builder_prompt() {
+        let mut responses = Responses::new();
+        responses.prompt(Prompt::new("prompt-test"));
+
+        assert!(responses.request_body.prompt.is_some());
+        assert_eq!(responses.request_body.prompt.as_ref().unwrap().id, "prompt-test");
+    }
+
+    #[test]
+    fn test_responses_builder_prompt_cache_key() {
+        let mut responses = Responses::new();
+        responses.prompt_cache_key("my-cache-key");
+
+        assert_eq!(responses.request_body.prompt_cache_key, Some("my-cache-key".to_string()));
+    }
+
+    #[test]
+    fn test_responses_builder_prompt_cache_retention() {
+        let mut responses = Responses::new();
+        responses.prompt_cache_retention("24h");
+
+        assert_eq!(responses.request_body.prompt_cache_retention, Some("24h".to_string()));
+    }
+
+    #[test]
+    fn test_request_body_with_tool_choice_serialization() {
+        let mut responses = Responses::new();
+        responses.model(ChatModel::Gpt4oMini);
+        responses.str_message("Test");
+        responses.tool_choice(ToolChoice::Simple(ToolChoiceMode::Auto));
+
+        let json_body = serde_json::to_string(&responses.request_body).unwrap();
+        assert!(json_body.contains("\"tool_choice\":\"auto\""));
+    }
+
+    #[test]
+    fn test_request_body_with_prompt_serialization() {
+        let mut responses = Responses::new();
+        responses.model(ChatModel::Gpt4oMini);
+        responses.str_message("Test");
+        responses.prompt(Prompt::new("prompt-id"));
+        responses.prompt_cache_key("cache-key");
+        responses.prompt_cache_retention("1h");
+
+        let json_body = serde_json::to_string(&responses.request_body).unwrap();
+        assert!(json_body.contains("\"prompt\""));
+        assert!(json_body.contains("\"prompt_cache_key\":\"cache-key\""));
+        assert!(json_body.contains("\"prompt_cache_retention\":\"1h\""));
+    }
 }

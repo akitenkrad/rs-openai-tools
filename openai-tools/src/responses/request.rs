@@ -8,7 +8,9 @@ use crate::{
         structured_output::Schema,
         tool::Tool,
     },
-    responses::response::Response,
+    responses::response::{
+        CompactedResponse, DeleteResponseResult, InputItemsListResponse, InputTokensResponse, Response,
+    },
 };
 use derive_new::new;
 use request;
@@ -311,6 +313,136 @@ pub enum Truncation {
     Disabled,
 }
 
+/// Specifies a specific function to force the model to call
+///
+/// When you want the model to call a specific function rather than
+/// choosing which tool to use, use this structure to specify the
+/// function name.
+///
+/// # Example
+///
+/// ```rust
+/// use openai_tools::responses::request::NamedFunctionChoice;
+///
+/// let function_choice = NamedFunctionChoice::new("get_weather");
+/// ```
+#[derive(Debug, Clone, Serialize)]
+pub struct NamedFunctionChoice {
+    /// The type of tool choice, always "function" for named functions
+    #[serde(rename = "type")]
+    pub type_name: String,
+    /// The name of the function to call
+    pub name: String,
+}
+
+impl NamedFunctionChoice {
+    /// Creates a new NamedFunctionChoice for the specified function
+    ///
+    /// # Arguments
+    ///
+    /// * `name` - The name of the function to call
+    ///
+    /// # Returns
+    ///
+    /// A new NamedFunctionChoice instance
+    pub fn new<S: AsRef<str>>(name: S) -> Self {
+        Self { type_name: "function".to_string(), name: name.as_ref().to_string() }
+    }
+}
+
+/// Controls how the model selects tools
+///
+/// This enum allows you to specify whether the model should automatically
+/// choose tools, be forced to use specific tools, or be prevented from
+/// using tools altogether.
+///
+/// # API Reference
+///
+/// Corresponds to the `tool_choice` parameter in the OpenAI Responses API:
+/// <https://platform.openai.com/docs/api-reference/responses/create>
+///
+/// # Examples
+///
+/// ```rust
+/// use openai_tools::responses::request::{ToolChoice, ToolChoiceMode, NamedFunctionChoice};
+///
+/// // Let the model decide
+/// let auto_choice = ToolChoice::Simple(ToolChoiceMode::Auto);
+///
+/// // Force a specific function
+/// let function_choice = ToolChoice::Function(NamedFunctionChoice::new("get_weather"));
+/// ```
+#[derive(Debug, Clone, Serialize)]
+#[serde(untagged)]
+pub enum ToolChoice {
+    /// Simple mode selection (auto, none, required)
+    Simple(ToolChoiceMode),
+    /// Force a specific function to be called
+    Function(NamedFunctionChoice),
+}
+
+/// Reference to a prompt template with variables
+///
+/// Allows you to use pre-defined prompt templates stored in the OpenAI
+/// platform, optionally with variable substitution.
+///
+/// # API Reference
+///
+/// Corresponds to the `prompt` parameter in the OpenAI Responses API:
+/// <https://platform.openai.com/docs/api-reference/responses/create>
+///
+/// # Examples
+///
+/// ```rust
+/// use openai_tools::responses::request::Prompt;
+/// use std::collections::HashMap;
+///
+/// // Simple prompt reference
+/// let prompt = Prompt::new("prompt-abc123");
+///
+/// // Prompt with variables
+/// let mut vars = HashMap::new();
+/// vars.insert("name".to_string(), "Alice".to_string());
+/// let prompt = Prompt::with_variables("prompt-abc123", vars);
+/// ```
+#[derive(Debug, Clone, Serialize)]
+pub struct Prompt {
+    /// The ID of the prompt template
+    pub id: String,
+    /// Optional variables to substitute in the template
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub variables: Option<HashMap<String, String>>,
+}
+
+impl Prompt {
+    /// Creates a new Prompt reference without variables
+    ///
+    /// # Arguments
+    ///
+    /// * `id` - The ID of the prompt template
+    ///
+    /// # Returns
+    ///
+    /// A new Prompt instance
+    pub fn new<S: AsRef<str>>(id: S) -> Self {
+        Self { id: id.as_ref().to_string(), variables: None }
+    }
+
+    /// Creates a new Prompt reference with variables
+    ///
+    /// # Arguments
+    ///
+    /// * `id` - The ID of the prompt template
+    /// * `variables` - Variables to substitute in the template
+    ///
+    /// # Returns
+    ///
+    /// A new Prompt instance with variables
+    pub fn with_variables<S: AsRef<str>>(id: S, variables: HashMap<String, String>) -> Self {
+        Self { id: id.as_ref().to_string(), variables: Some(variables) }
+    }
+}
+
 /// Options for streaming responses
 ///
 /// This struct configures how streaming responses should behave,
@@ -491,9 +623,52 @@ pub struct Body {
     /// ];
     /// ```
     pub tools: Option<Vec<Tool>>,
+
     /// Optional tool choice configuration
-    // TODO: Implement ToolChoice
-    // pub tool_choice: Option<ToolChoice>,
+    ///
+    /// Controls how the model selects which tool to use when tools are available.
+    /// Can be set to auto (let model decide), none (no tools), required (must use tools),
+    /// or a specific function name to force calling that function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use openai_tools::responses::request::{ToolChoice, ToolChoiceMode, NamedFunctionChoice};
+    ///
+    /// // Let the model decide
+    /// let auto_choice = ToolChoice::Simple(ToolChoiceMode::Auto);
+    ///
+    /// // Force a specific function
+    /// let function_choice = ToolChoice::Function(NamedFunctionChoice::new("get_weather"));
+    /// ```
+    pub tool_choice: Option<ToolChoice>,
+
+    /// Optional prompt template reference
+    ///
+    /// Allows you to use pre-defined prompt templates stored in the OpenAI
+    /// platform, optionally with variable substitution.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use openai_tools::responses::request::Prompt;
+    ///
+    /// let prompt = Prompt::new("prompt-abc123");
+    /// ```
+    pub prompt: Option<Prompt>,
+
+    /// Optional prompt cache key for caching
+    ///
+    /// A unique key to use for prompt caching. When provided, the same
+    /// prompt will be cached and reused for subsequent requests with
+    /// the same cache key.
+    pub prompt_cache_key: Option<String>,
+
+    /// Optional prompt cache retention duration
+    ///
+    /// Controls how long cached prompts should be retained.
+    /// Format: duration string (e.g., "1h", "24h", "7d")
+    pub prompt_cache_retention: Option<String>,
 
     /// Optional structured output format specification
     ///
@@ -932,6 +1107,18 @@ impl Serialize for Body {
         }
         if self.tools.is_some() {
             state.serialize_field("tools", &self.tools)?;
+        }
+        if self.tool_choice.is_some() {
+            state.serialize_field("tool_choice", &self.tool_choice)?;
+        }
+        if self.prompt.is_some() {
+            state.serialize_field("prompt", &self.prompt)?;
+        }
+        if self.prompt_cache_key.is_some() {
+            state.serialize_field("prompt_cache_key", &self.prompt_cache_key)?;
+        }
+        if self.prompt_cache_retention.is_some() {
+            state.serialize_field("prompt_cache_retention", &self.prompt_cache_retention)?;
         }
         if self.structured_output.is_some() {
             state.serialize_field("text", &self.structured_output)?;
@@ -1420,6 +1607,124 @@ impl Responses {
     /// A mutable reference to self for method chaining
     pub fn tools(&mut self, tools: Vec<Tool>) -> &mut Self {
         self.request_body.tools = Some(tools);
+        self
+    }
+
+    /// Sets the tool choice configuration
+    ///
+    /// Controls how the model selects which tool to use when tools are available.
+    /// Can be set to auto (let model decide), none (no tools), required (must use tools),
+    /// or a specific function name to force calling that function.
+    ///
+    /// # Arguments
+    ///
+    /// * `tool_choice` - The tool choice configuration
+    ///
+    /// # Returns
+    ///
+    /// A mutable reference to self for method chaining
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use openai_tools::responses::request::{Responses, ToolChoice, ToolChoiceMode, NamedFunctionChoice};
+    ///
+    /// let mut client = Responses::new();
+    ///
+    /// // Let the model decide
+    /// client.tool_choice(ToolChoice::Simple(ToolChoiceMode::Auto));
+    ///
+    /// // Force a specific function
+    /// client.tool_choice(ToolChoice::Function(NamedFunctionChoice::new("get_weather")));
+    /// ```
+    pub fn tool_choice(&mut self, tool_choice: ToolChoice) -> &mut Self {
+        self.request_body.tool_choice = Some(tool_choice);
+        self
+    }
+
+    /// Sets a prompt template reference
+    ///
+    /// Allows you to use pre-defined prompt templates stored in the OpenAI
+    /// platform, optionally with variable substitution.
+    ///
+    /// # Arguments
+    ///
+    /// * `prompt` - The prompt template reference
+    ///
+    /// # Returns
+    ///
+    /// A mutable reference to self for method chaining
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use openai_tools::responses::request::{Responses, Prompt};
+    /// use std::collections::HashMap;
+    ///
+    /// let mut client = Responses::new();
+    ///
+    /// // Simple prompt reference
+    /// client.prompt(Prompt::new("prompt-abc123"));
+    ///
+    /// // Prompt with variables
+    /// let mut vars = HashMap::new();
+    /// vars.insert("name".to_string(), "Alice".to_string());
+    /// client.prompt(Prompt::with_variables("prompt-abc123", vars));
+    /// ```
+    pub fn prompt(&mut self, prompt: Prompt) -> &mut Self {
+        self.request_body.prompt = Some(prompt);
+        self
+    }
+
+    /// Sets the prompt cache key for caching
+    ///
+    /// A unique key to use for prompt caching. When provided, the same
+    /// prompt will be cached and reused for subsequent requests with
+    /// the same cache key.
+    ///
+    /// # Arguments
+    ///
+    /// * `key` - The cache key to use
+    ///
+    /// # Returns
+    ///
+    /// A mutable reference to self for method chaining
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use openai_tools::responses::request::Responses;
+    ///
+    /// let mut client = Responses::new();
+    /// client.prompt_cache_key("my-cache-key");
+    /// ```
+    pub fn prompt_cache_key<T: AsRef<str>>(&mut self, key: T) -> &mut Self {
+        self.request_body.prompt_cache_key = Some(key.as_ref().to_string());
+        self
+    }
+
+    /// Sets the prompt cache retention duration
+    ///
+    /// Controls how long cached prompts should be retained.
+    ///
+    /// # Arguments
+    ///
+    /// * `retention` - The retention duration string (e.g., "1h", "24h", "7d")
+    ///
+    /// # Returns
+    ///
+    /// A mutable reference to self for method chaining
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use openai_tools::responses::request::Responses;
+    ///
+    /// let mut client = Responses::new();
+    /// client.prompt_cache_retention("24h");
+    /// ```
+    pub fn prompt_cache_retention<T: AsRef<str>>(&mut self, retention: T) -> &mut Self {
+        self.request_body.prompt_cache_retention = Some(retention.as_ref().to_string());
         self
     }
 
@@ -2399,6 +2704,408 @@ impl Responses {
                 }
 
                 serde_json::from_str::<Response>(&content).map_err(OpenAIToolError::SerdeJsonError)
+            }
+        }
+    }
+
+    // ========================================
+    // CRUD Endpoint Methods
+    // ========================================
+
+    /// Creates the HTTP client and headers for API requests
+    ///
+    /// This is a helper method that sets up the common HTTP client and headers
+    /// needed for all API requests.
+    ///
+    /// # Returns
+    ///
+    /// A tuple of the HTTP client and headers
+    fn create_api_client(&self) -> Result<(request::Client, request::header::HeaderMap)> {
+        let client = create_http_client(self.timeout)?;
+        let mut headers = request::header::HeaderMap::new();
+        headers.insert("Content-Type", request::header::HeaderValue::from_static("application/json"));
+        if !self.user_agent.is_empty() {
+            headers.insert(
+                "User-Agent",
+                request::header::HeaderValue::from_str(&self.user_agent)
+                    .map_err(|e| OpenAIToolError::Error(format!("Invalid user agent: {}", e)))?,
+            );
+        }
+        self.auth.apply_headers(&mut headers)?;
+        Ok((client, headers))
+    }
+
+    /// Handles API error responses
+    ///
+    /// This is a helper method that formats API error responses into a
+    /// standardized error type.
+    ///
+    /// # Arguments
+    ///
+    /// * `status` - The HTTP status code
+    /// * `content` - The error response content
+    ///
+    /// # Returns
+    ///
+    /// An OpenAIToolError containing the error details
+    fn handle_api_error(status: request::StatusCode, content: &str) -> OpenAIToolError {
+        tracing::error!("API error (status: {}): {}", status, content);
+        OpenAIToolError::Error(format!("API request failed with status {}: {}", status, content))
+    }
+
+    /// Retrieves a response by its ID
+    ///
+    /// Fetches the details of a specific response, including its output,
+    /// status, and metadata.
+    ///
+    /// # Arguments
+    ///
+    /// * `response_id` - The ID of the response to retrieve
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing the `Response` on success
+    ///
+    /// # API Reference
+    ///
+    /// <https://platform.openai.com/docs/api-reference/responses/get>
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use openai_tools::responses::request::Responses;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let client = Responses::new();
+    /// let response = client.retrieve("resp_abc123").await?;
+    /// println!("Status: {:?}", response.status);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub async fn retrieve(&self, response_id: &str) -> Result<Response> {
+        let (client, headers) = self.create_api_client()?;
+        let endpoint = format!("{}/{}", self.auth.endpoint(RESPONSES_PATH), response_id);
+
+        match client.get(&endpoint).headers(headers).send().await.map_err(OpenAIToolError::RequestError) {
+            Err(e) => {
+                tracing::error!("Request error: {}", e);
+                Err(e)
+            }
+            Ok(response) if !response.status().is_success() => {
+                let status = response.status();
+                let error_text = response.text().await.unwrap_or_else(|_| "Failed to read error response".to_string());
+                Err(Self::handle_api_error(status, &error_text))
+            }
+            Ok(response) => {
+                let content = response.text().await.map_err(OpenAIToolError::RequestError)?;
+                serde_json::from_str::<Response>(&content).map_err(OpenAIToolError::SerdeJsonError)
+            }
+        }
+    }
+
+    /// Deletes a response by its ID
+    ///
+    /// Permanently removes a response from the OpenAI platform.
+    ///
+    /// # Arguments
+    ///
+    /// * `response_id` - The ID of the response to delete
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing `DeleteResponseResult` on success
+    ///
+    /// # API Reference
+    ///
+    /// <https://platform.openai.com/docs/api-reference/responses/delete>
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use openai_tools::responses::request::Responses;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let client = Responses::new();
+    /// let result = client.delete("resp_abc123").await?;
+    /// assert!(result.deleted);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub async fn delete(&self, response_id: &str) -> Result<DeleteResponseResult> {
+        let (client, headers) = self.create_api_client()?;
+        let endpoint = format!("{}/{}", self.auth.endpoint(RESPONSES_PATH), response_id);
+
+        match client.delete(&endpoint).headers(headers).send().await.map_err(OpenAIToolError::RequestError) {
+            Err(e) => {
+                tracing::error!("Request error: {}", e);
+                Err(e)
+            }
+            Ok(response) if !response.status().is_success() => {
+                let status = response.status();
+                let error_text = response.text().await.unwrap_or_else(|_| "Failed to read error response".to_string());
+                Err(Self::handle_api_error(status, &error_text))
+            }
+            Ok(response) => {
+                let content = response.text().await.map_err(OpenAIToolError::RequestError)?;
+                serde_json::from_str::<DeleteResponseResult>(&content).map_err(OpenAIToolError::SerdeJsonError)
+            }
+        }
+    }
+
+    /// Cancels an in-progress response
+    ///
+    /// Cancels a response that is currently being generated. This is useful
+    /// for background responses that are taking too long.
+    ///
+    /// # Arguments
+    ///
+    /// * `response_id` - The ID of the response to cancel
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing the cancelled `Response` on success
+    ///
+    /// # API Reference
+    ///
+    /// <https://platform.openai.com/docs/api-reference/responses/cancel>
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use openai_tools::responses::request::Responses;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let client = Responses::new();
+    /// let response = client.cancel("resp_abc123").await?;
+    /// println!("Response cancelled: {:?}", response.status);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub async fn cancel(&self, response_id: &str) -> Result<Response> {
+        let (client, headers) = self.create_api_client()?;
+        let endpoint = format!("{}/{}/cancel", self.auth.endpoint(RESPONSES_PATH), response_id);
+
+        match client.post(&endpoint).headers(headers).send().await.map_err(OpenAIToolError::RequestError) {
+            Err(e) => {
+                tracing::error!("Request error: {}", e);
+                Err(e)
+            }
+            Ok(response) if !response.status().is_success() => {
+                let status = response.status();
+                let error_text = response.text().await.unwrap_or_else(|_| "Failed to read error response".to_string());
+                Err(Self::handle_api_error(status, &error_text))
+            }
+            Ok(response) => {
+                let content = response.text().await.map_err(OpenAIToolError::RequestError)?;
+                serde_json::from_str::<Response>(&content).map_err(OpenAIToolError::SerdeJsonError)
+            }
+        }
+    }
+
+    /// Lists input items for a response
+    ///
+    /// Retrieves a paginated list of input items that were part of the request
+    /// that generated the response.
+    ///
+    /// # Arguments
+    ///
+    /// * `response_id` - The ID of the response to get input items for
+    /// * `limit` - Maximum number of items to return (default: 20)
+    /// * `after` - Cursor for pagination (return items after this ID)
+    /// * `before` - Cursor for pagination (return items before this ID)
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing `InputItemsListResponse` on success
+    ///
+    /// # API Reference
+    ///
+    /// <https://platform.openai.com/docs/api-reference/responses/list-input-items>
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use openai_tools::responses::request::Responses;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let client = Responses::new();
+    /// let items = client.list_input_items("resp_abc123", Some(10), None, None).await?;
+    /// for item in items.data {
+    ///     println!("Item: {} (type: {})", item.id, item.item_type);
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub async fn list_input_items(
+        &self,
+        response_id: &str,
+        limit: Option<u32>,
+        after: Option<&str>,
+        before: Option<&str>,
+    ) -> Result<InputItemsListResponse> {
+        let (client, headers) = self.create_api_client()?;
+        let base_endpoint = format!("{}/{}/input_items", self.auth.endpoint(RESPONSES_PATH), response_id);
+
+        // Build query parameters
+        let mut query_params = Vec::new();
+        if let Some(limit) = limit {
+            query_params.push(format!("limit={}", limit));
+        }
+        if let Some(after) = after {
+            query_params.push(format!("after={}", after));
+        }
+        if let Some(before) = before {
+            query_params.push(format!("before={}", before));
+        }
+
+        let endpoint = if query_params.is_empty() {
+            base_endpoint
+        } else {
+            format!("{}?{}", base_endpoint, query_params.join("&"))
+        };
+
+        match client.get(&endpoint).headers(headers).send().await.map_err(OpenAIToolError::RequestError) {
+            Err(e) => {
+                tracing::error!("Request error: {}", e);
+                Err(e)
+            }
+            Ok(response) if !response.status().is_success() => {
+                let status = response.status();
+                let error_text = response.text().await.unwrap_or_else(|_| "Failed to read error response".to_string());
+                Err(Self::handle_api_error(status, &error_text))
+            }
+            Ok(response) => {
+                let content = response.text().await.map_err(OpenAIToolError::RequestError)?;
+                serde_json::from_str::<InputItemsListResponse>(&content).map_err(OpenAIToolError::SerdeJsonError)
+            }
+        }
+    }
+
+    /// Compacts a response to reduce its size
+    ///
+    /// Creates a compacted version of a response, which can be useful
+    /// for long-running conversations to reduce token usage.
+    ///
+    /// # Arguments
+    ///
+    /// * `previous_response_id` - The ID of the response to compact
+    /// * `model` - Optional model to use for compaction (defaults to original model)
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing `CompactedResponse` on success
+    ///
+    /// # API Reference
+    ///
+    /// <https://platform.openai.com/docs/api-reference/responses/compact>
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use openai_tools::responses::request::Responses;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let client = Responses::new();
+    /// let compacted = client.compact("resp_abc123", None).await?;
+    /// println!("Compacted response ID: {}", compacted.id);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub async fn compact(&self, previous_response_id: &str, model: Option<&str>) -> Result<CompactedResponse> {
+        let (client, headers) = self.create_api_client()?;
+        let endpoint = format!("{}/compact", self.auth.endpoint(RESPONSES_PATH));
+
+        // Build request body
+        let mut body = serde_json::json!({
+            "previous_response_id": previous_response_id
+        });
+        if let Some(model) = model {
+            body["model"] = serde_json::json!(model);
+        }
+
+        match client
+            .post(&endpoint)
+            .headers(headers)
+            .body(serde_json::to_string(&body)?)
+            .send()
+            .await
+            .map_err(OpenAIToolError::RequestError)
+        {
+            Err(e) => {
+                tracing::error!("Request error: {}", e);
+                Err(e)
+            }
+            Ok(response) if !response.status().is_success() => {
+                let status = response.status();
+                let error_text = response.text().await.unwrap_or_else(|_| "Failed to read error response".to_string());
+                Err(Self::handle_api_error(status, &error_text))
+            }
+            Ok(response) => {
+                let content = response.text().await.map_err(OpenAIToolError::RequestError)?;
+                serde_json::from_str::<CompactedResponse>(&content).map_err(OpenAIToolError::SerdeJsonError)
+            }
+        }
+    }
+
+    /// Counts the number of input tokens for a potential request
+    ///
+    /// Useful for estimating token usage before sending a request.
+    ///
+    /// # Arguments
+    ///
+    /// * `model` - The model to use for token counting
+    /// * `input` - The input to count tokens for (can be a string or messages array)
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing `InputTokensResponse` on success
+    ///
+    /// # API Reference
+    ///
+    /// <https://platform.openai.com/docs/api-reference/responses/input-tokens>
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use openai_tools::responses::request::Responses;
+    /// use serde_json::json;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let client = Responses::new();
+    /// let tokens = client.get_input_tokens("gpt-4o-mini", json!("Hello, world!")).await?;
+    /// println!("Input tokens: {}", tokens.input_tokens);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub async fn get_input_tokens(&self, model: &str, input: serde_json::Value) -> Result<InputTokensResponse> {
+        let (client, headers) = self.create_api_client()?;
+        let endpoint = format!("{}/input_tokens", self.auth.endpoint(RESPONSES_PATH));
+
+        let body = serde_json::json!({
+            "model": model,
+            "input": input
+        });
+
+        match client
+            .post(&endpoint)
+            .headers(headers)
+            .body(serde_json::to_string(&body)?)
+            .send()
+            .await
+            .map_err(OpenAIToolError::RequestError)
+        {
+            Err(e) => {
+                tracing::error!("Request error: {}", e);
+                Err(e)
+            }
+            Ok(response) if !response.status().is_success() => {
+                let status = response.status();
+                let error_text = response.text().await.unwrap_or_else(|_| "Failed to read error response".to_string());
+                Err(Self::handle_api_error(status, &error_text))
+            }
+            Ok(response) => {
+                let content = response.text().await.map_err(OpenAIToolError::RequestError)?;
+                serde_json::from_str::<InputTokensResponse>(&content).map_err(OpenAIToolError::SerdeJsonError)
             }
         }
     }
