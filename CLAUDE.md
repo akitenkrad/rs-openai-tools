@@ -25,6 +25,7 @@ cargo test --test responses_integration
 cargo test --test embedding_integration
 cargo test --test realtime_integration
 cargo test --test models_integration
+cargo test --test models_by_version_integration
 cargo test --test files_integration
 cargo test --test moderations_integration
 cargo test --test images_integration
@@ -90,7 +91,7 @@ rs-openai-tools/
   - `response.rs`: Response types
 
 - **`responses/`**: Responses API (`/v1/responses`) - newer assistant-style API
-  - `request.rs`: `Responses` builder with multi-modal support
+  - `request.rs`: `Responses` builder with multi-modal support, `Include`, `ReasoningEffort`, `ReasoningSummary`, `Reasoning`, `Truncation`
   - `response.rs`: Response types
 
 - **`conversations/`**: Conversations API (`/v1/conversations`) - long-running conversation management
@@ -104,7 +105,7 @@ rs-openai-tools/
 - **`realtime/`**: Realtime API (WebSocket, `wss://api.openai.com/v1/realtime`)
   - `client.rs`: `RealtimeClient` builder and `RealtimeSession` handle
   - `session.rs`: `SessionConfig`, `Modality`, `ToolChoice`
-  - `audio.rs`: `AudioFormat`, `Voice`, `TranscriptionModel`
+  - `audio.rs`: `AudioFormat`, `Voice` (Alloy, Ash, Ballad, Coral, Echo, Sage, Shimmer, Verse), `TranscriptionModel` (Whisper1, Gpt4oTranscribe, Gpt4oMiniTranscribe, Gpt4oTranscribeDiarize), `InputAudioTranscription`, `InputAudioNoiseReduction`
   - `vad.rs`: `TurnDetection`, `ServerVadConfig`, `SemanticVadConfig`
   - `conversation.rs`: `ConversationItem`, `ContentPart`
   - `events/client.rs`: Client-to-server events (9 types)
@@ -128,7 +129,7 @@ rs-openai-tools/
   - `response.rs`: `ImageResponse`, `ImageData`
 
 - **`audio/`**: Audio API (`/v1/audio`)
-  - `request.rs`: `Audio` client for TTS, transcription, translation
+  - `request.rs`: `Audio` client for TTS, transcription, translation; `TtsModel` (Tts1, Tts1Hd, Gpt4oMiniTts), `Voice` (Alloy, Ash, Coral, Echo, Fable, Onyx, Nova, Sage, Shimmer), `AudioFormat`
   - `response.rs`: `TranscriptionResponse`, `Word`, `Segment`
 
 - **`batch/`**: Batch API (`/v1/batches`)
@@ -140,10 +141,12 @@ rs-openai-tools/
   - `response.rs`: `FineTuningJob`, `FineTuningEvent`, `FineTuningCheckpoint`
 
 - **`common/`**: Shared types across all APIs
+  - `client.rs`: HTTP client utilities with timeout configuration (`create_http_client`)
   - `message.rs`: `Message`, `Content`, `ToolCall`
   - `role.rs`: `Role` enum (User, Assistant, System, Tool)
-  - `models.rs`: Type-safe model enums (`ChatModel`, `EmbeddingModel`, `RealtimeModel`, `FineTuningModel`)
+  - `models.rs`: Type-safe model enums (`ChatModel`, `EmbeddingModel`, `RealtimeModel`, `FineTuningModel`) and `ParameterSupport`/`ParameterRestriction` for model parameter validation
   - `tool.rs`: `Tool` definition for function calling
+  - `function.rs`: `Function` struct (internal function metadata used by `Tool`)
   - `parameters.rs`: `ParameterProperty` for tool parameters
   - `structured_output.rs`: `Schema` for JSON schema responses
   - `errors.rs`: `OpenAIToolError` error type
@@ -188,17 +191,22 @@ Timeout is optional - if not set, requests have no timeout limit (default reqwes
 
 | Enum | API | Available Variants |
 |------|-----|-------------------|
-| `ChatModel` | Chat, Responses | `Gpt41`, `Gpt41Mini`, `Gpt41Nano`, `Gpt4o`, `Gpt4oMini`, `Gpt4Turbo`, `Gpt4`, `Gpt35Turbo`, `O1`, `O1Pro`, `O3`, `O3Mini`, `O4Mini`, `Custom(String)` |
+| `ChatModel` | Chat, Responses | **GPT-5**: `Gpt52`, `Gpt52ChatLatest`, `Gpt52Pro`, `Gpt51`, `Gpt51ChatLatest`, `Gpt51CodexMax`, `Gpt5Mini` / **GPT-4.1**: `Gpt41`, `Gpt41Mini`, `Gpt41Nano` / **GPT-4o**: `Gpt4o`, `Gpt4oMini`, `Gpt4oAudioPreview` / **GPT-4/3.5**: `Gpt4Turbo`, `Gpt4`, `Gpt35Turbo` / **Reasoning**: `O1`, `O1Pro`, `O3`, `O3Mini`, `O4Mini` / `Custom(String)` |
 | `EmbeddingModel` | Embedding | `TextEmbedding3Small`, `TextEmbedding3Large`, `TextEmbeddingAda002` |
 | `RealtimeModel` | Realtime | `Gpt4oRealtimePreview`, `Gpt4oMiniRealtimePreview`, `Custom(String)` |
-| `FineTuningModel` | Fine-tuning | `Gpt41_2025_04_14`, `Gpt41Mini_2025_04_14`, `Gpt4oMini_2024_07_18`, `Gpt4o_2024_08_06`, `Gpt4_0613`, `Gpt35Turbo_0125`, etc. |
+| `FineTuningModel` | Fine-tuning | `Gpt41_2025_04_14`, `Gpt41Mini_2025_04_14`, `Gpt41Nano_2025_04_14`, `Gpt4oMini_2024_07_18`, `Gpt4o_2024_08_06`, `Gpt4_0613`, `Gpt35Turbo_0125`, etc. |
 
 ```rust
 use openai_tools::common::models::{ChatModel, EmbeddingModel, RealtimeModel, FineTuningModel};
 
-// Chat/Responses API
-chat.model(ChatModel::Gpt4oMini);
-responses.model(ChatModel::O3Mini);
+// Chat/Responses API - GPT-5 series (latest flagship)
+chat.model(ChatModel::Gpt52);           // GPT-5.2 Thinking - coding & agentic tasks
+responses.model(ChatModel::Gpt52Pro);   // GPT-5.2 Pro - most capable (Responses API only)
+chat.model(ChatModel::Gpt51);           // GPT-5.1 - configurable reasoning
+
+// Chat/Responses API - Other models
+chat.model(ChatModel::Gpt4oMini);       // Cost-effective
+responses.model(ChatModel::O3Mini);     // Reasoning model
 
 // Embedding API
 embedding.model(EmbeddingModel::TextEmbedding3Small);
@@ -212,8 +220,8 @@ CreateFineTuningJobRequest::new(FineTuningModel::Gpt4oMini_2024_07_18, "file-id"
 // Custom models (for fine-tuned models or new models)
 chat.model(ChatModel::custom("ft:gpt-4o-mini:my-org::abc123"));
 
-// Check if model is a reasoning model
-if ChatModel::O3Mini.is_reasoning_model() {
+// Check if model is a reasoning model (GPT-5 series and o-series)
+if ChatModel::Gpt52.is_reasoning_model() {
     // Handle reasoning model restrictions
 }
 ```
@@ -456,10 +464,27 @@ OPENAI_API_KEY=sk-...
 | Structured Output | ✅ | ✅ | - | - | - | - | - | - | - | - | - | - |
 | Function Calling  | ✅ | ✅ | - | - | ✅ | - | - | - | - | - | - | - |
 | Image Input       | ✅ | ✅ | - | - | - | - | - | - | - | - | - | - |
+| Reasoning Config  | - | ✅ | - | - | - | - | - | - | - | - | - | - |
 | Audio Input/Output | - | - | - | - | ✅ | - | - | - | - | ✅ | - | - |
 | VAD (Voice Activity Detection) | - | - | - | - | ✅ | - | - | - | - | - | - | - |
 | WebSocket Streaming | - | - | - | - | ✅ | - | - | - | - | - | - | - |
 | Multipart Upload | - | - | - | - | - | - | ✅ | - | ✅ | ✅ | - | - |
+
+**Responses API Features:**
+- Multi-modal input support (text, images)
+- Configurable reasoning with `ReasoningEffort` (none, minimal, low, medium, high, xhigh) and `ReasoningSummary` (auto, concise, detailed)
+- Input truncation behavior with `Truncation` (Auto, Disabled)
+- Response data inclusion with `Include`:
+  - `WebSearchCall` - web search results
+  - `CodeInterpreterCall` - code execution outputs
+  - `FileSearchCall` - file search results
+  - `ImageUrlInInputMessages` - image URLs from input
+  - `ImageUrlInComputerCallOutput` - computer call output images
+  - `LogprobsInOutput` - token log probabilities
+  - `ReasoningEncryptedContent` - encrypted reasoning content
+- Parallel tool calls support
+- Conversation integration
+- Metadata tracking
 
 **Conversations API Features:**
 - Create conversations with optional metadata and initial items
@@ -494,11 +519,23 @@ OPENAI_API_KEY=sk-...
 - URL or base64 response format
 - Quality and style options
 
+**Realtime API Features:**
+- WebSocket-based real-time communication
+- Text and audio modalities
+- Voice options: Alloy, Ash, Ballad, Coral, Echo, Sage, Shimmer, Verse
+- Transcription models: Whisper1, Gpt4oTranscribe, Gpt4oMiniTranscribe, Gpt4oTranscribeDiarize
+- Voice Activity Detection (VAD): Server VAD and Semantic VAD
+- Audio formats: PCM16, G711Ulaw, G711Alaw
+- Input audio transcription with language hints
+- Noise reduction (near-field, far-field)
+- Function calling support
+
 **Audio API Features:**
-- Text-to-speech (TTS) with multiple voices
+- Text-to-speech (TTS) with multiple voices: Alloy, Ash, Coral, Echo, Fable, Onyx, Nova, Sage, Shimmer
+- TTS models: Tts1, Tts1Hd, Gpt4oMiniTts
 - Audio transcription (Whisper, GPT-4o)
 - Audio translation to English
-- Multiple audio formats (MP3, WAV, FLAC, etc.)
+- Multiple audio formats (MP3, WAV, FLAC, Opus, AAC, PCM)
 - Word and segment timestamps
 
 **Batch API Features:**
@@ -520,9 +557,38 @@ OPENAI_API_KEY=sk-...
 
 ## Model-Specific Parameter Restrictions
 
-### Reasoning Models (o1, o3 Series)
+### Reasoning Models (GPT-5 Series, o1, o3, o4 Series)
 
-OpenAI's reasoning models (`o1`, `o1-preview`, `o1-mini`, `o3`, `o3-mini`, etc.) have specific parameter restrictions. This library automatically handles these restrictions by ignoring unsupported parameters and logging warnings.
+OpenAI's reasoning models (GPT-5 series: `gpt-5.2`, `gpt-5.1`, `gpt-5-mini`, and o-series: `o1`, `o3`, `o3-mini`, `o4-mini`, etc.) have specific parameter restrictions. This library automatically handles these restrictions by ignoring unsupported parameters and logging warnings.
+
+#### GPT-5 Series Reasoning Configuration
+
+GPT-5 models support configurable reasoning effort via the `reasoning` parameter (Responses API only):
+
+```rust
+use openai_tools::responses::request::{Responses, Reasoning, ReasoningEffort, ReasoningSummary};
+use openai_tools::common::models::ChatModel;
+
+let mut responses = Responses::new();
+responses.model(ChatModel::Gpt52)
+    .reasoning(Reasoning {
+        effort: Some(ReasoningEffort::High),    // none, minimal, low, medium, high, xhigh
+        summary: Some(ReasoningSummary::Auto),  // auto, concise, detailed
+    })
+    .str_message("Solve this complex problem...")
+    .complete()
+    .await?;
+```
+
+**ReasoningEffort levels:**
+| Level | Description | Supported Models |
+|-------|-------------|------------------|
+| `None` | No reasoning tokens (fastest) | GPT-5.1, GPT-5.2 |
+| `Minimal` | Very few reasoning tokens | GPT-5 Mini |
+| `Low` | Light reasoning | GPT-5.1, GPT-5.2, o-series |
+| `Medium` | Balanced reasoning | All reasoning models |
+| `High` | Deep reasoning | All reasoning models |
+| `Xhigh` | Maximum reasoning | GPT-5.2 Pro, GPT-5.1 Codex Max |
 
 #### Chat Completions API Parameter Restrictions
 
