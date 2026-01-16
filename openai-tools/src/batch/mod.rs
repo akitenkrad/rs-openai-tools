@@ -99,6 +99,12 @@
 //!   }
 //! }
 //! ```
+//!
+//! # Related Modules
+//!
+//! - [`crate::files`] - Upload batch input files with `FilePurpose::Batch`
+//! - [`crate::chat`] - Individual chat completions (for comparison)
+//! - [`crate::embedding`] - Individual embeddings (for comparison)
 
 pub mod request;
 pub mod response;

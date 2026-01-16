@@ -7,8 +7,23 @@
 //!
 //! ## Features
 //!
-//! - **Chat Completions API**: Full support for OpenAI's Chat Completions with streaming, function calling, and structured output
-//! - **Responses API**: Advanced assistant-style interactions with multi-modal input support
+//! ### Core APIs
+//! - **Chat Completions API**: Chat with streaming, function calling, and structured output
+//! - **Responses API**: Assistant-style interactions with multi-modal input
+//! - **Conversations API**: Long-running conversation state management
+//! - **Embedding API**: Text to vector embeddings for semantic search
+//! - **Realtime API**: WebSocket-based real-time audio/text streaming
+//!
+//! ### Content & Media APIs
+//! - **Images API**: DALL-E image generation, editing, and variations
+//! - **Audio API**: Text-to-speech, transcription, and translation
+//! - **Moderations API**: Content policy violation detection
+//!
+//! ### Management APIs
+//! - **Models API**: List and retrieve available models
+//! - **Files API**: Upload and manage files for fine-tuning/batch
+//! - **Batch API**: Async bulk processing with 50% cost savings
+//! - **Fine-tuning API**: Custom model training
 //!
 //! ## Quick Start
 //!
@@ -177,30 +192,83 @@
 //! }
 //! ```
 //!
+//! ## Choosing the Right API
+//!
+//! | Use Case | Recommended API | Module |
+//! |----------|-----------------|--------|
+//! | Simple Q&A, chatbot | Chat Completions | [`chat`] |
+//! | Multi-turn assistant with state | Responses + Conversations | [`responses`], [`conversations`] |
+//! | Real-time voice interaction | Realtime | [`realtime`] |
+//! | Semantic search, similarity | Embeddings | [`embedding`] |
+//! | Image generation (DALL-E) | Images | [`images`] |
+//! | Speech-to-text, TTS | Audio | [`audio`] |
+//! | Content moderation | Moderations | [`moderations`] |
+//! | Bulk processing (50% off) | Batch | [`batch`] |
+//! | Custom model training | Fine-tuning | [`fine_tuning`] |
+//!
 //! ## Module Structure
 //!
-//! This crate is organized into three main modules:
+//! ### Core APIs
 //!
-//! - [`chat`] - OpenAI Chat Completions API interface
-//!   - [`chat::request`] - Request building and sending
-//!   - [`chat::response`] - Response data structures
+//! - [`chat`] - Chat Completions API (`/v1/chat/completions`)
+//!   - [`chat::request`] - `ChatCompletion` builder
+//!   - [`chat::response`] - Response types
 //!
-//! - [`responses`] - OpenAI Responses API interface (assistant-style interactions)
-//!   - [`responses::request`] - Advanced request handling with multi-modal support
-//!   - [`responses::response`] - Response structures for assistant interactions
+//! - [`responses`] - Responses API (`/v1/responses`)
+//!   - [`responses::request`] - `Responses` builder with CRUD operations
+//!   - [`responses::response`] - Response types
 //!
-//! - [`common`] - Shared utilities and data types
+//! - [`conversations`] - Conversations API (`/v1/conversations`)
+//!   - [`conversations::request`] - `Conversations` client
+//!   - [`conversations::response`] - Conversation and item types
+//!
+//! - [`embedding`] - Embeddings API (`/v1/embeddings`)
+//!   - [`embedding::request`] - `Embedding` builder
+//!   - [`embedding::response`] - Vector response types
+//!
+//! - [`realtime`] - Realtime API (WebSocket)
+//!   - [`realtime::client`] - `RealtimeClient` and `RealtimeSession`
+//!   - [`realtime::events`] - Client/server event types
+//!
+//! ### Content & Media APIs
+//!
+//! - [`images`] - Images API (`/v1/images`)
+//!   - Generate, edit, create variations with DALL-E
+//!
+//! - [`audio`] - Audio API (`/v1/audio`)
+//!   - Text-to-speech, transcription, translation
+//!
+//! - [`moderations`] - Moderations API (`/v1/moderations`)
+//!   - Content policy violation detection
+//!
+//! ### Management APIs
+//!
+//! - [`models`] - Models API (`/v1/models`)
+//!   - List and retrieve available models
+//!
+//! - [`files`] - Files API (`/v1/files`)
+//!   - Upload/download files for fine-tuning and batch
+//!
+//! - [`batch`] - Batch API (`/v1/batches`)
+//!   - Async bulk processing with 50% cost savings
+//!
+//! - [`fine_tuning`] - Fine-tuning API (`/v1/fine_tuning/jobs`)
+//!   - Custom model training and management
+//!
+//! ### Shared Utilities
+//!
+//! - [`common`] - Shared types across all APIs
+//!   - [`common::models`] - Type-safe model enums (`ChatModel`, `EmbeddingModel`, etc.)
 //!   - [`common::message`] - Message and content structures
-//!   - [`common::role`] - User roles (User, Assistant, System, etc.)
-//!   - [`common::tool`] - Function calling and tool definitions
+//!   - [`common::role`] - User roles (User, Assistant, System, Tool)
+//!   - [`common::tool`] - Function calling definitions
+//!   - [`common::auth`] - Authentication (OpenAI, Azure, custom)
+//!   - [`common::errors`] - Error types
 //!   - [`common::structured_output`] - JSON schema utilities
-//!   - [`common::errors`] - Error types and handling
-//!   - [`common::usage`] - Token usage tracking
-//!   - [`common::models`] - Type-safe model enums (ChatModel, EmbeddingModel, etc.)
 //!
 //! ## Error Handling
 //!
-//! All operations return `Result` types with detailed error information:
+//! All operations return `Result<T, OpenAIToolError>`:
 //!
 //! ```rust,no_run
 //! use openai_tools::common::errors::OpenAIToolError;
@@ -211,29 +279,110 @@
 //! # let mut chat = ChatCompletion::new();
 //! match chat.chat().await {
 //!     Ok(response) => {
-//!         if let Some(content) = &response.choices[0].message.content {
-//!             if let Some(text) = &content.text {
-//!                 println!("Success: {}", text);
-//!             }
-//!         }
+//!         println!("Success: {:?}", response.choices[0].message.content);
 //!     },
-//!     Err(OpenAIToolError::RequestError(e)) => eprintln!("Network error: {}", e),
-//!     Err(OpenAIToolError::SerdeJsonError(e)) => eprintln!("JSON error: {}", e),
-//!     Err(e) => eprintln!("Other error: {}", e),
+//!     // Network/HTTP errors (connection failed, timeout, etc.)
+//!     Err(OpenAIToolError::RequestError(e)) => {
+//!         eprintln!("Network error: {}", e);
+//!     },
+//!     // JSON parsing errors (unexpected response format)
+//!     Err(OpenAIToolError::SerdeJsonError(e)) => {
+//!         eprintln!("JSON parse error: {}", e);
+//!     },
+//!     // WebSocket errors (Realtime API)
+//!     Err(OpenAIToolError::WebSocketError(msg)) => {
+//!         eprintln!("WebSocket error: {}", msg);
+//!     },
+//!     // Realtime API specific errors
+//!     Err(OpenAIToolError::RealtimeError { code, message }) => {
+//!         eprintln!("Realtime error [{}]: {}", code, message);
+//!     },
+//!     // Other errors
+//!     Err(e) => eprintln!("Error: {}", e),
 //! }
 //! # }
 //! ```
 //!
-//! ## Environment Configuration
+//! For API errors (rate limits, invalid requests), check the HTTP response status
+//! in `RequestError`.
 //!
-//! The library automatically loads configuration from environment variables and `.env` files:
+//! ## Provider Configuration
+//!
+//! This library supports multiple providers: OpenAI, Azure OpenAI, and OpenAI-compatible APIs.
+//!
+//! ### OpenAI (Default)
 //!
 //! ```bash
-//! # Required
-//! OPENAI_API_KEY=your-api-key-here
+//! export OPENAI_API_KEY="sk-..."
+//! ```
 //!
-//! # Optional
-//! RUST_LOG=info  # For enabling debug logging
+//! ```rust,no_run
+//! use openai_tools::chat::request::ChatCompletion;
+//!
+//! let chat = ChatCompletion::new();  // Uses OPENAI_API_KEY
+//! ```
+//!
+//! ### Azure OpenAI
+//!
+//! ```bash
+//! export AZURE_OPENAI_API_KEY="..."
+//! export AZURE_OPENAI_BASE_URL="https://my-resource.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2024-08-01-preview"
+//! ```
+//!
+//! ```rust,no_run
+//! use openai_tools::chat::request::ChatCompletion;
+//!
+//! // From environment variables
+//! let chat = ChatCompletion::azure().unwrap();
+//!
+//! // Or with explicit URL
+//! let chat = ChatCompletion::with_url(
+//!     "https://my-resource.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2024-08-01-preview",
+//!     "api-key"
+//! );
+//! ```
+//!
+//! ### OpenAI-Compatible APIs (Ollama, vLLM, LocalAI)
+//!
+//! ```rust,no_run
+//! use openai_tools::chat::request::ChatCompletion;
+//!
+//! let chat = ChatCompletion::with_url("http://localhost:11434/v1", "ollama");
+//! ```
+//!
+//! ### Auto-Detect Provider
+//!
+//! ```rust,no_run
+//! use openai_tools::chat::request::ChatCompletion;
+//!
+//! // Uses Azure if AZURE_OPENAI_API_KEY is set, otherwise OpenAI
+//! let chat = ChatCompletion::detect_provider().unwrap();
+//! ```
+//!
+//! ## Type-Safe Model Selection
+//!
+//! All APIs use enum-based model selection for compile-time validation:
+//!
+//! ```rust,no_run
+//! use openai_tools::common::models::{ChatModel, EmbeddingModel, RealtimeModel, FineTuningModel};
+//! use openai_tools::chat::request::ChatCompletion;
+//! use openai_tools::embedding::request::Embedding;
+//!
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! // Chat/Responses API
+//! let mut chat = ChatCompletion::new();
+//! chat.model(ChatModel::Gpt4oMini);      // Cost-effective
+//! chat.model(ChatModel::Gpt4o);          // Most capable
+//! chat.model(ChatModel::O3Mini);         // Reasoning model
+//!
+//! // Embedding API
+//! let mut embedding = Embedding::new()?;
+//! embedding.model(EmbeddingModel::TextEmbedding3Small);
+//!
+//! // Custom/fine-tuned models
+//! chat.model(ChatModel::custom("ft:gpt-4o-mini:my-org::abc123"));
+//! # Ok(())
+//! # }
 //! ```
 //!
 

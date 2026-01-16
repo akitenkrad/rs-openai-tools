@@ -14,6 +14,25 @@ To start using the `openai-tools`, add it to your projects's dependencies in the
 cargo add openai-tools
 ```
 
+## Quick Example
+
+```rust
+use openai_tools::chat::request::ChatCompletion;
+use openai_tools::common::{message::Message, role::Role, models::ChatModel};
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let response = ChatCompletion::new()
+        .model(ChatModel::Gpt4oMini)
+        .messages(vec![Message::from_string(Role::User, "Hello!")])
+        .chat()
+        .await?;
+
+    println!("{:?}", response.choices[0].message.content);
+    Ok(())
+}
+```
+
 ## Environment Setup
 
 ### OpenAI API
@@ -94,18 +113,22 @@ use openai_tools::batch::Batches;
 use openai_tools::fine_tuning::FineTuning;
 ```
 
-# Features
+# Supported APIs
 
-| Feature | Chat | Responses | Conversations | Embedding | Realtime | Models | Files | Moderations | Images | Audio | Batch | Fine-tuning |
-|---------|:----:|:---------:|:-------------:|:---------:|:--------:|:------:|:-----:|:-----------:|:------:|:-----:|:-----:|:-----------:|
-| Basic   | ✅   | ✅        | ✅            | ✅        | ✅       | ✅     | ✅    | ✅          | ✅     | ✅    | ✅    | ✅          |
-| Structured Output | ✅ | ✅ | - | - | - | - | - | - | - | - | - | - |
-| Function Calling  | ✅ | ✅ | - | - | ✅ | - | - | - | - | - | - | - |
-| Image Input       | ✅ | ✅ | - | - | - | - | - | - | - | - | - | - |
-| Audio Input/Output | - | - | - | - | ✅ | - | - | - | - | ✅ | - | - |
-| VAD | - | - | - | - | ✅ | - | - | - | - | - | - | - |
-| WebSocket | - | - | - | - | ✅ | - | - | - | - | - | - | - |
-| Multipart Upload | - | - | - | - | - | - | ✅ | - | ✅ | ✅ | - | - |
+| API | Endpoint | Features |
+|-----|----------|----------|
+| **Chat** | `/v1/chat/completions` | Structured Output, Function Calling, Image Input |
+| **Responses** | `/v1/responses` | CRUD, Structured Output, Function Calling, Image Input, Reasoning, Tool Choice, Prompt Templates |
+| **Conversations** | `/v1/conversations` | CRUD |
+| **Embedding** | `/v1/embeddings` | Basic |
+| **Realtime** | `wss://api.openai.com/v1/realtime` | Function Calling, Audio I/O, VAD, WebSocket |
+| **Models** | `/v1/models` | CRUD |
+| **Files** | `/v1/files` | CRUD, Multipart Upload |
+| **Moderations** | `/v1/moderations` | Basic |
+| **Images** | `/v1/images` | Multipart Upload |
+| **Audio** | `/v1/audio` | Audio I/O, Multipart Upload |
+| **Batch** | `/v1/batches` | CRUD |
+| **Fine-tuning** | `/v1/fine_tuning/jobs` | CRUD |
 
 ## Chat Completions API
 
@@ -145,6 +168,43 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .await?;
 
     println!("{}", response.output_text());
+    Ok(())
+}
+```
+
+### Responses API CRUD Operations
+
+```rust
+use openai_tools::responses::request::{Responses, ToolChoice, ToolChoiceMode};
+use openai_tools::common::models::ChatModel;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let mut client = Responses::new();
+
+    // Create a response with tool_choice and prompt caching
+    client.model(ChatModel::Gpt4oMini)
+        .str_message("Hello!")
+        .tool_choice(ToolChoice::Simple(ToolChoiceMode::Auto))
+        .prompt_cache_key("my-cache-key")
+        .store(true);
+
+    let response = client.complete().await?;
+    let response_id = response.id.as_ref().unwrap();
+
+    // Retrieve a stored response
+    let retrieved = client.retrieve(response_id).await?;
+
+    // List input items with pagination
+    let items = client.list_input_items(response_id, Some(10), None, None).await?;
+
+    // Count input tokens before sending a request
+    let tokens = client.get_input_tokens("gpt-4o-mini", serde_json::json!("Hello!")).await?;
+    println!("Input tokens: {}", tokens.input_tokens);
+
+    // Delete a response when done
+    client.delete(response_id).await?;
+
     Ok(())
 }
 ```

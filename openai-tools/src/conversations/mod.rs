@@ -93,6 +93,11 @@
 //! | DELETE | `/v1/conversations/{id}` | Delete a conversation |
 //! | POST | `/v1/conversations/{id}/items` | Create items |
 //! | GET | `/v1/conversations/{id}/items` | List items |
+//!
+//! ## Related Modules
+//!
+//! - [`crate::responses`] - Use conversations with the Responses API
+//! - [`crate::chat`] - Alternative for simpler chat interactions
 
 pub mod request;
 pub mod response;

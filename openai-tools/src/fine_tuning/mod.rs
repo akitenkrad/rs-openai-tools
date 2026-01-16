@@ -116,6 +116,12 @@
 //!     Ok(())
 //! }
 //! ```
+//!
+//! # Related Modules
+//!
+//! - [`crate::files`] - Upload training files with `FilePurpose::FineTune`
+//! - [`crate::chat`] - Use fine-tuned models with `ChatModel::custom("ft:...")`
+//! - [`crate::models`] - List and delete fine-tuned models
 
 pub mod request;
 pub mod response;

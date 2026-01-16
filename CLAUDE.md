@@ -91,8 +91,8 @@ rs-openai-tools/
   - `response.rs`: Response types
 
 - **`responses/`**: Responses API (`/v1/responses`) - newer assistant-style API
-  - `request.rs`: `Responses` builder with multi-modal support, `Include`, `ReasoningEffort`, `ReasoningSummary`, `Reasoning`, `Truncation`
-  - `response.rs`: Response types
+  - `request.rs`: `Responses` builder with multi-modal support, `Include`, `ReasoningEffort`, `ReasoningSummary`, `Reasoning`, `Truncation`, `ToolChoice`, `ToolChoiceMode`, `NamedFunctionChoice`, `Prompt`
+  - `response.rs`: `Response`, `DeleteResponseResult`, `ResponseInputItem`, `InputItemsListResponse`, `CompactedResponse`, `InputTokensResponse`
 
 - **`conversations/`**: Conversations API (`/v1/conversations`) - long-running conversation management
   - `request.rs`: `Conversations` client for create, retrieve, update, delete, items
@@ -298,6 +298,48 @@ client.model(ChatModel::Gpt4o).conversation(&conv.id).str_message("How are you?"
 
 // Delete conversation when done
 conversations.delete(&conv.id).await?;
+```
+
+**Responses API CRUD Operations**: Manage responses with full CRUD support:
+```rust
+use openai_tools::responses::request::{Responses, ToolChoice, ToolChoiceMode, Prompt};
+use openai_tools::common::models::ChatModel;
+
+let mut client = Responses::new();
+
+// Create a response with tool_choice and prompt caching
+client.model(ChatModel::Gpt4oMini)
+    .str_message("Hello!")
+    .tool_choice(ToolChoice::Simple(ToolChoiceMode::Auto))
+    .prompt_cache_key("my-cache-key")
+    .prompt_cache_retention("24h")
+    .store(true);  // Store for later retrieval
+
+let response = client.complete().await?;
+let response_id = response.id.as_ref().unwrap();
+
+// Retrieve a stored response
+let retrieved = client.retrieve(response_id).await?;
+println!("Status: {:?}", retrieved.status);
+
+// List input items with pagination
+let items = client.list_input_items(response_id, Some(10), None, None).await?;
+for item in items.data {
+    println!("Input: {} ({})", item.id, item.item_type);
+}
+
+// Count input tokens before sending a request
+let tokens = client.get_input_tokens("gpt-4o-mini", serde_json::json!("Hello!")).await?;
+println!("Input tokens: {}", tokens.input_tokens);
+
+// Compact a response to reduce token usage
+let compacted = client.compact(response_id, None).await?;
+
+// Cancel an in-progress response
+// client.cancel(response_id).await?;
+
+// Delete a response when done
+client.delete(response_id).await?;
 ```
 
 **Models API**: List and retrieve available models:
@@ -554,22 +596,28 @@ Each API (Chat, Embedding, etc.) requires its own complete endpoint URL includin
 
 ## Feature Status
 
-| Feature | Chat | Responses | Conversations | Embedding | Realtime | Models | Files | Moderations | Images | Audio | Batch | Fine-tuning |
-|---------|:----:|:---------:|:-------------:|:---------:|:--------:|:------:|:-----:|:-----------:|:------:|:-----:|:-----:|:-----------:|
-| Basic   | ✅   | ✅        | ✅            | ✅        | ✅       | ✅     | ✅    | ✅          | ✅     | ✅    | ✅    | ✅          |
-| Structured Output | ✅ | ✅ | - | - | - | - | - | - | - | - | - | - |
-| Function Calling  | ✅ | ✅ | - | - | ✅ | - | - | - | - | - | - | - |
-| Image Input       | ✅ | ✅ | - | - | - | - | - | - | - | - | - | - |
-| Reasoning Config  | - | ✅ | - | - | - | - | - | - | - | - | - | - |
-| Audio Input/Output | - | - | - | - | ✅ | - | - | - | - | ✅ | - | - |
-| VAD (Voice Activity Detection) | - | - | - | - | ✅ | - | - | - | - | - | - | - |
-| WebSocket Streaming | - | - | - | - | ✅ | - | - | - | - | - | - | - |
-| Multipart Upload | - | - | - | - | - | - | ✅ | - | ✅ | ✅ | - | - |
+| API | Endpoint | Features |
+|-----|----------|----------|
+| **Chat** | `/v1/chat/completions` | Structured Output, Function Calling, Image Input |
+| **Responses** | `/v1/responses` | CRUD, Structured Output, Function Calling, Image Input, Reasoning, Tool Choice, Prompt Templates |
+| **Conversations** | `/v1/conversations` | CRUD |
+| **Embedding** | `/v1/embeddings` | Basic |
+| **Realtime** | `wss://api.openai.com/v1/realtime` | Function Calling, Audio I/O, VAD, WebSocket |
+| **Models** | `/v1/models` | CRUD |
+| **Files** | `/v1/files` | CRUD, Multipart Upload |
+| **Moderations** | `/v1/moderations` | Basic |
+| **Images** | `/v1/images` | Multipart Upload |
+| **Audio** | `/v1/audio` | Audio I/O, Multipart Upload |
+| **Batch** | `/v1/batches` | CRUD |
+| **Fine-tuning** | `/v1/fine_tuning/jobs` | CRUD |
 
 **Responses API Features:**
 - Multi-modal input support (text, images)
 - Configurable reasoning with `ReasoningEffort` (none, minimal, low, medium, high, xhigh) and `ReasoningSummary` (auto, concise, detailed)
 - Input truncation behavior with `Truncation` (Auto, Disabled)
+- Tool choice control with `ToolChoice` (auto, none, required, or specific function)
+- Prompt templates with `Prompt` (ID and variable substitution)
+- Prompt caching with `prompt_cache_key` and `prompt_cache_retention`
 - Response data inclusion with `Include`:
   - `WebSearchCall` - web search results
   - `CodeInterpreterCall` - code execution outputs
@@ -581,6 +629,13 @@ Each API (Chat, Embedding, etc.) requires its own complete endpoint URL includin
 - Parallel tool calls support
 - Conversation integration
 - Metadata tracking
+- CRUD endpoints:
+  - `retrieve(id)` - GET response by ID
+  - `delete(id)` - DELETE response
+  - `cancel(id)` - Cancel in-progress response
+  - `list_input_items(id)` - List input items with pagination
+  - `compact(id)` - Compact response for token reduction
+  - `get_input_tokens(model, input)` - Count input tokens
 
 **Conversations API Features:**
 - Create conversations with optional metadata and initial items
