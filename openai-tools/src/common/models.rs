@@ -940,4 +940,452 @@ mod tests {
         assert!(!support.logprobs);
         assert!(support.reasoning);
     }
+
+    // =============================================================================
+    // Comprehensive Reasoning Model Detection Tests
+    // =============================================================================
+
+    #[test]
+    fn test_all_o_series_models_are_reasoning() {
+        // All defined o-series models should be detected as reasoning models
+        let o_series = vec![
+            ChatModel::O1,
+            ChatModel::O1Pro,
+            ChatModel::O3,
+            ChatModel::O3Mini,
+            ChatModel::O4Mini,
+        ];
+
+        for model in o_series {
+            assert!(
+                model.is_reasoning_model(),
+                "Expected {} to be a reasoning model",
+                model.as_str()
+            );
+        }
+    }
+
+    #[test]
+    fn test_all_gpt5_models_are_reasoning() {
+        // All GPT-5 series models should be detected as reasoning models
+        let gpt5_series = vec![
+            ChatModel::Gpt5_2,
+            ChatModel::Gpt5_2ChatLatest,
+            ChatModel::Gpt5_2Pro,
+            ChatModel::Gpt5_1,
+            ChatModel::Gpt5_1ChatLatest,
+            ChatModel::Gpt5_1CodexMax,
+            ChatModel::Gpt5Mini,
+        ];
+
+        for model in gpt5_series {
+            assert!(
+                model.is_reasoning_model(),
+                "Expected {} to be a reasoning model",
+                model.as_str()
+            );
+        }
+    }
+
+    #[test]
+    fn test_all_standard_models_are_not_reasoning() {
+        // Standard models should NOT be detected as reasoning models
+        let standard_models = vec![
+            ChatModel::Gpt4oMini,
+            ChatModel::Gpt4o,
+            ChatModel::Gpt4oAudioPreview,
+            ChatModel::Gpt4Turbo,
+            ChatModel::Gpt4,
+            ChatModel::Gpt3_5Turbo,
+            ChatModel::Gpt4_1,
+            ChatModel::Gpt4_1Mini,
+            ChatModel::Gpt4_1Nano,
+        ];
+
+        for model in standard_models {
+            assert!(
+                !model.is_reasoning_model(),
+                "Expected {} to NOT be a reasoning model",
+                model.as_str()
+            );
+        }
+    }
+
+    // =============================================================================
+    // Custom Model Reasoning Detection Tests
+    // =============================================================================
+
+    #[test]
+    fn test_custom_o1_models_are_reasoning() {
+        let custom_o1_variants = vec![
+            "o1-mini",
+            "o1-preview",
+            "o1-pro-2025",
+            "o1-high",
+        ];
+
+        for model_str in custom_o1_variants {
+            let model = ChatModel::custom(model_str);
+            assert!(
+                model.is_reasoning_model(),
+                "Expected custom model '{}' to be a reasoning model",
+                model_str
+            );
+        }
+    }
+
+    #[test]
+    fn test_custom_o3_models_are_reasoning() {
+        let custom_o3_variants = vec![
+            "o3-preview",
+            "o3-high",
+            "o3-2025-01-15",
+        ];
+
+        for model_str in custom_o3_variants {
+            let model = ChatModel::custom(model_str);
+            assert!(
+                model.is_reasoning_model(),
+                "Expected custom model '{}' to be a reasoning model",
+                model_str
+            );
+        }
+    }
+
+    #[test]
+    fn test_custom_o4_models_are_reasoning() {
+        let custom_o4_variants = vec![
+            "o4-preview",
+            "o4-mini-2025",
+            "o4-high",
+        ];
+
+        for model_str in custom_o4_variants {
+            let model = ChatModel::custom(model_str);
+            assert!(
+                model.is_reasoning_model(),
+                "Expected custom model '{}' to be a reasoning model",
+                model_str
+            );
+        }
+    }
+
+    #[test]
+    fn test_custom_gpt5_models_are_reasoning() {
+        let custom_gpt5_variants = vec![
+            "gpt-5.3",
+            "gpt-5.3-preview",
+            "gpt-5-turbo",
+            "gpt-5.0",
+        ];
+
+        for model_str in custom_gpt5_variants {
+            let model = ChatModel::custom(model_str);
+            assert!(
+                model.is_reasoning_model(),
+                "Expected custom model '{}' to be a reasoning model",
+                model_str
+            );
+        }
+    }
+
+    #[test]
+    fn test_custom_standard_models_are_not_reasoning() {
+        let custom_standard_variants = vec![
+            "ft:gpt-4o-mini:org::123",
+            "gpt-4o-2025-01-15",
+            "gpt-4-turbo-preview",
+            "gpt-3.5-turbo-instruct",
+            "text-davinci-003",
+            "claude-3-opus",  // Non-OpenAI model
+        ];
+
+        for model_str in custom_standard_variants {
+            let model = ChatModel::custom(model_str);
+            assert!(
+                !model.is_reasoning_model(),
+                "Expected custom model '{}' to NOT be a reasoning model",
+                model_str
+            );
+        }
+    }
+
+    // =============================================================================
+    // Parameter Support Tests for Each Model Generation
+    // =============================================================================
+
+    #[test]
+    fn test_parameter_support_all_o_series() {
+        let o_series = vec![
+            ChatModel::O1,
+            ChatModel::O1Pro,
+            ChatModel::O3,
+            ChatModel::O3Mini,
+            ChatModel::O4Mini,
+        ];
+
+        for model in o_series {
+            let support = model.parameter_support();
+
+            assert_eq!(
+                support.temperature,
+                ParameterRestriction::FixedValue(1.0),
+                "{} should only support temperature=1.0",
+                model.as_str()
+            );
+            assert_eq!(
+                support.frequency_penalty,
+                ParameterRestriction::FixedValue(0.0),
+                "{} should only support frequency_penalty=0.0",
+                model.as_str()
+            );
+            assert_eq!(
+                support.presence_penalty,
+                ParameterRestriction::FixedValue(0.0),
+                "{} should only support presence_penalty=0.0",
+                model.as_str()
+            );
+            assert_eq!(
+                support.top_p,
+                ParameterRestriction::FixedValue(1.0),
+                "{} should only support top_p=1.0",
+                model.as_str()
+            );
+            assert!(!support.logprobs, "{} should not support logprobs", model.as_str());
+            assert!(!support.top_logprobs, "{} should not support top_logprobs", model.as_str());
+            assert!(!support.logit_bias, "{} should not support logit_bias", model.as_str());
+            assert!(!support.n_multiple, "{} should only support n=1", model.as_str());
+            assert!(support.reasoning, "{} should support reasoning parameter", model.as_str());
+        }
+    }
+
+    #[test]
+    fn test_parameter_support_all_gpt5_series() {
+        let gpt5_series = vec![
+            ChatModel::Gpt5_2,
+            ChatModel::Gpt5_2ChatLatest,
+            ChatModel::Gpt5_2Pro,
+            ChatModel::Gpt5_1,
+            ChatModel::Gpt5_1ChatLatest,
+            ChatModel::Gpt5_1CodexMax,
+            ChatModel::Gpt5Mini,
+        ];
+
+        for model in gpt5_series {
+            let support = model.parameter_support();
+
+            assert_eq!(
+                support.temperature,
+                ParameterRestriction::FixedValue(1.0),
+                "{} should only support temperature=1.0",
+                model.as_str()
+            );
+            assert!(support.reasoning, "{} should support reasoning parameter", model.as_str());
+        }
+    }
+
+    #[test]
+    fn test_parameter_support_all_standard_gpt4_series() {
+        let gpt4_series = vec![
+            ChatModel::Gpt4oMini,
+            ChatModel::Gpt4o,
+            ChatModel::Gpt4Turbo,
+            ChatModel::Gpt4,
+            ChatModel::Gpt4_1,
+            ChatModel::Gpt4_1Mini,
+            ChatModel::Gpt4_1Nano,
+        ];
+
+        for model in gpt4_series {
+            let support = model.parameter_support();
+
+            assert_eq!(
+                support.temperature,
+                ParameterRestriction::Any,
+                "{} should support any temperature",
+                model.as_str()
+            );
+            assert_eq!(
+                support.frequency_penalty,
+                ParameterRestriction::Any,
+                "{} should support any frequency_penalty",
+                model.as_str()
+            );
+            assert_eq!(
+                support.presence_penalty,
+                ParameterRestriction::Any,
+                "{} should support any presence_penalty",
+                model.as_str()
+            );
+            assert!(support.logprobs, "{} should support logprobs", model.as_str());
+            assert!(support.top_logprobs, "{} should support top_logprobs", model.as_str());
+            assert!(support.logit_bias, "{} should support logit_bias", model.as_str());
+            assert!(support.n_multiple, "{} should support n > 1", model.as_str());
+            assert!(!support.reasoning, "{} should NOT support reasoning parameter", model.as_str());
+        }
+    }
+
+    // =============================================================================
+    // ParameterRestriction Enum Tests
+    // =============================================================================
+
+    #[test]
+    fn test_parameter_restriction_equality() {
+        assert_eq!(ParameterRestriction::Any, ParameterRestriction::Any);
+        assert_eq!(ParameterRestriction::NotSupported, ParameterRestriction::NotSupported);
+        assert_eq!(ParameterRestriction::FixedValue(1.0), ParameterRestriction::FixedValue(1.0));
+
+        assert_ne!(ParameterRestriction::Any, ParameterRestriction::NotSupported);
+        assert_ne!(ParameterRestriction::FixedValue(1.0), ParameterRestriction::FixedValue(0.0));
+    }
+
+    #[test]
+    fn test_parameter_support_factory_methods() {
+        let standard = ParameterSupport::standard_model();
+        assert_eq!(standard.temperature, ParameterRestriction::Any);
+        assert!(standard.logprobs);
+        assert!(!standard.reasoning);
+
+        let reasoning = ParameterSupport::reasoning_model();
+        assert_eq!(reasoning.temperature, ParameterRestriction::FixedValue(1.0));
+        assert!(!reasoning.logprobs);
+        assert!(reasoning.reasoning);
+    }
+
+    // =============================================================================
+    // Model String Conversion Tests
+    // =============================================================================
+
+    #[test]
+    fn test_all_gpt5_model_string_roundtrip() {
+        let gpt5_models = vec![
+            ("gpt-5.2", ChatModel::Gpt5_2),
+            ("gpt-5.2-chat-latest", ChatModel::Gpt5_2ChatLatest),
+            ("gpt-5.2-pro", ChatModel::Gpt5_2Pro),
+            ("gpt-5.1", ChatModel::Gpt5_1),
+            ("gpt-5.1-chat-latest", ChatModel::Gpt5_1ChatLatest),
+            ("gpt-5.1-codex-max", ChatModel::Gpt5_1CodexMax),
+            ("gpt-5-mini", ChatModel::Gpt5Mini),
+        ];
+
+        for (model_str, expected_model) in gpt5_models {
+            // Test from string
+            let parsed = ChatModel::from(model_str);
+            assert_eq!(parsed, expected_model, "Failed to parse '{}'", model_str);
+
+            // Test to string
+            assert_eq!(expected_model.as_str(), model_str, "Failed to convert {:?} to string", expected_model);
+
+            // Test serialization roundtrip
+            let json = serde_json::to_string(&expected_model).unwrap();
+            let deserialized: ChatModel = serde_json::from_str(&json).unwrap();
+            assert_eq!(deserialized, expected_model, "Serialization roundtrip failed for {}", model_str);
+        }
+    }
+
+    #[test]
+    fn test_all_o_series_model_string_roundtrip() {
+        let o_series_models = vec![
+            ("o1", ChatModel::O1),
+            ("o1-pro", ChatModel::O1Pro),
+            ("o3", ChatModel::O3),
+            ("o3-mini", ChatModel::O3Mini),
+            ("o4-mini", ChatModel::O4Mini),
+        ];
+
+        for (model_str, expected_model) in o_series_models {
+            let parsed = ChatModel::from(model_str);
+            assert_eq!(parsed, expected_model, "Failed to parse '{}'", model_str);
+            assert_eq!(expected_model.as_str(), model_str, "Failed to convert {:?} to string", expected_model);
+        }
+    }
+
+    // =============================================================================
+    // Embedding Model Tests
+    // =============================================================================
+
+    #[test]
+    fn test_embedding_model_string_roundtrip() {
+        let embedding_models = vec![
+            ("text-embedding-3-small", EmbeddingModel::TextEmbedding3Small),
+            ("text-embedding-3-large", EmbeddingModel::TextEmbedding3Large),
+            ("text-embedding-ada-002", EmbeddingModel::TextEmbeddingAda002),
+        ];
+
+        for (model_str, expected_model) in embedding_models {
+            let parsed = EmbeddingModel::from(model_str);
+            assert_eq!(parsed, expected_model, "Failed to parse '{}'", model_str);
+            assert_eq!(expected_model.as_str(), model_str, "Failed to convert {:?} to string", expected_model);
+        }
+    }
+
+    #[test]
+    fn test_embedding_model_all_dimensions() {
+        assert_eq!(EmbeddingModel::TextEmbedding3Small.dimensions(), 1536);
+        assert_eq!(EmbeddingModel::TextEmbedding3Large.dimensions(), 3072);
+        assert_eq!(EmbeddingModel::TextEmbeddingAda002.dimensions(), 1536);
+    }
+
+    // =============================================================================
+    // Realtime Model Tests
+    // =============================================================================
+
+    #[test]
+    fn test_realtime_model_string_roundtrip() {
+        let realtime_models = vec![
+            ("gpt-4o-realtime-preview", RealtimeModel::Gpt4oRealtimePreview),
+            ("gpt-4o-mini-realtime-preview", RealtimeModel::Gpt4oMiniRealtimePreview),
+        ];
+
+        for (model_str, expected_model) in realtime_models {
+            let parsed = RealtimeModel::from(model_str);
+            assert_eq!(parsed, expected_model, "Failed to parse '{}'", model_str);
+            assert_eq!(expected_model.as_str(), model_str, "Failed to convert {:?} to string", expected_model);
+        }
+    }
+
+    #[test]
+    fn test_realtime_model_custom() {
+        let custom = RealtimeModel::custom("gpt-4o-realtime-2025");
+        assert_eq!(custom.as_str(), "gpt-4o-realtime-2025");
+        assert!(matches!(custom, RealtimeModel::Custom(_)));
+    }
+
+    // =============================================================================
+    // Fine-tuning Model Tests
+    // =============================================================================
+
+    #[test]
+    fn test_fine_tuning_model_as_str_all_variants() {
+        let fine_tuning_models = vec![
+            ("gpt-4.1-2025-04-14", FineTuningModel::Gpt41_2025_04_14),
+            ("gpt-4.1-mini-2025-04-14", FineTuningModel::Gpt41Mini_2025_04_14),
+            ("gpt-4.1-nano-2025-04-14", FineTuningModel::Gpt41Nano_2025_04_14),
+            ("gpt-4o-mini-2024-07-18", FineTuningModel::Gpt4oMini_2024_07_18),
+            ("gpt-4o-2024-08-06", FineTuningModel::Gpt4o_2024_08_06),
+            ("gpt-4-0613", FineTuningModel::Gpt4_0613),
+            ("gpt-3.5-turbo-0125", FineTuningModel::Gpt35Turbo_0125),
+            ("gpt-3.5-turbo-1106", FineTuningModel::Gpt35Turbo_1106),
+            ("gpt-3.5-turbo-0613", FineTuningModel::Gpt35Turbo_0613),
+        ];
+
+        for (model_str, expected_model) in fine_tuning_models {
+            assert_eq!(expected_model.as_str(), model_str, "Failed to convert {:?} to string", expected_model);
+        }
+    }
+
+    #[test]
+    fn test_fine_tuning_model_serialization_roundtrip() {
+        let models = vec![
+            FineTuningModel::Gpt41_2025_04_14,
+            FineTuningModel::Gpt4oMini_2024_07_18,
+            FineTuningModel::Gpt35Turbo_0125,
+        ];
+
+        for model in models {
+            let json = serde_json::to_string(&model).unwrap();
+            let deserialized: FineTuningModel = serde_json::from_str(&json).unwrap();
+            assert_eq!(deserialized, model, "Serialization roundtrip failed for {:?}", model);
+        }
+    }
 }
