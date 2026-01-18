@@ -789,4 +789,351 @@ mod tests {
         assert!(json_body.contains("\"prompt_cache_key\":\"cache-key\""));
         assert!(json_body.contains("\"prompt_cache_retention\":\"1h\""));
     }
+
+    // =============================================================================
+    // Model-Specific Parameter Validation Tests for Responses API
+    // =============================================================================
+
+    #[test]
+    fn test_o1_ignores_non_default_top_p() {
+        let mut responses = Responses::new();
+        responses.model(ChatModel::O1);
+        responses.str_message("Test");
+        responses.top_p(0.9); // Should be ignored
+
+        // Non-default top_p should be ignored for reasoning models
+        assert_eq!(responses.request_body.top_p, None);
+    }
+
+    #[test]
+    fn test_o3_mini_ignores_non_default_top_p() {
+        let mut responses = Responses::new();
+        responses.model(ChatModel::O3Mini);
+        responses.str_message("Test");
+        responses.top_p(0.5); // Should be ignored
+
+        assert_eq!(responses.request_body.top_p, None);
+    }
+
+    #[test]
+    fn test_gpt5_2_ignores_non_default_top_p() {
+        let mut responses = Responses::new();
+        responses.model(ChatModel::Gpt5_2);
+        responses.str_message("Test");
+        responses.top_p(0.8); // Should be ignored
+
+        assert_eq!(responses.request_body.top_p, None);
+    }
+
+    #[test]
+    fn test_gpt5_1_ignores_non_default_temperature() {
+        let mut responses = Responses::new();
+        responses.model(ChatModel::Gpt5_1);
+        responses.str_message("Test");
+        responses.temperature(0.5); // Should be ignored
+
+        assert_eq!(responses.request_body.temperature, None);
+    }
+
+    #[test]
+    fn test_reasoning_model_accepts_default_top_p() {
+        let mut responses = Responses::new();
+        responses.model(ChatModel::O1);
+        responses.str_message("Test");
+        responses.top_p(1.0); // Default value should be accepted
+
+        assert_eq!(responses.request_body.top_p, Some(1.0));
+    }
+
+    #[test]
+    fn test_reasoning_model_accepts_default_temperature() {
+        let mut responses = Responses::new();
+        responses.model(ChatModel::Gpt5_2);
+        responses.str_message("Test");
+        responses.temperature(1.0); // Default value should be accepted
+
+        assert_eq!(responses.request_body.temperature, Some(1.0));
+    }
+
+    #[test]
+    fn test_standard_model_accepts_all_top_p_values() {
+        let mut responses = Responses::new();
+        responses.model(ChatModel::Gpt4oMini);
+        responses.str_message("Test");
+
+        // Standard models should accept any top_p value
+        responses.top_p(0.1);
+        assert_eq!(responses.request_body.top_p, Some(0.1));
+
+        responses.top_p(0.5);
+        assert_eq!(responses.request_body.top_p, Some(0.5));
+
+        responses.top_p(1.0);
+        assert_eq!(responses.request_body.top_p, Some(1.0));
+    }
+
+    #[test]
+    fn test_standard_model_accepts_all_temperature_values() {
+        let mut responses = Responses::new();
+        responses.model(ChatModel::Gpt4o);
+        responses.str_message("Test");
+
+        // Standard models should accept any valid temperature value
+        responses.temperature(0.0);
+        assert_eq!(responses.request_body.temperature, Some(0.0));
+
+        responses.temperature(1.0);
+        assert_eq!(responses.request_body.temperature, Some(1.0));
+
+        responses.temperature(2.0);
+        assert_eq!(responses.request_body.temperature, Some(2.0));
+    }
+
+    #[test]
+    fn test_o_series_ignores_multiple_restricted_parameters() {
+        let mut responses = Responses::new();
+        responses.model(ChatModel::O4Mini);
+        responses.str_message("Test");
+
+        // Set multiple restricted parameters
+        responses.temperature(0.7);
+        responses.top_p(0.9);
+
+        // Both should be ignored
+        assert_eq!(responses.request_body.temperature, None);
+        assert_eq!(responses.request_body.top_p, None);
+    }
+
+    #[test]
+    fn test_gpt5_series_ignores_multiple_restricted_parameters() {
+        let mut responses = Responses::new();
+        responses.model(ChatModel::Gpt5_2Pro);
+        responses.str_message("Test");
+
+        // Set multiple restricted parameters
+        responses.temperature(0.5);
+        responses.top_p(0.8);
+
+        // Both should be ignored
+        assert_eq!(responses.request_body.temperature, None);
+        assert_eq!(responses.request_body.top_p, None);
+    }
+
+    #[test]
+    fn test_custom_gpt5_model_ignores_restricted_parameters() {
+        let mut responses = Responses::new();
+        responses.model(ChatModel::custom("gpt-5.3-preview"));
+        responses.str_message("Test");
+
+        responses.temperature(0.5);
+        responses.top_p(0.9);
+
+        // Custom GPT-5 models should also ignore restricted parameters
+        assert_eq!(responses.request_body.temperature, None);
+        assert_eq!(responses.request_body.top_p, None);
+    }
+
+    #[test]
+    fn test_custom_o1_model_ignores_restricted_parameters() {
+        let mut responses = Responses::new();
+        responses.model(ChatModel::custom("o1-high"));
+        responses.str_message("Test");
+
+        responses.temperature(0.5);
+        responses.top_p(0.8);
+
+        assert_eq!(responses.request_body.temperature, None);
+        assert_eq!(responses.request_body.top_p, None);
+    }
+
+    #[test]
+    fn test_custom_standard_model_accepts_all_parameters() {
+        let mut responses = Responses::new();
+        responses.model(ChatModel::custom("ft:gpt-4o-mini:org::123"));
+        responses.str_message("Test");
+
+        responses.temperature(0.7);
+        responses.top_p(0.9);
+
+        // Fine-tuned standard models should accept all parameters
+        assert_eq!(responses.request_body.temperature, Some(0.7));
+        assert_eq!(responses.request_body.top_p, Some(0.9));
+    }
+
+    // =============================================================================
+    // Reasoning Model-Specific Feature Tests
+    // =============================================================================
+
+    #[test]
+    fn test_o1_accepts_reasoning_parameter() {
+        let mut responses = Responses::new();
+        responses.model(ChatModel::O1);
+        responses.str_message("Test");
+        responses.reasoning(ReasoningEffort::High, ReasoningSummary::Detailed);
+
+        let reasoning = responses.request_body.reasoning.as_ref().unwrap();
+        assert_eq!(reasoning.effort, Some(ReasoningEffort::High));
+        assert_eq!(reasoning.summary, Some(ReasoningSummary::Detailed));
+    }
+
+    #[test]
+    fn test_gpt5_2_accepts_all_reasoning_efforts() {
+        let efforts = vec![
+            ReasoningEffort::None,
+            ReasoningEffort::Minimal,
+            ReasoningEffort::Low,
+            ReasoningEffort::Medium,
+            ReasoningEffort::High,
+            ReasoningEffort::Xhigh,
+        ];
+
+        for effort in efforts {
+            let mut responses = Responses::new();
+            responses.model(ChatModel::Gpt5_2);
+            responses.str_message("Test");
+            responses.reasoning(effort.clone(), ReasoningSummary::Auto);
+
+            let reasoning = responses.request_body.reasoning.as_ref().unwrap();
+            assert_eq!(
+                reasoning.effort,
+                Some(effort.clone()),
+                "GPT-5.2 should accept ReasoningEffort::{:?}",
+                effort
+            );
+        }
+    }
+
+    #[test]
+    fn test_gpt5_1_accepts_all_reasoning_summaries() {
+        let summaries = vec![
+            ReasoningSummary::Auto,
+            ReasoningSummary::Concise,
+            ReasoningSummary::Detailed,
+        ];
+
+        for summary in summaries {
+            let mut responses = Responses::new();
+            responses.model(ChatModel::Gpt5_1);
+            responses.str_message("Test");
+            responses.reasoning(ReasoningEffort::Medium, summary.clone());
+
+            let reasoning = responses.request_body.reasoning.as_ref().unwrap();
+            assert_eq!(
+                reasoning.summary,
+                Some(summary.clone()),
+                "GPT-5.1 should accept ReasoningSummary::{:?}",
+                summary
+            );
+        }
+    }
+
+    // =============================================================================
+    // Top Logprobs Tests (Responses API specific)
+    // =============================================================================
+
+    #[test]
+    fn test_standard_model_accepts_top_logprobs() {
+        let mut responses = Responses::new();
+        responses.model(ChatModel::Gpt4oMini);
+        responses.str_message("Test");
+        responses.top_logprobs(5);
+
+        assert_eq!(responses.request_body.top_logprobs, Some(5));
+    }
+
+    #[test]
+    fn test_o1_ignores_top_logprobs() {
+        let mut responses = Responses::new();
+        responses.model(ChatModel::O1);
+        responses.str_message("Test");
+        responses.top_logprobs(5); // Should be ignored
+
+        assert_eq!(responses.request_body.top_logprobs, None);
+    }
+
+    #[test]
+    fn test_gpt5_2_ignores_top_logprobs() {
+        let mut responses = Responses::new();
+        responses.model(ChatModel::Gpt5_2);
+        responses.str_message("Test");
+        responses.top_logprobs(3); // Should be ignored
+
+        assert_eq!(responses.request_body.top_logprobs, None);
+    }
+
+    // =============================================================================
+    // Unrestricted Parameter Tests (should work for all models)
+    // =============================================================================
+
+    #[test]
+    fn test_max_output_tokens_accepted_by_all_models() {
+        // Standard model
+        let mut responses_standard = Responses::new();
+        responses_standard.model(ChatModel::Gpt4oMini);
+        responses_standard.max_output_tokens(1000);
+        assert_eq!(responses_standard.request_body.max_output_tokens, Some(1000));
+
+        // O-series model
+        let mut responses_o = Responses::new();
+        responses_o.model(ChatModel::O1);
+        responses_o.max_output_tokens(2000);
+        assert_eq!(responses_o.request_body.max_output_tokens, Some(2000));
+
+        // GPT-5 model
+        let mut responses_gpt5 = Responses::new();
+        responses_gpt5.model(ChatModel::Gpt5_2);
+        responses_gpt5.max_output_tokens(3000);
+        assert_eq!(responses_gpt5.request_body.max_output_tokens, Some(3000));
+    }
+
+    #[test]
+    fn test_store_accepted_by_all_models() {
+        let models = vec![ChatModel::Gpt4oMini, ChatModel::O1, ChatModel::Gpt5_2];
+
+        for model in models {
+            let mut responses = Responses::new();
+            responses.model(model.clone());
+            responses.store(true);
+            assert_eq!(
+                responses.request_body.store,
+                Some(true),
+                "Model {} should accept store parameter",
+                model.as_str()
+            );
+        }
+    }
+
+    #[test]
+    fn test_metadata_accepted_by_all_models() {
+        let models = vec![ChatModel::Gpt4oMini, ChatModel::O3Mini, ChatModel::Gpt5_1];
+
+        for model in models {
+            let mut responses = Responses::new();
+            responses.model(model.clone());
+            responses.metadata("key".to_string(), serde_json::Value::String("value".to_string()));
+
+            assert!(
+                responses.request_body.metadata.is_some(),
+                "Model {} should accept metadata parameter",
+                model.as_str()
+            );
+        }
+    }
+
+    #[test]
+    fn test_include_accepted_by_all_models() {
+        let models = vec![ChatModel::Gpt4o, ChatModel::O1Pro, ChatModel::Gpt5_2Pro];
+
+        for model in models {
+            let mut responses = Responses::new();
+            responses.model(model.clone());
+            responses.include(vec![Include::WebSearchCall, Include::ReasoningEncryptedContent]);
+
+            assert!(
+                responses.request_body.include.is_some(),
+                "Model {} should accept include parameter",
+                model.as_str()
+            );
+        }
+    }
 }
