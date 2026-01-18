@@ -212,7 +212,7 @@ use std::time::Duration;
 ///
 /// This structure is used for structured output when JSON schema is specified.
 #[derive(Debug, Clone, Deserialize, Serialize)]
-struct Format {
+pub(crate) struct Format {
     #[serde(rename = "type")]
     type_name: String,
     json_schema: Schema,
@@ -369,6 +369,12 @@ pub struct ChatCompletion {
     pub(crate) request_body: Body,
     /// Optional request timeout duration
     timeout: Option<Duration>,
+}
+
+impl Default for ChatCompletion {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl ChatCompletion {

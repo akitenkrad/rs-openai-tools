@@ -40,10 +40,11 @@ use std::time::Duration;
 const AUDIO_PATH: &str = "audio";
 
 /// Text-to-speech models.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum TtsModel {
     /// Standard quality TTS model
     #[serde(rename = "tts-1")]
+    #[default]
     Tts1,
     /// High definition TTS model
     #[serde(rename = "tts-1-hd")]
@@ -51,12 +52,6 @@ pub enum TtsModel {
     /// GPT-4o Mini TTS model
     #[serde(rename = "gpt-4o-mini-tts")]
     Gpt4oMiniTts,
-}
-
-impl Default for TtsModel {
-    fn default() -> Self {
-        Self::Tts1
-    }
 }
 
 impl TtsModel {
@@ -77,10 +72,11 @@ impl std::fmt::Display for TtsModel {
 }
 
 /// Voice options for text-to-speech.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum Voice {
     /// Alloy voice
+    #[default]
     Alloy,
     /// Ash voice
     Ash,
@@ -98,12 +94,6 @@ pub enum Voice {
     Sage,
     /// Shimmer voice
     Shimmer,
-}
-
-impl Default for Voice {
-    fn default() -> Self {
-        Self::Alloy
-    }
 }
 
 impl Voice {
@@ -130,10 +120,11 @@ impl std::fmt::Display for Voice {
 }
 
 /// Audio output formats for TTS.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum AudioFormat {
     /// MP3 format (default)
+    #[default]
     Mp3,
     /// Opus format
     Opus,
@@ -145,12 +136,6 @@ pub enum AudioFormat {
     Wav,
     /// PCM format
     Pcm,
-}
-
-impl Default for AudioFormat {
-    fn default() -> Self {
-        Self::Mp3
-    }
 }
 
 impl AudioFormat {
@@ -179,20 +164,15 @@ impl std::fmt::Display for AudioFormat {
 }
 
 /// Speech-to-text models for transcription and translation.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum SttModel {
     /// Whisper v1 model
     #[serde(rename = "whisper-1")]
+    #[default]
     Whisper1,
     /// GPT-4o Transcribe model
     #[serde(rename = "gpt-4o-transcribe")]
     Gpt4oTranscribe,
-}
-
-impl Default for SttModel {
-    fn default() -> Self {
-        Self::Whisper1
-    }
 }
 
 impl SttModel {
@@ -212,10 +192,11 @@ impl std::fmt::Display for SttModel {
 }
 
 /// Transcription response formats.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum TranscriptionFormat {
     /// JSON format
+    #[default]
     Json,
     /// Plain text format
     Text,
@@ -225,12 +206,6 @@ pub enum TranscriptionFormat {
     VerboseJson,
     /// VTT subtitle format
     Vtt,
-}
-
-impl Default for TranscriptionFormat {
-    fn default() -> Self {
-        Self::Json
-    }
 }
 
 impl TranscriptionFormat {
@@ -267,7 +242,7 @@ impl TimestampGranularity {
 }
 
 /// Options for text-to-speech generation.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct TtsOptions {
     /// The model to use (defaults to tts-1)
     pub model: TtsModel,
@@ -277,17 +252,6 @@ pub struct TtsOptions {
     pub response_format: AudioFormat,
     /// Speech speed (0.25 to 4.0, defaults to 1.0)
     pub speed: Option<f32>,
-}
-
-impl Default for TtsOptions {
-    fn default() -> Self {
-        Self {
-            model: TtsModel::default(),
-            voice: Voice::default(),
-            response_format: AudioFormat::default(),
-            speed: None,
-        }
-    }
 }
 
 /// Options for audio transcription.

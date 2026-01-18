@@ -521,6 +521,7 @@ pub struct Format {
 /// };
 /// ```
 #[derive(Debug, Clone, Default, new)]
+#[allow(clippy::too_many_arguments)]
 pub struct Body {
     /// The model to use for generating responses
     ///
@@ -1239,6 +1240,12 @@ pub struct Responses {
     pub request_body: Body,
     /// Optional request timeout duration
     timeout: Option<Duration>,
+}
+
+impl Default for Responses {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl Responses {

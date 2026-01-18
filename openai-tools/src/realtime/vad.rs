@@ -122,7 +122,7 @@ impl SemanticVadConfig {
 }
 
 /// Eagerness level for semantic turn detection.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum Eagerness {
     /// Wait longer for user to finish (more conservative).
@@ -132,11 +132,6 @@ pub enum Eagerness {
     /// Respond more quickly (more aggressive).
     High,
     /// Let the model decide.
+    #[default]
     Auto,
-}
-
-impl Default for Eagerness {
-    fn default() -> Self {
-        Self::Auto
-    }
 }

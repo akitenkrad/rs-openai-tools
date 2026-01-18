@@ -44,20 +44,15 @@ const MODERATIONS_PATH: &str = "moderations";
 ///
 /// The model to use for content moderation. Newer omni-moderation models
 /// support more categorization options and multi-modal inputs.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum ModerationModel {
     /// Latest omni-moderation model with multi-modal support
     #[serde(rename = "omni-moderation-latest")]
+    #[default]
     OmniModerationLatest,
     /// Legacy text-only moderation model
     #[serde(rename = "text-moderation-latest")]
     TextModerationLatest,
-}
-
-impl Default for ModerationModel {
-    fn default() -> Self {
-        Self::OmniModerationLatest
-    }
 }
 
 impl ModerationModel {

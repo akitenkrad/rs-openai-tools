@@ -305,10 +305,13 @@ impl Serialize for Message {
         state.serialize_field("role", &self.role)?;
 
         // Ensure that either content or contents is present, but not both
-        if self.role != Role::Assistant {
-            if (self.content.is_none() && self.content_list.is_none()) || (self.content.is_some() && self.content_list.is_some()) {
-                return Err(serde::ser::Error::custom("Message must have either content or contents"));
-            }
+        if self.role != Role::Assistant
+            && ((self.content.is_none() && self.content_list.is_none())
+                || (self.content.is_some() && self.content_list.is_some()))
+        {
+            return Err(serde::ser::Error::custom(
+                "Message must have either content or contents",
+            ));
         }
 
         // Serialize optional fields
@@ -349,7 +352,7 @@ impl<'de> Deserialize<'de> for Message {
         }
 
         let data = MessageData::deserialize(deserializer)?;
-        let content = if let Some(text) = data.content { Some(Content::from_text(text)) } else { None };
+        let content = data.content.map(Content::from_text);
 
         Ok(Message {
             role: data.role,

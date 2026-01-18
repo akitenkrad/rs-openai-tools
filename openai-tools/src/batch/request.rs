@@ -74,10 +74,11 @@ impl BatchEndpoint {
 }
 
 /// The time window in which the batch must be completed.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Default)]
 pub enum CompletionWindow {
     /// 24 hours
     #[serde(rename = "24h")]
+    #[default]
     Hours24,
 }
 
@@ -87,12 +88,6 @@ impl CompletionWindow {
         match self {
             CompletionWindow::Hours24 => "24h",
         }
-    }
-}
-
-impl Default for CompletionWindow {
-    fn default() -> Self {
-        CompletionWindow::Hours24
     }
 }
 

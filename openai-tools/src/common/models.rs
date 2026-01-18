@@ -204,7 +204,7 @@ impl ParameterSupport {
 /// // Get the API model ID string
 /// assert_eq!(model.as_str(), "o3-mini");
 /// ```
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 pub enum ChatModel {
     // === GPT-5 Series (Latest Flagship) ===
     /// GPT-5.2 Thinking - Flagship model for coding and agentic tasks
@@ -270,6 +270,7 @@ pub enum ChatModel {
 
     /// GPT-4o Mini - Cost-effective GPT-4o variant
     #[serde(rename = "gpt-4o-mini")]
+    #[default]
     Gpt4oMini,
 
     /// GPT-4o Audio Preview - Audio-capable GPT-4o
@@ -444,12 +445,6 @@ impl ChatModel {
     }
 }
 
-impl Default for ChatModel {
-    fn default() -> Self {
-        Self::Gpt4oMini
-    }
-}
-
 impl std::fmt::Display for ChatModel {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.as_str())
@@ -526,7 +521,7 @@ impl From<String> for ChatModel {
 /// # Reference
 ///
 /// See [OpenAI Embeddings Guide](https://platform.openai.com/docs/guides/embeddings)
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 pub enum EmbeddingModel {
     /// text-embedding-3-small - Improved, more performant embedding model
     ///
@@ -534,6 +529,7 @@ pub enum EmbeddingModel {
     /// - Max input: 8191 tokens
     /// - Recommended for most use cases
     #[serde(rename = "text-embedding-3-small")]
+    #[default]
     TextEmbedding3Small,
 
     /// text-embedding-3-large - Most capable embedding model
@@ -573,12 +569,6 @@ impl EmbeddingModel {
             Self::TextEmbedding3Large => 3072,
             Self::TextEmbeddingAda002 => 1536,
         }
-    }
-}
-
-impl Default for EmbeddingModel {
-    fn default() -> Self {
-        Self::TextEmbedding3Small
     }
 }
 
@@ -625,10 +615,11 @@ impl From<&str> for EmbeddingModel {
 /// # Reference
 ///
 /// See [OpenAI Realtime API Documentation](https://platform.openai.com/docs/guides/realtime)
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 pub enum RealtimeModel {
     /// gpt-4o-realtime-preview - Full-featured realtime model
     #[serde(rename = "gpt-4o-realtime-preview")]
+    #[default]
     Gpt4oRealtimePreview,
 
     /// gpt-4o-mini-realtime-preview - Cost-effective realtime model
@@ -653,12 +644,6 @@ impl RealtimeModel {
     /// Creates a custom model from a string.
     pub fn custom(model_id: impl Into<String>) -> Self {
         Self::Custom(model_id.into())
-    }
-}
-
-impl Default for RealtimeModel {
-    fn default() -> Self {
-        Self::Gpt4oRealtimePreview
     }
 }
 
@@ -718,7 +703,7 @@ impl From<&str> for RealtimeModel {
 ///
 /// See [OpenAI Fine-tuning Guide](https://platform.openai.com/docs/guides/fine-tuning)
 #[allow(non_camel_case_types)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 pub enum FineTuningModel {
     // === GPT-4.1 Series ===
     /// gpt-4.1-2025-04-14 - GPT-4.1 for fine-tuning
@@ -736,6 +721,7 @@ pub enum FineTuningModel {
     // === GPT-4o Series ===
     /// gpt-4o-mini-2024-07-18 - GPT-4o Mini for fine-tuning
     #[serde(rename = "gpt-4o-mini-2024-07-18")]
+    #[default]
     Gpt4oMini_2024_07_18,
 
     /// gpt-4o-2024-08-06 - GPT-4o for fine-tuning
@@ -779,12 +765,6 @@ impl FineTuningModel {
             Self::Gpt35Turbo_1106 => "gpt-3.5-turbo-1106",
             Self::Gpt35Turbo_0613 => "gpt-3.5-turbo-0613",
         }
-    }
-}
-
-impl Default for FineTuningModel {
-    fn default() -> Self {
-        Self::Gpt4oMini_2024_07_18
     }
 }
 

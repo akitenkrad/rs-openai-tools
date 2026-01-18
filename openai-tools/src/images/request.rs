@@ -39,23 +39,18 @@ use std::time::Duration;
 const IMAGES_PATH: &str = "images";
 
 /// Image generation models.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum ImageModel {
     /// DALL-E 2 model - supports variations, smaller sizes
     #[serde(rename = "dall-e-2")]
     DallE2,
     /// DALL-E 3 model - higher quality, HD support, style options
     #[serde(rename = "dall-e-3")]
+    #[default]
     DallE3,
     /// GPT Image model - latest generation
     #[serde(rename = "gpt-image-1")]
     GptImage1,
-}
-
-impl Default for ImageModel {
-    fn default() -> Self {
-        Self::DallE3
-    }
 }
 
 impl ImageModel {
@@ -76,7 +71,7 @@ impl std::fmt::Display for ImageModel {
 }
 
 /// Image sizes for generation.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum ImageSize {
     /// 256x256 pixels (DALL-E 2 only)
     #[serde(rename = "256x256")]
@@ -86,6 +81,7 @@ pub enum ImageSize {
     Size512x512,
     /// 1024x1024 pixels (all models)
     #[serde(rename = "1024x1024")]
+    #[default]
     Size1024x1024,
     /// 1792x1024 pixels - landscape (DALL-E 3 only)
     #[serde(rename = "1792x1024")]
@@ -93,12 +89,6 @@ pub enum ImageSize {
     /// 1024x1792 pixels - portrait (DALL-E 3 only)
     #[serde(rename = "1024x1792")]
     Size1024x1792,
-}
-
-impl Default for ImageSize {
-    fn default() -> Self {
-        Self::Size1024x1024
-    }
 }
 
 impl ImageSize {
@@ -121,19 +111,14 @@ impl std::fmt::Display for ImageSize {
 }
 
 /// Image quality options (DALL-E 3 only).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum ImageQuality {
     /// Standard quality
+    #[default]
     Standard,
     /// High definition quality
     Hd,
-}
-
-impl Default for ImageQuality {
-    fn default() -> Self {
-        Self::Standard
-    }
 }
 
 impl ImageQuality {
@@ -147,19 +132,14 @@ impl ImageQuality {
 }
 
 /// Image style options (DALL-E 3 only).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum ImageStyle {
     /// Vivid - hyper-real and dramatic
+    #[default]
     Vivid,
     /// Natural - more natural, less hyper-real
     Natural,
-}
-
-impl Default for ImageStyle {
-    fn default() -> Self {
-        Self::Vivid
-    }
 }
 
 impl ImageStyle {
@@ -173,19 +153,14 @@ impl ImageStyle {
 }
 
 /// Response format for images.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum ResponseFormat {
     /// Return URLs to the generated images (valid for 60 minutes)
+    #[default]
     Url,
     /// Return base64-encoded image data
     B64Json,
-}
-
-impl Default for ResponseFormat {
-    fn default() -> Self {
-        Self::Url
-    }
 }
 
 impl ResponseFormat {

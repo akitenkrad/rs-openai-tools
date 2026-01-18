@@ -3,10 +3,11 @@
 use serde::{Deserialize, Serialize};
 
 /// Audio formats supported by the Realtime API.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum AudioFormat {
     /// PCM 16-bit linear encoding (24kHz, mono)
+    #[default]
     Pcm16,
     /// G.711 mu-law encoding
     G711Ulaw,
@@ -14,16 +15,11 @@ pub enum AudioFormat {
     G711Alaw,
 }
 
-impl Default for AudioFormat {
-    fn default() -> Self {
-        Self::Pcm16
-    }
-}
-
 /// Voice options for text-to-speech output.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum Voice {
+    #[default]
     Alloy,
     Ash,
     Ballad,
@@ -34,16 +30,11 @@ pub enum Voice {
     Verse,
 }
 
-impl Default for Voice {
-    fn default() -> Self {
-        Self::Alloy
-    }
-}
-
 /// Transcription model options for input audio.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum TranscriptionModel {
     #[serde(rename = "whisper-1")]
+    #[default]
     Whisper1,
     #[serde(rename = "gpt-4o-transcribe")]
     Gpt4oTranscribe,
@@ -51,12 +42,6 @@ pub enum TranscriptionModel {
     Gpt4oMiniTranscribe,
     #[serde(rename = "gpt-4o-transcribe-diarize")]
     Gpt4oTranscribeDiarize,
-}
-
-impl Default for TranscriptionModel {
-    fn default() -> Self {
-        Self::Whisper1
-    }
 }
 
 /// Input audio transcription configuration.

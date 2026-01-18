@@ -25,6 +25,7 @@ use super::events::server::*;
 /// // In your event loop:
 /// // handler.handle(&event);
 /// ```
+#[allow(clippy::type_complexity)]
 pub struct EventHandler {
     on_session_created: Option<Box<dyn Fn(&SessionCreatedEvent) + Send + Sync>>,
     on_session_updated: Option<Box<dyn Fn(&SessionUpdatedEvent) + Send + Sync>>,
