@@ -457,6 +457,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ## Update History
 
 <details>
+<summary>v1.0.4</summary>
+
+- Added 88 comprehensive model-specific parameter validation tests
+  - Chat API: 30 tests for parameter restrictions across model generations (GPT-5, o-series, standard models)
+  - Responses API: 32 tests for temperature, top_p, top_logprobs validation
+  - Models: 26 tests for reasoning model detection and `ParameterSupport`/`ParameterRestriction` types
+- Fixed Responses API integration test assertions (max_output_tokens minimum, JSON formatting)
+- Updated documentation to recommend `cargo nextest run` for test execution
+
+</details>
+
+<details>
 <summary>v1.0.3</summary>
 
 - **Breaking Change**: Simplified `AzureAuth` to accept complete endpoint URL
