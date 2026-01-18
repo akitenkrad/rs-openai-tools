@@ -13,35 +13,40 @@ A Rust library (`openai-tools`) providing a type-safe API wrapper for OpenAI's A
 cargo build
 cargo make build-tools  # release build
 
+# Run all tests (RECOMMENDED - use cargo-nextest for parallel execution)
+cargo nextest run
+
 # Run unit tests only (no API key required)
-cargo test --lib
+cargo nextest run --lib
+cargo test --lib        # fallback if nextest not installed
 cargo make test-unit
 
 # Run integration tests (requires OPENAI_API_KEY)
+cargo nextest run --test '*_integration'
 cargo make test-integration
 # or individual tests:
-cargo test --test chat_integration
-cargo test --test responses_integration
-cargo test --test embedding_integration
-cargo test --test realtime_integration
-cargo test --test models_integration
-cargo test --test models_by_version_integration
-cargo test --test files_integration
-cargo test --test moderations_integration
-cargo test --test images_integration
-cargo test --test audio_integration
-cargo test --test batch_integration
-cargo test --test fine_tuning_integration
-cargo test --test conversations_integration
-
-# Run all tests (unit + integration)
-cargo make test
+cargo nextest run --test chat_integration
+cargo nextest run --test responses_integration
+cargo nextest run --test embedding_integration
+cargo nextest run --test realtime_integration
+cargo nextest run --test models_integration
+cargo nextest run --test models_by_version_integration
+cargo nextest run --test files_integration
+cargo nextest run --test moderations_integration
+cargo nextest run --test images_integration
+cargo nextest run --test audio_integration
+cargo nextest run --test batch_integration
+cargo nextest run --test fine_tuning_integration
+cargo nextest run --test conversations_integration
 
 # Run a specific test
-cargo test test_chat_completion
+cargo nextest run test_chat_completion
 
 # Run tests with logging output
-RUST_LOG=info cargo test -- --nocapture
+RUST_LOG=info cargo nextest run --nocapture
+
+# Run all tests (alternative)
+cargo make test
 
 # Check without building
 cargo check
@@ -53,6 +58,8 @@ cargo make format-all  # includes clippy and taplo
 # Lint
 cargo clippy
 ```
+
+**Note:** Always prefer `cargo nextest run` over `cargo test` for faster parallel test execution.
 
 ## Test Structure
 
