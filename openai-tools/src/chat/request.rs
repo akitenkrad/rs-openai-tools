@@ -239,45 +239,45 @@ impl Format {
 /// This structure represents the parameters that will be sent in the request body
 /// to the OpenAI API. Each field corresponds to the API specification.
 #[derive(Debug, Clone, Deserialize, Serialize, Default)]
-struct Body {
-    model: ChatModel,
-    messages: Vec<Message>,
+pub(crate) struct Body {
+    pub(crate) model: ChatModel,
+    pub(crate) messages: Vec<Message>,
     /// Whether to store the request and response at OpenAI
     #[serde(skip_serializing_if = "Option::is_none")]
-    store: Option<bool>,
+    pub(crate) store: Option<bool>,
     /// Frequency penalty parameter to reduce repetition (-2.0 to 2.0)
     #[serde(skip_serializing_if = "Option::is_none")]
-    frequency_penalty: Option<f32>,
+    pub(crate) frequency_penalty: Option<f32>,
     /// Logit bias to adjust the probability of specific tokens
     #[serde(skip_serializing_if = "Option::is_none")]
-    logit_bias: Option<HashMap<String, i32>>,
+    pub(crate) logit_bias: Option<HashMap<String, i32>>,
     /// Whether to include probability information for each token
     #[serde(skip_serializing_if = "Option::is_none")]
-    logprobs: Option<bool>,
+    pub(crate) logprobs: Option<bool>,
     /// Number of top probabilities to return for each token (0-20)
     #[serde(skip_serializing_if = "Option::is_none")]
-    top_logprobs: Option<u8>,
+    pub(crate) top_logprobs: Option<u8>,
     /// Maximum number of tokens to generate
     #[serde(skip_serializing_if = "Option::is_none")]
-    max_completion_tokens: Option<u64>,
+    pub(crate) max_completion_tokens: Option<u64>,
     /// Number of responses to generate
     #[serde(skip_serializing_if = "Option::is_none")]
-    n: Option<u32>,
+    pub(crate) n: Option<u32>,
     /// Available modalities for the response (e.g., text, audio)
     #[serde(skip_serializing_if = "Option::is_none")]
-    modalities: Option<Vec<String>>,
+    pub(crate) modalities: Option<Vec<String>>,
     /// Presence penalty to encourage new topics (-2.0 to 2.0)
     #[serde(skip_serializing_if = "Option::is_none")]
-    presence_penalty: Option<f32>,
+    pub(crate) presence_penalty: Option<f32>,
     /// Temperature parameter to control response randomness (0.0 to 2.0)
     #[serde(skip_serializing_if = "Option::is_none")]
-    temperature: Option<f32>,
+    pub(crate) temperature: Option<f32>,
     /// Response format specification (e.g., JSON schema)
     #[serde(skip_serializing_if = "Option::is_none")]
-    response_format: Option<Format>,
+    pub(crate) response_format: Option<Format>,
     /// Optional tools that can be used by the model
     #[serde(skip_serializing_if = "Option::is_none")]
-    tools: Option<Vec<Tool>>,
+    pub(crate) tools: Option<Vec<Tool>>,
 }
 
 /// OpenAI Chat Completions API client
@@ -365,7 +365,8 @@ const CHAT_COMPLETIONS_PATH: &str = "chat/completions";
 pub struct ChatCompletion {
     /// Authentication provider (OpenAI or Azure)
     auth: AuthProvider,
-    request_body: Body,
+    /// The request body containing all parameters for the API call
+    pub(crate) request_body: Body,
     /// Optional request timeout duration
     timeout: Option<Duration>,
 }
@@ -1272,5 +1273,413 @@ impl ChatCompletion {
         }
 
         serde_json::from_str::<Response>(&content).map_err(OpenAIToolError::SerdeJsonError)
+    }
+
+    /// Creates a test-only ChatCompletion instance without authentication
+    ///
+    /// This is only available in test mode and bypasses API key requirements.
+    #[cfg(test)]
+    pub(crate) fn test_new_with_model(model: ChatModel) -> Self {
+        use crate::common::auth::OpenAIAuth;
+        Self {
+            auth: AuthProvider::OpenAI(OpenAIAuth::new("test-key")),
+            request_body: Body { model, ..Default::default() },
+            timeout: None,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::common::models::ChatModel;
+    use std::collections::HashMap;
+
+    // =============================================================================
+    // Standard Model Parameter Tests
+    // =============================================================================
+
+    #[test]
+    fn test_standard_model_accepts_all_parameters() {
+        let mut chat = ChatCompletion::test_new_with_model(ChatModel::Gpt4oMini);
+
+        // Standard models should accept all parameters
+        chat.temperature(0.7);
+        chat.frequency_penalty(0.5);
+        chat.presence_penalty(0.5);
+        chat.logprobs(true);
+        chat.top_logprobs(5);
+        chat.n(3);
+
+        let logit_bias: HashMap<&str, i32> = [("1234", 10)].iter().cloned().collect();
+        chat.logit_bias(logit_bias);
+
+        assert_eq!(chat.request_body.temperature, Some(0.7));
+        assert_eq!(chat.request_body.frequency_penalty, Some(0.5));
+        assert_eq!(chat.request_body.presence_penalty, Some(0.5));
+        assert_eq!(chat.request_body.logprobs, Some(true));
+        assert_eq!(chat.request_body.top_logprobs, Some(5));
+        assert_eq!(chat.request_body.n, Some(3));
+        assert!(chat.request_body.logit_bias.is_some());
+    }
+
+    #[test]
+    fn test_gpt4o_accepts_all_parameters() {
+        let mut chat = ChatCompletion::test_new_with_model(ChatModel::Gpt4o);
+
+        chat.temperature(0.3);
+        chat.frequency_penalty(-1.0);
+        chat.presence_penalty(1.5);
+
+        assert_eq!(chat.request_body.temperature, Some(0.3));
+        assert_eq!(chat.request_body.frequency_penalty, Some(-1.0));
+        assert_eq!(chat.request_body.presence_penalty, Some(1.5));
+    }
+
+    #[test]
+    fn test_gpt4_1_accepts_all_parameters() {
+        let mut chat = ChatCompletion::test_new_with_model(ChatModel::Gpt4_1);
+
+        chat.temperature(1.5);
+        chat.frequency_penalty(0.8);
+        chat.n(2);
+
+        assert_eq!(chat.request_body.temperature, Some(1.5));
+        assert_eq!(chat.request_body.frequency_penalty, Some(0.8));
+        assert_eq!(chat.request_body.n, Some(2));
+    }
+
+    // =============================================================================
+    // O-Series Reasoning Model Tests
+    // =============================================================================
+
+    #[test]
+    fn test_o1_ignores_non_default_temperature() {
+        let mut chat = ChatCompletion::test_new_with_model(ChatModel::O1);
+
+        // Non-default temperature should be ignored
+        chat.temperature(0.5);
+        assert_eq!(chat.request_body.temperature, None);
+
+        // Default temperature (1.0) should be accepted
+        chat.temperature(1.0);
+        assert_eq!(chat.request_body.temperature, Some(1.0));
+    }
+
+    #[test]
+    fn test_o3_mini_ignores_non_default_temperature() {
+        let mut chat = ChatCompletion::test_new_with_model(ChatModel::O3Mini);
+
+        chat.temperature(0.3);
+        assert_eq!(chat.request_body.temperature, None);
+    }
+
+    #[test]
+    fn test_o4_mini_ignores_non_default_temperature() {
+        let mut chat = ChatCompletion::test_new_with_model(ChatModel::O4Mini);
+
+        chat.temperature(0.7);
+        assert_eq!(chat.request_body.temperature, None);
+    }
+
+    #[test]
+    fn test_o1_ignores_frequency_penalty() {
+        let mut chat = ChatCompletion::test_new_with_model(ChatModel::O1);
+
+        // Non-zero frequency_penalty should be ignored
+        chat.frequency_penalty(0.5);
+        assert_eq!(chat.request_body.frequency_penalty, None);
+
+        // Zero value should be accepted
+        chat.frequency_penalty(0.0);
+        assert_eq!(chat.request_body.frequency_penalty, Some(0.0));
+    }
+
+    #[test]
+    fn test_o3_ignores_presence_penalty() {
+        let mut chat = ChatCompletion::test_new_with_model(ChatModel::O3);
+
+        // Non-zero presence_penalty should be ignored
+        chat.presence_penalty(0.5);
+        assert_eq!(chat.request_body.presence_penalty, None);
+
+        // Zero value should be accepted
+        chat.presence_penalty(0.0);
+        assert_eq!(chat.request_body.presence_penalty, Some(0.0));
+    }
+
+    #[test]
+    fn test_o1_ignores_logprobs() {
+        let mut chat = ChatCompletion::test_new_with_model(ChatModel::O1);
+
+        chat.logprobs(true);
+        assert_eq!(chat.request_body.logprobs, None);
+    }
+
+    #[test]
+    fn test_o3_mini_ignores_top_logprobs() {
+        let mut chat = ChatCompletion::test_new_with_model(ChatModel::O3Mini);
+
+        chat.top_logprobs(5);
+        assert_eq!(chat.request_body.top_logprobs, None);
+    }
+
+    #[test]
+    fn test_o1_ignores_logit_bias() {
+        let mut chat = ChatCompletion::test_new_with_model(ChatModel::O1);
+
+        let logit_bias: HashMap<&str, i32> = [("1234", 10)].iter().cloned().collect();
+        chat.logit_bias(logit_bias);
+        assert_eq!(chat.request_body.logit_bias, None);
+    }
+
+    #[test]
+    fn test_o1_ignores_n_greater_than_1() {
+        let mut chat = ChatCompletion::test_new_with_model(ChatModel::O1);
+
+        // n > 1 should be ignored
+        chat.n(3);
+        assert_eq!(chat.request_body.n, None);
+
+        // n = 1 should be accepted
+        chat.n(1);
+        assert_eq!(chat.request_body.n, Some(1));
+    }
+
+    // =============================================================================
+    // GPT-5 Series Reasoning Model Tests
+    // =============================================================================
+
+    #[test]
+    fn test_gpt5_2_ignores_non_default_temperature() {
+        let mut chat = ChatCompletion::test_new_with_model(ChatModel::Gpt5_2);
+
+        chat.temperature(0.5);
+        assert_eq!(chat.request_body.temperature, None);
+
+        chat.temperature(1.0);
+        assert_eq!(chat.request_body.temperature, Some(1.0));
+    }
+
+    #[test]
+    fn test_gpt5_1_ignores_non_default_temperature() {
+        let mut chat = ChatCompletion::test_new_with_model(ChatModel::Gpt5_1);
+
+        chat.temperature(0.3);
+        assert_eq!(chat.request_body.temperature, None);
+    }
+
+    #[test]
+    fn test_gpt5_mini_ignores_frequency_penalty() {
+        let mut chat = ChatCompletion::test_new_with_model(ChatModel::Gpt5Mini);
+
+        chat.frequency_penalty(0.5);
+        assert_eq!(chat.request_body.frequency_penalty, None);
+    }
+
+    #[test]
+    fn test_gpt5_2_pro_ignores_presence_penalty() {
+        let mut chat = ChatCompletion::test_new_with_model(ChatModel::Gpt5_2Pro);
+
+        chat.presence_penalty(0.8);
+        assert_eq!(chat.request_body.presence_penalty, None);
+    }
+
+    #[test]
+    fn test_gpt5_1_codex_max_ignores_logprobs() {
+        let mut chat = ChatCompletion::test_new_with_model(ChatModel::Gpt5_1CodexMax);
+
+        chat.logprobs(true);
+        assert_eq!(chat.request_body.logprobs, None);
+    }
+
+    #[test]
+    fn test_gpt5_2_chat_latest_ignores_n_greater_than_1() {
+        let mut chat = ChatCompletion::test_new_with_model(ChatModel::Gpt5_2ChatLatest);
+
+        chat.n(5);
+        assert_eq!(chat.request_body.n, None);
+    }
+
+    // =============================================================================
+    // Multiple Restricted Parameters Tests
+    // =============================================================================
+
+    #[test]
+    fn test_o1_ignores_all_restricted_parameters_at_once() {
+        let mut chat = ChatCompletion::test_new_with_model(ChatModel::O1);
+
+        // Set all restricted parameters
+        chat.temperature(0.5);
+        chat.frequency_penalty(0.5);
+        chat.presence_penalty(0.5);
+        chat.logprobs(true);
+        chat.top_logprobs(5);
+        chat.n(3);
+
+        let logit_bias: HashMap<&str, i32> = [("1234", 10)].iter().cloned().collect();
+        chat.logit_bias(logit_bias);
+
+        // All should be ignored
+        assert_eq!(chat.request_body.temperature, None);
+        assert_eq!(chat.request_body.frequency_penalty, None);
+        assert_eq!(chat.request_body.presence_penalty, None);
+        assert_eq!(chat.request_body.logprobs, None);
+        assert_eq!(chat.request_body.top_logprobs, None);
+        assert_eq!(chat.request_body.n, None);
+        assert_eq!(chat.request_body.logit_bias, None);
+    }
+
+    #[test]
+    fn test_gpt5_2_ignores_all_restricted_parameters_at_once() {
+        let mut chat = ChatCompletion::test_new_with_model(ChatModel::Gpt5_2);
+
+        chat.temperature(0.5);
+        chat.frequency_penalty(0.5);
+        chat.presence_penalty(0.5);
+        chat.logprobs(true);
+        chat.top_logprobs(5);
+        chat.n(3);
+
+        let logit_bias: HashMap<&str, i32> = [("1234", 10)].iter().cloned().collect();
+        chat.logit_bias(logit_bias);
+
+        assert_eq!(chat.request_body.temperature, None);
+        assert_eq!(chat.request_body.frequency_penalty, None);
+        assert_eq!(chat.request_body.presence_penalty, None);
+        assert_eq!(chat.request_body.logprobs, None);
+        assert_eq!(chat.request_body.top_logprobs, None);
+        assert_eq!(chat.request_body.n, None);
+        assert_eq!(chat.request_body.logit_bias, None);
+    }
+
+    // =============================================================================
+    // Custom Model Tests
+    // =============================================================================
+
+    #[test]
+    fn test_custom_gpt5_model_detected_as_reasoning() {
+        let mut chat = ChatCompletion::test_new_with_model(ChatModel::custom("gpt-5.3-preview"));
+
+        // Custom GPT-5 models should be treated as reasoning models
+        chat.temperature(0.5);
+        assert_eq!(chat.request_body.temperature, None);
+    }
+
+    #[test]
+    fn test_custom_o1_model_detected_as_reasoning() {
+        let mut chat = ChatCompletion::test_new_with_model(ChatModel::custom("o1-pro-2025-01-15"));
+
+        // Custom o1-series models should be treated as reasoning models
+        chat.temperature(0.5);
+        assert_eq!(chat.request_body.temperature, None);
+    }
+
+    #[test]
+    fn test_custom_o3_model_detected_as_reasoning() {
+        let mut chat = ChatCompletion::test_new_with_model(ChatModel::custom("o3-high"));
+
+        // Custom o3-series models should be treated as reasoning models
+        chat.temperature(0.5);
+        assert_eq!(chat.request_body.temperature, None);
+    }
+
+    #[test]
+    fn test_custom_o4_model_detected_as_reasoning() {
+        let mut chat = ChatCompletion::test_new_with_model(ChatModel::custom("o4-mini-preview"));
+
+        // Custom o4-series models should be treated as reasoning models
+        chat.temperature(0.5);
+        assert_eq!(chat.request_body.temperature, None);
+    }
+
+    #[test]
+    fn test_custom_standard_model_accepts_all_parameters() {
+        let mut chat = ChatCompletion::test_new_with_model(ChatModel::custom("ft:gpt-4o-mini:org::123"));
+
+        // Fine-tuned standard models should accept all parameters
+        chat.temperature(0.7);
+        chat.frequency_penalty(0.5);
+        chat.n(2);
+
+        assert_eq!(chat.request_body.temperature, Some(0.7));
+        assert_eq!(chat.request_body.frequency_penalty, Some(0.5));
+        assert_eq!(chat.request_body.n, Some(2));
+    }
+
+    // =============================================================================
+    // Parameter Boundary Tests
+    // =============================================================================
+
+    #[test]
+    fn test_temperature_boundary_values() {
+        let mut chat = ChatCompletion::test_new_with_model(ChatModel::Gpt4oMini);
+
+        // Minimum value
+        chat.temperature(0.0);
+        assert_eq!(chat.request_body.temperature, Some(0.0));
+
+        // Maximum value
+        chat.temperature(2.0);
+        assert_eq!(chat.request_body.temperature, Some(2.0));
+    }
+
+    #[test]
+    fn test_frequency_penalty_boundary_values() {
+        let mut chat = ChatCompletion::test_new_with_model(ChatModel::Gpt4oMini);
+
+        // Minimum value
+        chat.frequency_penalty(-2.0);
+        assert_eq!(chat.request_body.frequency_penalty, Some(-2.0));
+
+        // Maximum value
+        chat.frequency_penalty(2.0);
+        assert_eq!(chat.request_body.frequency_penalty, Some(2.0));
+    }
+
+    #[test]
+    fn test_presence_penalty_boundary_values() {
+        let mut chat = ChatCompletion::test_new_with_model(ChatModel::Gpt4oMini);
+
+        // Minimum value
+        chat.presence_penalty(-2.0);
+        assert_eq!(chat.request_body.presence_penalty, Some(-2.0));
+
+        // Maximum value
+        chat.presence_penalty(2.0);
+        assert_eq!(chat.request_body.presence_penalty, Some(2.0));
+    }
+
+    // =============================================================================
+    // Model-Specific Unrestricted Parameters Tests
+    // =============================================================================
+
+    #[test]
+    fn test_max_completion_tokens_accepted_by_all_models() {
+        // Standard model
+        let mut chat_standard = ChatCompletion::test_new_with_model(ChatModel::Gpt4oMini);
+        chat_standard.max_completion_tokens(1000);
+        assert_eq!(chat_standard.request_body.max_completion_tokens, Some(1000));
+
+        // Reasoning model
+        let mut chat_reasoning = ChatCompletion::test_new_with_model(ChatModel::O1);
+        chat_reasoning.max_completion_tokens(2000);
+        assert_eq!(chat_reasoning.request_body.max_completion_tokens, Some(2000));
+
+        // GPT-5 model
+        let mut chat_gpt5 = ChatCompletion::test_new_with_model(ChatModel::Gpt5_2);
+        chat_gpt5.max_completion_tokens(3000);
+        assert_eq!(chat_gpt5.request_body.max_completion_tokens, Some(3000));
+    }
+
+    #[test]
+    fn test_store_accepted_by_all_models() {
+        let mut chat_standard = ChatCompletion::test_new_with_model(ChatModel::Gpt4oMini);
+        chat_standard.store(true);
+        assert_eq!(chat_standard.request_body.store, Some(true));
+
+        let mut chat_reasoning = ChatCompletion::test_new_with_model(ChatModel::O1);
+        chat_reasoning.store(false);
+        assert_eq!(chat_reasoning.request_body.store, Some(false));
     }
 }
