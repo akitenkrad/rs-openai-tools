@@ -637,7 +637,7 @@ async fn test_create_and_retrieve_response() {
     let mut responses = Responses::new();
     responses.model(ChatModel::Gpt4oMini);
     responses.str_message("Say 'test' and nothing else.");
-    responses.max_output_tokens(10);
+    responses.max_output_tokens(20);
     responses.store(true); // Store the response so we can retrieve it
 
     let create_result = responses.complete().await;
@@ -671,7 +671,7 @@ async fn test_delete_response() {
     let mut responses = Responses::new();
     responses.model(ChatModel::Gpt4oMini);
     responses.str_message("Say 'delete test'.");
-    responses.max_output_tokens(10);
+    responses.max_output_tokens(20);
     responses.store(true);
 
     let create_result = responses.complete().await;
@@ -744,7 +744,7 @@ fn test_new_parameters_serialization() {
     let json_body = serde_json::to_string_pretty(&responses.request_body).unwrap();
     tracing::info!("Request body with new parameters: {}", json_body);
 
-    assert!(json_body.contains("\"tool_choice\":\"required\""));
-    assert!(json_body.contains("\"prompt_cache_key\":\"my-cache-key-123\""));
-    assert!(json_body.contains("\"prompt_cache_retention\":\"24h\""));
+    assert!(json_body.contains("\"tool_choice\": \"required\""));
+    assert!(json_body.contains("\"prompt_cache_key\": \"my-cache-key-123\""));
+    assert!(json_body.contains("\"prompt_cache_retention\": \"24h\""));
 }
