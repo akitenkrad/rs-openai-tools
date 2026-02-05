@@ -354,10 +354,7 @@ impl Images {
         let client = create_http_client(self.timeout)?;
         let mut headers = request::header::HeaderMap::new();
         self.auth.apply_headers(&mut headers)?;
-        headers.insert(
-            "User-Agent",
-            request::header::HeaderValue::from_static("openai-tools-rust"),
-        );
+        headers.insert("User-Agent", request::header::HeaderValue::from_static("openai-tools-rust"));
         Ok((client, headers))
     }
 
@@ -401,10 +398,7 @@ impl Images {
     /// ```
     pub async fn generate(&self, prompt: &str, options: GenerateOptions) -> Result<ImageResponse> {
         let (client, mut headers) = self.create_client()?;
-        headers.insert(
-            "Content-Type",
-            request::header::HeaderValue::from_static("application/json"),
-        );
+        headers.insert("Content-Type", request::header::HeaderValue::from_static("application/json"));
 
         let request_body = GenerateRequest {
             prompt: prompt.to_string(),
@@ -417,18 +411,11 @@ impl Images {
             user: options.user,
         };
 
-        let body =
-            serde_json::to_string(&request_body).map_err(OpenAIToolError::SerdeJsonError)?;
+        let body = serde_json::to_string(&request_body).map_err(OpenAIToolError::SerdeJsonError)?;
 
         let url = format!("{}/generations", self.auth.endpoint(IMAGES_PATH));
 
-        let response = client
-            .post(&url)
-            .headers(headers)
-            .body(body)
-            .send()
-            .await
-            .map_err(OpenAIToolError::RequestError)?;
+        let response = client.post(&url).headers(headers).body(body).send().await.map_err(OpenAIToolError::RequestError)?;
 
         let status = response.status();
         let content = response.text().await.map_err(OpenAIToolError::RequestError)?;
@@ -483,45 +470,26 @@ impl Images {
     ///     Ok(())
     /// }
     /// ```
-    pub async fn edit(
-        &self,
-        image_path: &str,
-        prompt: &str,
-        options: EditOptions,
-    ) -> Result<ImageResponse> {
+    pub async fn edit(&self, image_path: &str, prompt: &str, options: EditOptions) -> Result<ImageResponse> {
         let (client, headers) = self.create_client()?;
 
         // Read the image file
-        let image_content = tokio::fs::read(image_path)
-            .await
-            .map_err(|e| OpenAIToolError::Error(format!("Failed to read image: {}", e)))?;
+        let image_content = tokio::fs::read(image_path).await.map_err(|e| OpenAIToolError::Error(format!("Failed to read image: {}", e)))?;
 
-        let image_filename = Path::new(image_path)
-            .file_name()
-            .and_then(|n| n.to_str())
-            .unwrap_or("image.png")
-            .to_string();
+        let image_filename = Path::new(image_path).file_name().and_then(|n| n.to_str()).unwrap_or("image.png").to_string();
 
         let image_part = Part::bytes(image_content)
             .file_name(image_filename)
             .mime_str("image/png")
             .map_err(|e| OpenAIToolError::Error(format!("Failed to set MIME type: {}", e)))?;
 
-        let mut form = Form::new()
-            .part("image", image_part)
-            .text("prompt", prompt.to_string());
+        let mut form = Form::new().part("image", image_part).text("prompt", prompt.to_string());
 
         // Add mask if provided
         if let Some(mask_path) = options.mask {
-            let mask_content = tokio::fs::read(&mask_path)
-                .await
-                .map_err(|e| OpenAIToolError::Error(format!("Failed to read mask: {}", e)))?;
+            let mask_content = tokio::fs::read(&mask_path).await.map_err(|e| OpenAIToolError::Error(format!("Failed to read mask: {}", e)))?;
 
-            let mask_filename = Path::new(&mask_path)
-                .file_name()
-                .and_then(|n| n.to_str())
-                .unwrap_or("mask.png")
-                .to_string();
+            let mask_filename = Path::new(&mask_path).file_name().and_then(|n| n.to_str()).unwrap_or("mask.png").to_string();
 
             let mask_part = Part::bytes(mask_content)
                 .file_name(mask_filename)
@@ -550,13 +518,7 @@ impl Images {
 
         let url = format!("{}/edits", self.auth.endpoint(IMAGES_PATH));
 
-        let response = client
-            .post(&url)
-            .headers(headers)
-            .multipart(form)
-            .send()
-            .await
-            .map_err(OpenAIToolError::RequestError)?;
+        let response = client.post(&url).headers(headers).multipart(form).send().await.map_err(OpenAIToolError::RequestError)?;
 
         let status = response.status();
         let content = response.text().await.map_err(OpenAIToolError::RequestError)?;
@@ -613,23 +575,13 @@ impl Images {
     ///     Ok(())
     /// }
     /// ```
-    pub async fn variation(
-        &self,
-        image_path: &str,
-        options: VariationOptions,
-    ) -> Result<ImageResponse> {
+    pub async fn variation(&self, image_path: &str, options: VariationOptions) -> Result<ImageResponse> {
         let (client, headers) = self.create_client()?;
 
         // Read the image file
-        let image_content = tokio::fs::read(image_path)
-            .await
-            .map_err(|e| OpenAIToolError::Error(format!("Failed to read image: {}", e)))?;
+        let image_content = tokio::fs::read(image_path).await.map_err(|e| OpenAIToolError::Error(format!("Failed to read image: {}", e)))?;
 
-        let image_filename = Path::new(image_path)
-            .file_name()
-            .and_then(|n| n.to_str())
-            .unwrap_or("image.png")
-            .to_string();
+        let image_filename = Path::new(image_path).file_name().and_then(|n| n.to_str()).unwrap_or("image.png").to_string();
 
         let image_part = Part::bytes(image_content)
             .file_name(image_filename)
@@ -657,13 +609,7 @@ impl Images {
 
         let url = format!("{}/variations", self.auth.endpoint(IMAGES_PATH));
 
-        let response = client
-            .post(&url)
-            .headers(headers)
-            .multipart(form)
-            .send()
-            .await
-            .map_err(OpenAIToolError::RequestError)?;
+        let response = client.post(&url).headers(headers).multipart(form).send().await.map_err(OpenAIToolError::RequestError)?;
 
         let status = response.status();
         let content = response.text().await.map_err(OpenAIToolError::RequestError)?;

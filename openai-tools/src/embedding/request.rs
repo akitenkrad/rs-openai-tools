@@ -507,9 +507,7 @@ impl Embedding {
 
         if cfg!(test) {
             // Replace API key with a placeholder in debug mode
-            let body_for_debug = serde_json::to_string_pretty(&self.body)
-                .unwrap()
-                .replace(self.auth.api_key(), "*************");
+            let body_for_debug = serde_json::to_string_pretty(&self.body).unwrap().replace(self.auth.api_key(), "*************");
             tracing::info!("Request body: {}", body_for_debug);
         }
 

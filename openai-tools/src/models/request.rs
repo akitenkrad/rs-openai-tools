@@ -152,10 +152,7 @@ impl Models {
         let client = create_http_client(self.timeout)?;
         let mut headers = request::header::HeaderMap::new();
         self.auth.apply_headers(&mut headers)?;
-        headers.insert(
-            "User-Agent",
-            request::header::HeaderValue::from_static("openai-tools-rust"),
-        );
+        headers.insert("User-Agent", request::header::HeaderValue::from_static("openai-tools-rust"));
         Ok((client, headers))
     }
 
@@ -189,12 +186,7 @@ impl Models {
         let (client, headers) = self.create_client()?;
 
         let url = self.auth.endpoint(MODELS_PATH);
-        let response = client
-            .get(&url)
-            .headers(headers)
-            .send()
-            .await
-            .map_err(OpenAIToolError::RequestError)?;
+        let response = client.get(&url).headers(headers).send().await.map_err(OpenAIToolError::RequestError)?;
 
         let status = response.status();
         let content = response.text().await.map_err(OpenAIToolError::RequestError)?;
@@ -247,12 +239,7 @@ impl Models {
         let (client, headers) = self.create_client()?;
         let url = format!("{}/{}", self.auth.endpoint(MODELS_PATH), model_id);
 
-        let response = client
-            .get(&url)
-            .headers(headers)
-            .send()
-            .await
-            .map_err(OpenAIToolError::RequestError)?;
+        let response = client.get(&url).headers(headers).send().await.map_err(OpenAIToolError::RequestError)?;
 
         let status = response.status();
         let content = response.text().await.map_err(OpenAIToolError::RequestError)?;
@@ -306,12 +293,7 @@ impl Models {
         let (client, headers) = self.create_client()?;
         let url = format!("{}/{}", self.auth.endpoint(MODELS_PATH), model_id);
 
-        let response = client
-            .delete(&url)
-            .headers(headers)
-            .send()
-            .await
-            .map_err(OpenAIToolError::RequestError)?;
+        let response = client.delete(&url).headers(headers).send().await.map_err(OpenAIToolError::RequestError)?;
 
         let status = response.status();
         let content = response.text().await.map_err(OpenAIToolError::RequestError)?;

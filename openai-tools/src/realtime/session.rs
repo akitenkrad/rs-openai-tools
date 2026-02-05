@@ -44,20 +44,13 @@ pub struct RealtimeTool {
 
 impl RealtimeTool {
     /// Create a new function tool.
-    pub fn function<T, U, V>(
-        name: T,
-        description: U,
-        parameters: Vec<(V, ParameterProperty)>,
-    ) -> Self
+    pub fn function<T, U, V>(name: T, description: U, parameters: Vec<(V, ParameterProperty)>) -> Self
     where
         T: Into<String>,
         U: Into<String>,
         V: AsRef<str>,
     {
-        let params: Vec<(Name, ParameterProperty)> = parameters
-            .into_iter()
-            .map(|(k, v)| (k.as_ref().to_string(), v))
-            .collect();
+        let params: Vec<(Name, ParameterProperty)> = parameters.into_iter().map(|(k, v)| (k.as_ref().to_string(), v)).collect();
 
         Self {
             type_name: "function".to_string(),
@@ -72,20 +65,10 @@ impl From<Tool> for RealtimeTool {
     /// Convert a Chat API tool to a Realtime API tool.
     fn from(tool: Tool) -> Self {
         if let Some(func) = tool.function {
-            Self {
-                type_name: "function".to_string(),
-                name: func.name,
-                description: func.description,
-                parameters: func.parameters,
-            }
+            Self { type_name: "function".to_string(), name: func.name, description: func.description, parameters: func.parameters }
         } else {
             // Fallback for tools without function definition
-            Self {
-                type_name: tool.type_name,
-                name: tool.name.unwrap_or_default(),
-                description: None,
-                parameters: tool.parameters,
-            }
+            Self { type_name: tool.type_name, name: tool.name.unwrap_or_default(), description: None, parameters: tool.parameters }
         }
     }
 }
@@ -345,10 +328,7 @@ impl ToolChoice {
 
     /// Force a specific function by name.
     pub fn function(name: impl Into<String>) -> Self {
-        Self::Function(NamedToolChoice {
-            type_name: "function".to_string(),
-            function: NamedFunction { name: name.into() },
-        })
+        Self::Function(NamedToolChoice { type_name: "function".to_string(), function: NamedFunction { name: name.into() } })
     }
 }
 

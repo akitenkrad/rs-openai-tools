@@ -231,10 +231,7 @@ impl RealtimeClient {
                 );
             }
             AuthProvider::Azure(auth) => {
-                headers.insert(
-                    "api-key",
-                    auth.api_key().parse().map_err(|e| OpenAIToolError::Error(format!("Invalid header value: {}", e)))?,
-                );
+                headers.insert("api-key", auth.api_key().parse().map_err(|e| OpenAIToolError::Error(format!("Invalid header value: {}", e)))?);
             }
         }
         headers.insert("OpenAI-Beta", "realtime=v1".parse().map_err(|e| OpenAIToolError::Error(format!("Invalid header value: {}", e)))?);

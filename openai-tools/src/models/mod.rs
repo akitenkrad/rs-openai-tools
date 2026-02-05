@@ -144,8 +144,7 @@ mod tests {
             ]
         }"#;
 
-        let response: ModelsListResponse =
-            serde_json::from_str(json).expect("Should deserialize ModelsListResponse");
+        let response: ModelsListResponse = serde_json::from_str(json).expect("Should deserialize ModelsListResponse");
         assert_eq!(response.object, "list");
         assert_eq!(response.data.len(), 2);
         assert_eq!(response.data[0].id, "gpt-4o-mini");
@@ -160,8 +159,7 @@ mod tests {
             "deleted": true
         }"#;
 
-        let response: DeleteResponse =
-            serde_json::from_str(json).expect("Should deserialize DeleteResponse");
+        let response: DeleteResponse = serde_json::from_str(json).expect("Should deserialize DeleteResponse");
         assert_eq!(response.id, "ft:gpt-4o-mini:my-org:my-suffix:abc123");
         assert_eq!(response.object, "model");
         assert!(response.deleted);
@@ -169,12 +167,7 @@ mod tests {
 
     #[test]
     fn test_model_serialization() {
-        let model = Model {
-            id: "gpt-4o-mini".to_string(),
-            object: "model".to_string(),
-            created: 1686935002,
-            owned_by: "openai".to_string(),
-        };
+        let model = Model { id: "gpt-4o-mini".to_string(), object: "model".to_string(), created: 1686935002, owned_by: "openai".to_string() };
 
         let json = serde_json::to_string(&model).expect("Should serialize Model");
         assert!(json.contains("\"id\":\"gpt-4o-mini\""));

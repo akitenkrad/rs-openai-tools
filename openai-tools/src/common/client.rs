@@ -40,9 +40,7 @@ pub fn create_http_client(timeout: Option<Duration>) -> Result<request::Client> 
         builder = builder.timeout(duration);
     }
 
-    builder
-        .build()
-        .map_err(|e| OpenAIToolError::Error(format!("Failed to create HTTP client: {}", e)))
+    builder.build().map_err(|e| OpenAIToolError::Error(format!("Failed to create HTTP client: {}", e)))
 }
 
 #[cfg(test)]

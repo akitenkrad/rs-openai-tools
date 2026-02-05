@@ -31,41 +31,22 @@ pub struct MessageItem {
 impl MessageItem {
     /// Create a new user text message.
     pub fn user_text(text: impl Into<String>) -> Self {
-        Self {
-            id: None,
-            role: MessageRole::User,
-            content: vec![ContentPart::InputText { text: text.into() }],
-        }
+        Self { id: None, role: MessageRole::User, content: vec![ContentPart::InputText { text: text.into() }] }
     }
 
     /// Create a new assistant text message.
     pub fn assistant_text(text: impl Into<String>) -> Self {
-        Self {
-            id: None,
-            role: MessageRole::Assistant,
-            content: vec![ContentPart::Text { text: text.into() }],
-        }
+        Self { id: None, role: MessageRole::Assistant, content: vec![ContentPart::Text { text: text.into() }] }
     }
 
     /// Create a new system message.
     pub fn system(text: impl Into<String>) -> Self {
-        Self {
-            id: None,
-            role: MessageRole::System,
-            content: vec![ContentPart::InputText { text: text.into() }],
-        }
+        Self { id: None, role: MessageRole::System, content: vec![ContentPart::InputText { text: text.into() }] }
     }
 
     /// Create a new user audio message.
     pub fn user_audio(audio_base64: impl Into<String>) -> Self {
-        Self {
-            id: None,
-            role: MessageRole::User,
-            content: vec![ContentPart::InputAudio {
-                audio: audio_base64.into(),
-                transcript: None,
-            }],
-        }
+        Self { id: None, role: MessageRole::User, content: vec![ContentPart::InputAudio { audio: audio_base64.into(), transcript: None }] }
     }
 }
 
@@ -86,9 +67,7 @@ pub enum MessageRole {
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ContentPart {
     /// Text input from user.
-    InputText {
-        text: String,
-    },
+    InputText { text: String },
     /// Audio input from user (base64 encoded).
     InputAudio {
         audio: String,
@@ -96,9 +75,7 @@ pub enum ContentPart {
         transcript: Option<String>,
     },
     /// Text output from assistant.
-    Text {
-        text: String,
-    },
+    Text { text: String },
     /// Audio output from assistant.
     Audio {
         #[serde(skip_serializing_if = "Option::is_none")]
@@ -107,9 +84,7 @@ pub enum ContentPart {
         transcript: Option<String>,
     },
     /// Reference to another item.
-    ItemReference {
-        id: String,
-    },
+    ItemReference { id: String },
 }
 
 impl ContentPart {
@@ -120,10 +95,7 @@ impl ContentPart {
 
     /// Create an audio input content part.
     pub fn input_audio(audio_base64: impl Into<String>) -> Self {
-        Self::InputAudio {
-            audio: audio_base64.into(),
-            transcript: None,
-        }
+        Self::InputAudio { audio: audio_base64.into(), transcript: None }
     }
 
     /// Create a text output content part.
@@ -166,11 +138,7 @@ pub struct FunctionCallOutputItem {
 impl FunctionCallOutputItem {
     /// Create a new function call output.
     pub fn new(call_id: impl Into<String>, output: impl Into<String>) -> Self {
-        Self {
-            id: None,
-            call_id: call_id.into(),
-            output: output.into(),
-        }
+        Self { id: None, call_id: call_id.into(), output: output.into() }
     }
 }
 

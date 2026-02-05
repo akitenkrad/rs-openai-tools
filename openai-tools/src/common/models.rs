@@ -928,20 +928,10 @@ mod tests {
     #[test]
     fn test_all_o_series_models_are_reasoning() {
         // All defined o-series models should be detected as reasoning models
-        let o_series = vec![
-            ChatModel::O1,
-            ChatModel::O1Pro,
-            ChatModel::O3,
-            ChatModel::O3Mini,
-            ChatModel::O4Mini,
-        ];
+        let o_series = vec![ChatModel::O1, ChatModel::O1Pro, ChatModel::O3, ChatModel::O3Mini, ChatModel::O4Mini];
 
         for model in o_series {
-            assert!(
-                model.is_reasoning_model(),
-                "Expected {} to be a reasoning model",
-                model.as_str()
-            );
+            assert!(model.is_reasoning_model(), "Expected {} to be a reasoning model", model.as_str());
         }
     }
 
@@ -959,11 +949,7 @@ mod tests {
         ];
 
         for model in gpt5_series {
-            assert!(
-                model.is_reasoning_model(),
-                "Expected {} to be a reasoning model",
-                model.as_str()
-            );
+            assert!(model.is_reasoning_model(), "Expected {} to be a reasoning model", model.as_str());
         }
     }
 
@@ -983,11 +969,7 @@ mod tests {
         ];
 
         for model in standard_models {
-            assert!(
-                !model.is_reasoning_model(),
-                "Expected {} to NOT be a reasoning model",
-                model.as_str()
-            );
+            assert!(!model.is_reasoning_model(), "Expected {} to NOT be a reasoning model", model.as_str());
         }
     }
 
@@ -997,75 +979,41 @@ mod tests {
 
     #[test]
     fn test_custom_o1_models_are_reasoning() {
-        let custom_o1_variants = vec![
-            "o1-mini",
-            "o1-preview",
-            "o1-pro-2025",
-            "o1-high",
-        ];
+        let custom_o1_variants = vec!["o1-mini", "o1-preview", "o1-pro-2025", "o1-high"];
 
         for model_str in custom_o1_variants {
             let model = ChatModel::custom(model_str);
-            assert!(
-                model.is_reasoning_model(),
-                "Expected custom model '{}' to be a reasoning model",
-                model_str
-            );
+            assert!(model.is_reasoning_model(), "Expected custom model '{}' to be a reasoning model", model_str);
         }
     }
 
     #[test]
     fn test_custom_o3_models_are_reasoning() {
-        let custom_o3_variants = vec![
-            "o3-preview",
-            "o3-high",
-            "o3-2025-01-15",
-        ];
+        let custom_o3_variants = vec!["o3-preview", "o3-high", "o3-2025-01-15"];
 
         for model_str in custom_o3_variants {
             let model = ChatModel::custom(model_str);
-            assert!(
-                model.is_reasoning_model(),
-                "Expected custom model '{}' to be a reasoning model",
-                model_str
-            );
+            assert!(model.is_reasoning_model(), "Expected custom model '{}' to be a reasoning model", model_str);
         }
     }
 
     #[test]
     fn test_custom_o4_models_are_reasoning() {
-        let custom_o4_variants = vec![
-            "o4-preview",
-            "o4-mini-2025",
-            "o4-high",
-        ];
+        let custom_o4_variants = vec!["o4-preview", "o4-mini-2025", "o4-high"];
 
         for model_str in custom_o4_variants {
             let model = ChatModel::custom(model_str);
-            assert!(
-                model.is_reasoning_model(),
-                "Expected custom model '{}' to be a reasoning model",
-                model_str
-            );
+            assert!(model.is_reasoning_model(), "Expected custom model '{}' to be a reasoning model", model_str);
         }
     }
 
     #[test]
     fn test_custom_gpt5_models_are_reasoning() {
-        let custom_gpt5_variants = vec![
-            "gpt-5.3",
-            "gpt-5.3-preview",
-            "gpt-5-turbo",
-            "gpt-5.0",
-        ];
+        let custom_gpt5_variants = vec!["gpt-5.3", "gpt-5.3-preview", "gpt-5-turbo", "gpt-5.0"];
 
         for model_str in custom_gpt5_variants {
             let model = ChatModel::custom(model_str);
-            assert!(
-                model.is_reasoning_model(),
-                "Expected custom model '{}' to be a reasoning model",
-                model_str
-            );
+            assert!(model.is_reasoning_model(), "Expected custom model '{}' to be a reasoning model", model_str);
         }
     }
 
@@ -1077,16 +1025,12 @@ mod tests {
             "gpt-4-turbo-preview",
             "gpt-3.5-turbo-instruct",
             "text-davinci-003",
-            "claude-3-opus",  // Non-OpenAI model
+            "claude-3-opus", // Non-OpenAI model
         ];
 
         for model_str in custom_standard_variants {
             let model = ChatModel::custom(model_str);
-            assert!(
-                !model.is_reasoning_model(),
-                "Expected custom model '{}' to NOT be a reasoning model",
-                model_str
-            );
+            assert!(!model.is_reasoning_model(), "Expected custom model '{}' to NOT be a reasoning model", model_str);
         }
     }
 
@@ -1096,23 +1040,12 @@ mod tests {
 
     #[test]
     fn test_parameter_support_all_o_series() {
-        let o_series = vec![
-            ChatModel::O1,
-            ChatModel::O1Pro,
-            ChatModel::O3,
-            ChatModel::O3Mini,
-            ChatModel::O4Mini,
-        ];
+        let o_series = vec![ChatModel::O1, ChatModel::O1Pro, ChatModel::O3, ChatModel::O3Mini, ChatModel::O4Mini];
 
         for model in o_series {
             let support = model.parameter_support();
 
-            assert_eq!(
-                support.temperature,
-                ParameterRestriction::FixedValue(1.0),
-                "{} should only support temperature=1.0",
-                model.as_str()
-            );
+            assert_eq!(support.temperature, ParameterRestriction::FixedValue(1.0), "{} should only support temperature=1.0", model.as_str());
             assert_eq!(
                 support.frequency_penalty,
                 ParameterRestriction::FixedValue(0.0),
@@ -1125,12 +1058,7 @@ mod tests {
                 "{} should only support presence_penalty=0.0",
                 model.as_str()
             );
-            assert_eq!(
-                support.top_p,
-                ParameterRestriction::FixedValue(1.0),
-                "{} should only support top_p=1.0",
-                model.as_str()
-            );
+            assert_eq!(support.top_p, ParameterRestriction::FixedValue(1.0), "{} should only support top_p=1.0", model.as_str());
             assert!(!support.logprobs, "{} should not support logprobs", model.as_str());
             assert!(!support.top_logprobs, "{} should not support top_logprobs", model.as_str());
             assert!(!support.logit_bias, "{} should not support logit_bias", model.as_str());
@@ -1154,12 +1082,7 @@ mod tests {
         for model in gpt5_series {
             let support = model.parameter_support();
 
-            assert_eq!(
-                support.temperature,
-                ParameterRestriction::FixedValue(1.0),
-                "{} should only support temperature=1.0",
-                model.as_str()
-            );
+            assert_eq!(support.temperature, ParameterRestriction::FixedValue(1.0), "{} should only support temperature=1.0", model.as_str());
             assert!(support.reasoning, "{} should support reasoning parameter", model.as_str());
         }
     }
@@ -1179,24 +1102,9 @@ mod tests {
         for model in gpt4_series {
             let support = model.parameter_support();
 
-            assert_eq!(
-                support.temperature,
-                ParameterRestriction::Any,
-                "{} should support any temperature",
-                model.as_str()
-            );
-            assert_eq!(
-                support.frequency_penalty,
-                ParameterRestriction::Any,
-                "{} should support any frequency_penalty",
-                model.as_str()
-            );
-            assert_eq!(
-                support.presence_penalty,
-                ParameterRestriction::Any,
-                "{} should support any presence_penalty",
-                model.as_str()
-            );
+            assert_eq!(support.temperature, ParameterRestriction::Any, "{} should support any temperature", model.as_str());
+            assert_eq!(support.frequency_penalty, ParameterRestriction::Any, "{} should support any frequency_penalty", model.as_str());
+            assert_eq!(support.presence_penalty, ParameterRestriction::Any, "{} should support any presence_penalty", model.as_str());
             assert!(support.logprobs, "{} should support logprobs", model.as_str());
             assert!(support.top_logprobs, "{} should support top_logprobs", model.as_str());
             assert!(support.logit_bias, "{} should support logit_bias", model.as_str());
@@ -1356,11 +1264,7 @@ mod tests {
 
     #[test]
     fn test_fine_tuning_model_serialization_roundtrip() {
-        let models = vec![
-            FineTuningModel::Gpt41_2025_04_14,
-            FineTuningModel::Gpt4oMini_2024_07_18,
-            FineTuningModel::Gpt35Turbo_0125,
-        ];
+        let models = vec![FineTuningModel::Gpt41_2025_04_14, FineTuningModel::Gpt4oMini_2024_07_18, FineTuningModel::Gpt35Turbo_0125];
 
         for model in models {
             let json = serde_json::to_string(&model).unwrap();

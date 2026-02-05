@@ -16,10 +16,7 @@ async fn test_create_and_delete_conversation() {
     let mut metadata = HashMap::new();
     metadata.insert("test".to_string(), "integration".to_string());
 
-    let conv = conversations
-        .create(Some(metadata), None)
-        .await
-        .expect("Should create conversation");
+    let conv = conversations.create(Some(metadata), None).await.expect("Should create conversation");
 
     // Verify conversation structure
     assert!(conv.id.starts_with("conv_"), "Conversation ID should start with 'conv_'");
@@ -30,10 +27,7 @@ async fn test_create_and_delete_conversation() {
     println!("Created conversation: {}", conv.id);
 
     // Delete the conversation
-    let delete_result = conversations
-        .delete(&conv.id)
-        .await
-        .expect("Should delete conversation");
+    let delete_result = conversations.delete(&conv.id).await.expect("Should delete conversation");
 
     assert!(delete_result.deleted, "Conversation should be deleted");
     assert_eq!(delete_result.id, conv.id);
@@ -49,19 +43,13 @@ async fn test_create_conversation_with_items() {
     // Create conversation with initial items
     let items = vec![InputItem::user_message("Hello, this is a test!")];
 
-    let conv = conversations
-        .create(None, Some(items))
-        .await
-        .expect("Should create conversation with items");
+    let conv = conversations.create(None, Some(items)).await.expect("Should create conversation with items");
 
     assert!(conv.id.starts_with("conv_"));
     println!("Created conversation with items: {}", conv.id);
 
     // Cleanup
-    conversations
-        .delete(&conv.id)
-        .await
-        .expect("Should delete conversation");
+    conversations.delete(&conv.id).await.expect("Should delete conversation");
 }
 
 /// Test retrieving a conversation.
@@ -73,16 +61,10 @@ async fn test_retrieve_conversation() {
     let mut metadata = HashMap::new();
     metadata.insert("purpose".to_string(), "retrieve-test".to_string());
 
-    let created = conversations
-        .create(Some(metadata), None)
-        .await
-        .expect("Should create conversation");
+    let created = conversations.create(Some(metadata), None).await.expect("Should create conversation");
 
     // Retrieve the conversation
-    let retrieved = conversations
-        .retrieve(&created.id)
-        .await
-        .expect("Should retrieve conversation");
+    let retrieved = conversations.retrieve(&created.id).await.expect("Should retrieve conversation");
 
     assert_eq!(retrieved.id, created.id);
     assert_eq!(retrieved.object, "conversation");
@@ -103,20 +85,14 @@ async fn test_update_conversation() {
     let mut initial_metadata = HashMap::new();
     initial_metadata.insert("status".to_string(), "initial".to_string());
 
-    let created = conversations
-        .create(Some(initial_metadata), None)
-        .await
-        .expect("Should create conversation");
+    let created = conversations.create(Some(initial_metadata), None).await.expect("Should create conversation");
 
     // Update the conversation
     let mut new_metadata = HashMap::new();
     new_metadata.insert("status".to_string(), "updated".to_string());
     new_metadata.insert("extra".to_string(), "new-field".to_string());
 
-    let updated = conversations
-        .update(&created.id, new_metadata)
-        .await
-        .expect("Should update conversation");
+    let updated = conversations.update(&created.id, new_metadata).await.expect("Should update conversation");
 
     assert_eq!(updated.id, created.id);
     assert!(updated.metadata.is_some());
@@ -137,20 +113,12 @@ async fn test_create_items() {
     let conversations = Conversations::new().expect("Should create Conversations client");
 
     // Create a conversation
-    let conv = conversations
-        .create(None, None)
-        .await
-        .expect("Should create conversation");
+    let conv = conversations.create(None, None).await.expect("Should create conversation");
 
     // Add items
-    let items = vec![
-        InputItem::user_message("What is the capital of France?"),
-    ];
+    let items = vec![InputItem::user_message("What is the capital of France?")];
 
-    let result = conversations
-        .create_items(&conv.id, items)
-        .await
-        .expect("Should create items");
+    let result = conversations.create_items(&conv.id, items).await.expect("Should create items");
 
     assert_eq!(result.object, "list");
     assert!(!result.data.is_empty(), "Should have added items");
@@ -167,21 +135,12 @@ async fn test_list_items() {
     let conversations = Conversations::new().expect("Should create Conversations client");
 
     // Create a conversation with initial items
-    let items = vec![
-        InputItem::user_message("First message"),
-        InputItem::user_message("Second message"),
-    ];
+    let items = vec![InputItem::user_message("First message"), InputItem::user_message("Second message")];
 
-    let conv = conversations
-        .create(None, Some(items))
-        .await
-        .expect("Should create conversation");
+    let conv = conversations.create(None, Some(items)).await.expect("Should create conversation");
 
     // List items
-    let result = conversations
-        .list_items(&conv.id, Some(10), None, None, None)
-        .await
-        .expect("Should list items");
+    let result = conversations.list_items(&conv.id, Some(10), None, None, None).await.expect("Should list items");
 
     assert_eq!(result.object, "list");
     println!("Conversation {} has {} items", conv.id, result.data.len());

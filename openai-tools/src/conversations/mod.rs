@@ -103,10 +103,7 @@ pub mod request;
 pub mod response;
 
 pub use request::{ConversationInclude, Conversations};
-pub use response::{
-    Conversation, ConversationItem, ConversationItemListResponse, ConversationListResponse,
-    DeleteConversationResponse, InputItem,
-};
+pub use response::{Conversation, ConversationItem, ConversationItemListResponse, ConversationListResponse, DeleteConversationResponse, InputItem};
 
 #[cfg(test)]
 mod tests {
@@ -127,10 +124,7 @@ mod tests {
         assert_eq!(conversation.object, "conversation");
         assert_eq!(conversation.created_at, 1741900000);
         assert!(conversation.metadata.is_some());
-        assert_eq!(
-            conversation.metadata.as_ref().unwrap().get("topic"),
-            Some(&"demo".to_string())
-        );
+        assert_eq!(conversation.metadata.as_ref().unwrap().get("topic"), Some(&"demo".to_string()));
     }
 
     #[test]
@@ -292,26 +286,11 @@ mod tests {
 
     #[test]
     fn test_conversation_include_as_str() {
-        assert_eq!(
-            ConversationInclude::WebSearchCallSources.as_str(),
-            "web_search_call.action.sources"
-        );
-        assert_eq!(
-            ConversationInclude::CodeInterpreterCallOutputs.as_str(),
-            "code_interpreter_call.outputs"
-        );
-        assert_eq!(
-            ConversationInclude::FileSearchCallResults.as_str(),
-            "file_search_call.results"
-        );
-        assert_eq!(
-            ConversationInclude::MessageInputImageUrl.as_str(),
-            "message.input_image.image_url"
-        );
-        assert_eq!(
-            ConversationInclude::ReasoningEncryptedContent.as_str(),
-            "reasoning.encrypted_content"
-        );
+        assert_eq!(ConversationInclude::WebSearchCallSources.as_str(), "web_search_call.action.sources");
+        assert_eq!(ConversationInclude::CodeInterpreterCallOutputs.as_str(), "code_interpreter_call.outputs");
+        assert_eq!(ConversationInclude::FileSearchCallResults.as_str(), "file_search_call.results");
+        assert_eq!(ConversationInclude::MessageInputImageUrl.as_str(), "message.input_image.image_url");
+        assert_eq!(ConversationInclude::ReasoningEncryptedContent.as_str(), "reasoning.encrypted_content");
     }
 
     #[test]

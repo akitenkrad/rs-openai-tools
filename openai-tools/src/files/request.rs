@@ -230,10 +230,7 @@ impl Files {
         let client = create_http_client(self.timeout)?;
         let mut headers = request::header::HeaderMap::new();
         self.auth.apply_headers(&mut headers)?;
-        headers.insert(
-            "User-Agent",
-            request::header::HeaderValue::from_static("openai-tools-rust"),
-        );
+        headers.insert("User-Agent", request::header::HeaderValue::from_static("openai-tools-rust"));
         Ok((client, headers))
     }
 
@@ -268,15 +265,9 @@ impl Files {
     /// ```
     pub async fn upload_path(&self, file_path: &str, purpose: FilePurpose) -> Result<File> {
         let path = Path::new(file_path);
-        let filename = path
-            .file_name()
-            .and_then(|n| n.to_str())
-            .unwrap_or("file")
-            .to_string();
+        let filename = path.file_name().and_then(|n| n.to_str()).unwrap_or("file").to_string();
 
-        let content = tokio::fs::read(file_path)
-            .await
-            .map_err(|e| OpenAIToolError::Error(format!("Failed to read file: {}", e)))?;
+        let content = tokio::fs::read(file_path).await.map_err(|e| OpenAIToolError::Error(format!("Failed to read file: {}", e)))?;
 
         self.upload_bytes(&content, &filename, purpose).await
     }
@@ -312,12 +303,7 @@ impl Files {
     ///     Ok(())
     /// }
     /// ```
-    pub async fn upload_bytes(
-        &self,
-        content: &[u8],
-        filename: &str,
-        purpose: FilePurpose,
-    ) -> Result<File> {
+    pub async fn upload_bytes(&self, content: &[u8], filename: &str, purpose: FilePurpose) -> Result<File> {
         let (client, headers) = self.create_client()?;
 
         let file_part = Part::bytes(content.to_vec())
@@ -325,18 +311,10 @@ impl Files {
             .mime_str("application/octet-stream")
             .map_err(|e| OpenAIToolError::Error(format!("Failed to set MIME type: {}", e)))?;
 
-        let form = Form::new()
-            .part("file", file_part)
-            .text("purpose", purpose.as_str().to_string());
+        let form = Form::new().part("file", file_part).text("purpose", purpose.as_str().to_string());
 
         let endpoint = self.auth.endpoint(FILES_PATH);
-        let response = client
-            .post(&endpoint)
-            .headers(headers)
-            .multipart(form)
-            .send()
-            .await
-            .map_err(OpenAIToolError::RequestError)?;
+        let response = client.post(&endpoint).headers(headers).multipart(form).send().await.map_err(OpenAIToolError::RequestError)?;
 
         let status = response.status();
         let content = response.text().await.map_err(OpenAIToolError::RequestError)?;
@@ -397,12 +375,7 @@ impl Files {
             None => endpoint,
         };
 
-        let response = client
-            .get(&url)
-            .headers(headers)
-            .send()
-            .await
-            .map_err(OpenAIToolError::RequestError)?;
+        let response = client.get(&url).headers(headers).send().await.map_err(OpenAIToolError::RequestError)?;
 
         let status = response.status();
         let content = response.text().await.map_err(OpenAIToolError::RequestError)?;
@@ -452,12 +425,7 @@ impl Files {
         let (client, headers) = self.create_client()?;
         let url = format!("{}/{}", self.auth.endpoint(FILES_PATH), file_id);
 
-        let response = client
-            .get(&url)
-            .headers(headers)
-            .send()
-            .await
-            .map_err(OpenAIToolError::RequestError)?;
+        let response = client.get(&url).headers(headers).send().await.map_err(OpenAIToolError::RequestError)?;
 
         let status = response.status();
         let content = response.text().await.map_err(OpenAIToolError::RequestError)?;
@@ -507,12 +475,7 @@ impl Files {
         let (client, headers) = self.create_client()?;
         let url = format!("{}/{}", self.auth.endpoint(FILES_PATH), file_id);
 
-        let response = client
-            .delete(&url)
-            .headers(headers)
-            .send()
-            .await
-            .map_err(OpenAIToolError::RequestError)?;
+        let response = client.delete(&url).headers(headers).send().await.map_err(OpenAIToolError::RequestError)?;
 
         let status = response.status();
         let content = response.text().await.map_err(OpenAIToolError::RequestError)?;
@@ -562,17 +525,9 @@ impl Files {
         let (client, headers) = self.create_client()?;
         let url = format!("{}/{}/content", self.auth.endpoint(FILES_PATH), file_id);
 
-        let response = client
-            .get(&url)
-            .headers(headers)
-            .send()
-            .await
-            .map_err(OpenAIToolError::RequestError)?;
+        let response = client.get(&url).headers(headers).send().await.map_err(OpenAIToolError::RequestError)?;
 
-        let bytes = response
-            .bytes()
-            .await
-            .map_err(OpenAIToolError::RequestError)?;
+        let bytes = response.bytes().await.map_err(OpenAIToolError::RequestError)?;
 
         Ok(bytes.to_vec())
     }

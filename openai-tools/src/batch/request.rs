@@ -125,12 +125,7 @@ impl CreateBatchRequest {
     /// let request = CreateBatchRequest::new("file-abc123", BatchEndpoint::ChatCompletions);
     /// ```
     pub fn new(input_file_id: impl Into<String>, endpoint: BatchEndpoint) -> Self {
-        Self {
-            input_file_id: input_file_id.into(),
-            endpoint,
-            completion_window: CompletionWindow::default(),
-            metadata: None,
-        }
+        Self { input_file_id: input_file_id.into(), endpoint, completion_window: CompletionWindow::default(), metadata: None }
     }
 
     /// Sets the metadata for the batch.
@@ -250,14 +245,8 @@ impl Batches {
         let client = create_http_client(self.timeout)?;
         let mut headers = request::header::HeaderMap::new();
         self.auth.apply_headers(&mut headers)?;
-        headers.insert(
-            "Content-Type",
-            request::header::HeaderValue::from_static("application/json"),
-        );
-        headers.insert(
-            "User-Agent",
-            request::header::HeaderValue::from_static("openai-tools-rust"),
-        );
+        headers.insert("Content-Type", request::header::HeaderValue::from_static("application/json"));
+        headers.insert("User-Agent", request::header::HeaderValue::from_static("openai-tools-rust"));
         Ok((client, headers))
     }
 
@@ -299,13 +288,7 @@ impl Batches {
         let body = serde_json::to_string(&request).map_err(OpenAIToolError::SerdeJsonError)?;
 
         let url = self.auth.endpoint(BATCHES_PATH);
-        let response = client
-            .post(&url)
-            .headers(headers)
-            .body(body)
-            .send()
-            .await
-            .map_err(OpenAIToolError::RequestError)?;
+        let response = client.post(&url).headers(headers).body(body).send().await.map_err(OpenAIToolError::RequestError)?;
 
         let content = response.text().await.map_err(OpenAIToolError::RequestError)?;
 
@@ -348,12 +331,7 @@ impl Batches {
         let (client, headers) = self.create_client()?;
         let url = format!("{}/{}", self.auth.endpoint(BATCHES_PATH), batch_id);
 
-        let response = client
-            .get(&url)
-            .headers(headers)
-            .send()
-            .await
-            .map_err(OpenAIToolError::RequestError)?;
+        let response = client.get(&url).headers(headers).send().await.map_err(OpenAIToolError::RequestError)?;
 
         let content = response.text().await.map_err(OpenAIToolError::RequestError)?;
 
@@ -395,12 +373,7 @@ impl Batches {
         let (client, headers) = self.create_client()?;
         let url = format!("{}/{}/cancel", self.auth.endpoint(BATCHES_PATH), batch_id);
 
-        let response = client
-            .post(&url)
-            .headers(headers)
-            .send()
-            .await
-            .map_err(OpenAIToolError::RequestError)?;
+        let response = client.post(&url).headers(headers).send().await.map_err(OpenAIToolError::RequestError)?;
 
         let content = response.text().await.map_err(OpenAIToolError::RequestError)?;
 
@@ -451,11 +424,7 @@ impl Batches {
     ///     Ok(())
     /// }
     /// ```
-    pub async fn list(
-        &self,
-        limit: Option<u32>,
-        after: Option<&str>,
-    ) -> Result<BatchListResponse> {
+    pub async fn list(&self, limit: Option<u32>, after: Option<&str>) -> Result<BatchListResponse> {
         let (client, headers) = self.create_client()?;
 
         let mut url = self.auth.endpoint(BATCHES_PATH);
@@ -473,12 +442,7 @@ impl Batches {
             url.push_str(&params.join("&"));
         }
 
-        let response = client
-            .get(&url)
-            .headers(headers)
-            .send()
-            .await
-            .map_err(OpenAIToolError::RequestError)?;
+        let response = client.get(&url).headers(headers).send().await.map_err(OpenAIToolError::RequestError)?;
 
         let content = response.text().await.map_err(OpenAIToolError::RequestError)?;
 

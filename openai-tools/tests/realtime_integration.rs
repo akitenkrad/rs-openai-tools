@@ -49,16 +49,10 @@ async fn test_text_conversation() {
     match session_result {
         Ok(mut session) => {
             // Send a text message
-            session
-                .send_text("Hello! Please respond with just 'Hi there!'")
-                .await
-                .expect("Should send text");
+            session.send_text("Hello! Please respond with just 'Hi there!'").await.expect("Should send text");
 
             // Request a response
-            session
-                .create_response(None)
-                .await
-                .expect("Should create response");
+            session.create_response(None).await.expect("Should create response");
 
             // Collect response text
             let mut response_text = String::new();
@@ -69,8 +63,7 @@ async fn test_text_conversation() {
             let start = tokio::time::Instant::now();
 
             while start.elapsed() < timeout {
-                match tokio::time::timeout(tokio::time::Duration::from_secs(5), session.recv()).await
-                {
+                match tokio::time::timeout(tokio::time::Duration::from_secs(5), session.recv()).await {
                     Ok(Ok(Some(event))) => match event {
                         ServerEvent::ResponseTextDelta(e) => {
                             response_text.push_str(&e.delta);
@@ -117,9 +110,7 @@ async fn test_function_calling() {
     let weather_tool = Tool::function(
         "get_weather",
         "Get the current weather for a location",
-        vec![
-            ("location", ParameterProperty::from_string("The city name")),
-        ],
+        vec![("location", ParameterProperty::from_string("The city name"))],
         false,
     );
 
@@ -135,15 +126,9 @@ async fn test_function_calling() {
     match session_result {
         Ok(mut session) => {
             // Ask about weather to trigger function call
-            session
-                .send_text("What's the weather like in Tokyo?")
-                .await
-                .expect("Should send text");
+            session.send_text("What's the weather like in Tokyo?").await.expect("Should send text");
 
-            session
-                .create_response(None)
-                .await
-                .expect("Should create response");
+            session.create_response(None).await.expect("Should create response");
 
             // Wait for function call
             let mut received_function_call = false;
@@ -151,8 +136,7 @@ async fn test_function_calling() {
             let start = tokio::time::Instant::now();
 
             while start.elapsed() < timeout {
-                match tokio::time::timeout(tokio::time::Duration::from_secs(5), session.recv()).await
-                {
+                match tokio::time::timeout(tokio::time::Duration::from_secs(5), session.recv()).await {
                     Ok(Ok(Some(event))) => match event {
                         ServerEvent::ResponseFunctionCallArgumentsDone(e) => {
                             assert_eq!(e.name, "get_weather");
@@ -160,16 +144,10 @@ async fn test_function_calling() {
 
                             // Submit function result
                             let result = r#"{"temperature": "22C", "condition": "sunny", "humidity": "45%"}"#;
-                            session
-                                .submit_function_output(&e.call_id, result)
-                                .await
-                                .expect("Should submit function output");
+                            session.submit_function_output(&e.call_id, result).await.expect("Should submit function output");
 
                             // Request follow-up response
-                            session
-                                .create_response(None)
-                                .await
-                                .expect("Should create follow-up response");
+                            session.create_response(None).await.expect("Should create follow-up response");
                         }
                         ServerEvent::ResponseDone(_) => {
                             if received_function_call {
@@ -188,10 +166,7 @@ async fn test_function_calling() {
             }
 
             // Function calling might not always be triggered depending on the model
-            println!(
-                "Function call received: {} (may vary based on model behavior)",
-                received_function_call
-            );
+            println!("Function call received: {} (may vary based on model behavior)", received_function_call);
 
             session.close().await.expect("Should close cleanly");
         }
@@ -219,10 +194,7 @@ async fn test_session_update() {
                 .with_instructions("You are a pirate. Speak like one!")
                 .with_temperature(0.9);
 
-            session
-                .update_session(new_config)
-                .await
-                .expect("Should update session");
+            session.update_session(new_config).await.expect("Should update session");
 
             // Wait for session.updated event
             let timeout = tokio::time::Duration::from_secs(10);
@@ -230,8 +202,7 @@ async fn test_session_update() {
             let mut updated = false;
 
             while start.elapsed() < timeout {
-                match tokio::time::timeout(tokio::time::Duration::from_secs(2), session.recv()).await
-                {
+                match tokio::time::timeout(tokio::time::Duration::from_secs(2), session.recv()).await {
                     Ok(Ok(Some(ServerEvent::SessionUpdated(_)))) => {
                         updated = true;
                         break;
@@ -265,11 +236,7 @@ async fn test_audio_configuration() {
         .voice(Voice::Alloy)
         .input_audio_format(AudioFormat::Pcm16)
         .output_audio_format(AudioFormat::Pcm16)
-        .server_vad(ServerVadConfig {
-            threshold: Some(0.5),
-            silence_duration_ms: Some(500),
-            ..Default::default()
-        });
+        .server_vad(ServerVadConfig { threshold: Some(0.5), silence_duration_ms: Some(500), ..Default::default() });
 
     let session_result = client.connect().await;
 

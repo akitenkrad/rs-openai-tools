@@ -8,9 +8,7 @@ use crate::{
         structured_output::Schema,
         tool::Tool,
     },
-    responses::response::{
-        CompactedResponse, DeleteResponseResult, InputItemsListResponse, InputTokensResponse, Response,
-    },
+    responses::response::{CompactedResponse, DeleteResponseResult, InputItemsListResponse, InputTokensResponse, Response},
 };
 use derive_new::new;
 use request;
@@ -1259,18 +1257,14 @@ impl Responses {
     ///
     /// Panics if the `OPENAI_API_KEY` environment variable is not set.
     pub fn new() -> Self {
-        let auth = AuthProvider::openai_from_env()
-            .map_err(|e| OpenAIToolError::Error(format!("Failed to load OpenAI auth: {}", e)))
-            .unwrap();
+        let auth = AuthProvider::openai_from_env().map_err(|e| OpenAIToolError::Error(format!("Failed to load OpenAI auth: {}", e))).unwrap();
         Self { auth, user_agent: "".into(), request_body: Body::default(), timeout: None }
     }
 
     /// Creates a new instance of the Responses client with a custom endpoint
     #[deprecated(since = "0.3.0", note = "Use `with_auth()` with custom OpenAIAuth for custom endpoints")]
     pub fn from_endpoint<T: AsRef<str>>(endpoint: T) -> Self {
-        let auth = AuthProvider::openai_from_env()
-            .map_err(|e| OpenAIToolError::Error(format!("Failed to load OpenAI auth: {}", e)))
-            .unwrap();
+        let auth = AuthProvider::openai_from_env().map_err(|e| OpenAIToolError::Error(format!("Failed to load OpenAI auth: {}", e))).unwrap();
         // Extract the path from the endpoint and use it
         let mut responses = Self { auth, user_agent: "".into(), request_body: Body::default(), timeout: None };
         responses.base_url(endpoint.as_ref().trim_end_matches("/responses"));
@@ -1310,15 +1304,8 @@ impl Responses {
     /// reasoning_responses.temperature(0.5); // Warning logged, value ignored
     /// ```
     pub fn with_model(model: ChatModel) -> Self {
-        let auth = AuthProvider::openai_from_env()
-            .map_err(|e| OpenAIToolError::Error(format!("Failed to load OpenAI auth: {}", e)))
-            .unwrap();
-        Self {
-            auth,
-            user_agent: "".into(),
-            request_body: Body { model, ..Default::default() },
-            timeout: None,
-        }
+        let auth = AuthProvider::openai_from_env().map_err(|e| OpenAIToolError::Error(format!("Failed to load OpenAI auth: {}", e))).unwrap();
+        Self { auth, user_agent: "".into(), request_body: Body { model, ..Default::default() }, timeout: None }
     }
 
     /// Creates a new Responses client with a custom authentication provider
@@ -1796,18 +1783,12 @@ impl Responses {
         match support.temperature {
             ParameterRestriction::FixedValue(fixed) => {
                 if (temperature - fixed).abs() > f64::EPSILON {
-                    tracing::warn!(
-                        "Model '{}' only supports temperature={}. Ignoring temperature={}.",
-                        self.request_body.model, fixed, temperature
-                    );
+                    tracing::warn!("Model '{}' only supports temperature={}. Ignoring temperature={}.", self.request_body.model, fixed, temperature);
                     return self;
                 }
             }
             ParameterRestriction::NotSupported => {
-                tracing::warn!(
-                    "Model '{}' does not support temperature parameter. Ignoring.",
-                    self.request_body.model
-                );
+                tracing::warn!("Model '{}' does not support temperature parameter. Ignoring.", self.request_body.model);
                 return self;
             }
             ParameterRestriction::Any => {}
@@ -2432,10 +2413,7 @@ impl Responses {
     pub fn top_logprobs(&mut self, n: usize) -> &mut Self {
         let support = self.request_body.model.parameter_support();
         if !support.top_logprobs {
-            tracing::warn!(
-                "Model '{}' does not support top_logprobs parameter. Ignoring.",
-                self.request_body.model
-            );
+            tracing::warn!("Model '{}' does not support top_logprobs parameter. Ignoring.", self.request_body.model);
             return self;
         }
         self.request_body.top_logprobs = Some(n);
@@ -2489,18 +2467,12 @@ impl Responses {
         match support.top_p {
             ParameterRestriction::FixedValue(fixed) => {
                 if (p - fixed).abs() > f64::EPSILON {
-                    tracing::warn!(
-                        "Model '{}' only supports top_p={}. Ignoring top_p={}.",
-                        self.request_body.model, fixed, p
-                    );
+                    tracing::warn!("Model '{}' only supports top_p={}. Ignoring top_p={}.", self.request_body.model, fixed, p);
                     return self;
                 }
             }
             ParameterRestriction::NotSupported => {
-                tracing::warn!(
-                    "Model '{}' does not support top_p parameter. Ignoring.",
-                    self.request_body.model
-                );
+                tracing::warn!("Model '{}' does not support top_p parameter. Ignoring.", self.request_body.model);
                 return self;
             }
             ParameterRestriction::Any => {}
@@ -2636,7 +2608,8 @@ impl Responses {
                     tracing::warn!(
                         "Reasoning model '{}' does not support custom temperature. \
                          Ignoring temperature={} and using default (1.0).",
-                        model, temp
+                        model,
+                        temp
                     );
                     request_body.temperature = None;
                 }
@@ -2648,7 +2621,8 @@ impl Responses {
                     tracing::warn!(
                         "Reasoning model '{}' does not support custom top_p. \
                          Ignoring top_p={} and using default (1.0).",
-                        model, top_p
+                        model,
+                        top_p
                     );
                     request_body.top_p = None;
                 }
@@ -2656,10 +2630,7 @@ impl Responses {
 
             // Top logprobs: not supported
             if request_body.top_logprobs.is_some() {
-                tracing::warn!(
-                    "Reasoning model '{}' does not support top_logprobs. Ignoring top_logprobs parameter.",
-                    model
-                );
+                tracing::warn!("Reasoning model '{}' does not support top_logprobs. Ignoring top_logprobs parameter.", model);
                 request_body.top_logprobs = None;
             }
         }
@@ -2684,9 +2655,7 @@ impl Responses {
         if cfg!(test) {
             tracing::info!("Endpoint: {}", endpoint);
             // Replace API key with a placeholder for security
-            let body_for_debug = serde_json::to_string_pretty(&request_body)
-                .unwrap()
-                .replace(self.auth.api_key(), "*************");
+            let body_for_debug = serde_json::to_string_pretty(&request_body).unwrap().replace(self.auth.api_key(), "*************");
             // Log the request body for debugging purposes
             tracing::info!("Request body: {}", body_for_debug);
         }
@@ -2734,8 +2703,7 @@ impl Responses {
         if !self.user_agent.is_empty() {
             headers.insert(
                 "User-Agent",
-                request::header::HeaderValue::from_str(&self.user_agent)
-                    .map_err(|e| OpenAIToolError::Error(format!("Invalid user agent: {}", e)))?,
+                request::header::HeaderValue::from_str(&self.user_agent).map_err(|e| OpenAIToolError::Error(format!("Invalid user agent: {}", e)))?,
             );
         }
         self.auth.apply_headers(&mut headers)?;
@@ -2965,11 +2933,7 @@ impl Responses {
             query_params.push(format!("before={}", before));
         }
 
-        let endpoint = if query_params.is_empty() {
-            base_endpoint
-        } else {
-            format!("{}?{}", base_endpoint, query_params.join("&"))
-        };
+        let endpoint = if query_params.is_empty() { base_endpoint } else { format!("{}?{}", base_endpoint, query_params.join("&")) };
 
         match client.get(&endpoint).headers(headers).send().await.map_err(OpenAIToolError::RequestError) {
             Err(e) => {
@@ -3030,14 +2994,7 @@ impl Responses {
             body["model"] = serde_json::json!(model);
         }
 
-        match client
-            .post(&endpoint)
-            .headers(headers)
-            .body(serde_json::to_string(&body)?)
-            .send()
-            .await
-            .map_err(OpenAIToolError::RequestError)
-        {
+        match client.post(&endpoint).headers(headers).body(serde_json::to_string(&body)?).send().await.map_err(OpenAIToolError::RequestError) {
             Err(e) => {
                 tracing::error!("Request error: {}", e);
                 Err(e)
@@ -3093,14 +3050,7 @@ impl Responses {
             "input": input
         });
 
-        match client
-            .post(&endpoint)
-            .headers(headers)
-            .body(serde_json::to_string(&body)?)
-            .send()
-            .await
-            .map_err(OpenAIToolError::RequestError)
-        {
+        match client.post(&endpoint).headers(headers).body(serde_json::to_string(&body)?).send().await.map_err(OpenAIToolError::RequestError) {
             Err(e) => {
                 tracing::error!("Request error: {}", e);
                 Err(e)

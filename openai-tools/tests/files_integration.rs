@@ -31,24 +31,13 @@ async fn test_list_files_by_purpose() {
     let files = Files::new().expect("Should create Files client");
 
     // Test listing by different purposes
-    let purposes = vec![
-        FilePurpose::FineTune,
-        FilePurpose::Batch,
-        FilePurpose::Assistants,
-    ];
+    let purposes = vec![FilePurpose::FineTune, FilePurpose::Batch, FilePurpose::Assistants];
 
     for purpose in purposes {
-        let response = files
-            .list(Some(purpose))
-            .await
-            .expect(&format!("Should list files with purpose {:?}", purpose));
+        let response = files.list(Some(purpose)).await.expect(&format!("Should list files with purpose {:?}", purpose));
 
         assert_eq!(response.object, "list");
-        println!(
-            "Found {} files with purpose {:?}",
-            response.data.len(),
-            purpose
-        );
+        println!("Found {} files with purpose {:?}", response.data.len(), purpose);
     }
 }
 
@@ -61,10 +50,7 @@ async fn test_upload_retrieve_delete_file() {
     let content = r#"{"messages": [{"role": "system", "content": "You are a helpful assistant."}, {"role": "user", "content": "Hello!"}, {"role": "assistant", "content": "Hi there!"}]}"#;
 
     // Upload the file
-    let uploaded = files
-        .upload_bytes(content.as_bytes(), "test_upload.jsonl", FilePurpose::FineTune)
-        .await
-        .expect("Should upload file");
+    let uploaded = files.upload_bytes(content.as_bytes(), "test_upload.jsonl", FilePurpose::FineTune).await.expect("Should upload file");
 
     assert!(!uploaded.id.is_empty(), "File ID should not be empty");
     assert_eq!(uploaded.object, "file");
@@ -72,16 +58,10 @@ async fn test_upload_retrieve_delete_file() {
     assert_eq!(uploaded.purpose, "fine-tune");
     assert!(uploaded.bytes > 0, "File size should be positive");
 
-    println!(
-        "Uploaded file: {} ({} bytes)",
-        uploaded.id, uploaded.bytes
-    );
+    println!("Uploaded file: {} ({} bytes)", uploaded.id, uploaded.bytes);
 
     // Retrieve the file
-    let retrieved = files
-        .retrieve(&uploaded.id)
-        .await
-        .expect("Should retrieve file");
+    let retrieved = files.retrieve(&uploaded.id).await.expect("Should retrieve file");
 
     assert_eq!(retrieved.id, uploaded.id);
     assert_eq!(retrieved.filename, uploaded.filename);
@@ -90,10 +70,7 @@ async fn test_upload_retrieve_delete_file() {
     println!("Retrieved file: {}", retrieved.id);
 
     // Delete the file
-    let deleted = files
-        .delete(&uploaded.id)
-        .await
-        .expect("Should delete file");
+    let deleted = files.delete(&uploaded.id).await.expect("Should delete file");
 
     assert_eq!(deleted.id, uploaded.id);
     assert!(deleted.deleted, "File should be deleted");

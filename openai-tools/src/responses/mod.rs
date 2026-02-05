@@ -994,22 +994,13 @@ mod tests {
             responses.reasoning(effort.clone(), ReasoningSummary::Auto);
 
             let reasoning = responses.request_body.reasoning.as_ref().unwrap();
-            assert_eq!(
-                reasoning.effort,
-                Some(effort.clone()),
-                "GPT-5.2 should accept ReasoningEffort::{:?}",
-                effort
-            );
+            assert_eq!(reasoning.effort, Some(effort.clone()), "GPT-5.2 should accept ReasoningEffort::{:?}", effort);
         }
     }
 
     #[test]
     fn test_gpt5_1_accepts_all_reasoning_summaries() {
-        let summaries = vec![
-            ReasoningSummary::Auto,
-            ReasoningSummary::Concise,
-            ReasoningSummary::Detailed,
-        ];
+        let summaries = vec![ReasoningSummary::Auto, ReasoningSummary::Concise, ReasoningSummary::Detailed];
 
         for summary in summaries {
             let mut responses = Responses::new();
@@ -1018,12 +1009,7 @@ mod tests {
             responses.reasoning(ReasoningEffort::Medium, summary.clone());
 
             let reasoning = responses.request_body.reasoning.as_ref().unwrap();
-            assert_eq!(
-                reasoning.summary,
-                Some(summary.clone()),
-                "GPT-5.1 should accept ReasoningSummary::{:?}",
-                summary
-            );
+            assert_eq!(reasoning.summary, Some(summary.clone()), "GPT-5.1 should accept ReasoningSummary::{:?}", summary);
         }
     }
 
@@ -1094,12 +1080,7 @@ mod tests {
             let mut responses = Responses::new();
             responses.model(model.clone());
             responses.store(true);
-            assert_eq!(
-                responses.request_body.store,
-                Some(true),
-                "Model {} should accept store parameter",
-                model.as_str()
-            );
+            assert_eq!(responses.request_body.store, Some(true), "Model {} should accept store parameter", model.as_str());
         }
     }
 
@@ -1112,11 +1093,7 @@ mod tests {
             responses.model(model.clone());
             responses.metadata("key".to_string(), serde_json::Value::String("value".to_string()));
 
-            assert!(
-                responses.request_body.metadata.is_some(),
-                "Model {} should accept metadata parameter",
-                model.as_str()
-            );
+            assert!(responses.request_body.metadata.is_some(), "Model {} should accept metadata parameter", model.as_str());
         }
     }
 
@@ -1129,11 +1106,7 @@ mod tests {
             responses.model(model.clone());
             responses.include(vec![Include::WebSearchCall, Include::ReasoningEncryptedContent]);
 
-            assert!(
-                responses.request_body.include.is_some(),
-                "Model {} should accept include parameter",
-                model.as_str()
-            );
+            assert!(responses.request_body.include.is_some(), "Model {} should accept include parameter", model.as_str());
         }
     }
 }

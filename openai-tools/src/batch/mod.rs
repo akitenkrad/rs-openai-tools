@@ -159,8 +159,7 @@ mod tests {
         let mut metadata = HashMap::new();
         metadata.insert("customer_id".to_string(), "user_123".to_string());
 
-        let request = CreateBatchRequest::new("file-abc123", BatchEndpoint::ChatCompletions)
-            .with_metadata(metadata.clone());
+        let request = CreateBatchRequest::new("file-abc123", BatchEndpoint::ChatCompletions).with_metadata(metadata.clone());
 
         assert_eq!(request.metadata, Some(metadata));
     }

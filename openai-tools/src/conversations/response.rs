@@ -156,11 +156,7 @@ impl InputItem {
     /// assert_eq!(item.role, Some("user".to_string()));
     /// ```
     pub fn message(role: &str, content: &str) -> Self {
-        Self {
-            item_type: "message".to_string(),
-            role: Some(role.to_string()),
-            content: Some(serde_json::Value::String(content.to_string())),
-        }
+        Self { item_type: "message".to_string(), role: Some(role.to_string()), content: Some(serde_json::Value::String(content.to_string())) }
     }
 
     /// Creates a new user message item.

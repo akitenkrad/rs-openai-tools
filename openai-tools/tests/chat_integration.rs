@@ -5,8 +5,7 @@
 
 use openai_tools::chat::request::ChatCompletion;
 use openai_tools::common::{
-    errors::OpenAIToolError, message::Message, parameters::ParameterProperty, role::Role,
-    structured_output::Schema, tool::Tool,
+    errors::OpenAIToolError, message::Message, parameters::ParameterProperty, role::Role, structured_output::Schema, tool::Tool,
 };
 use serde::{Deserialize, Serialize};
 use std::sync::Once;
@@ -17,10 +16,7 @@ static INIT: Once = Once::new();
 fn init_tracing() {
     INIT.call_once(|| {
         let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
-        let _ = tracing_subscriber::fmt()
-            .with_env_filter(filter)
-            .with_test_writer()
-            .try_init();
+        let _ = tracing_subscriber::fmt().with_env_filter(filter).with_test_writer().try_init();
     });
 }
 
@@ -36,15 +32,7 @@ async fn test_chat_completion() {
     loop {
         match chat.chat().await {
             Ok(response) => {
-                tracing::info!(
-                    "{:?}",
-                    &response
-                        .choices[0]
-                        .message
-                        .content
-                        .clone()
-                        .expect("Response content should not be empty")
-                );
+                tracing::info!("{:?}", &response.choices[0].message.content.clone().expect("Response content should not be empty"));
                 assert!(true);
                 break;
             }
@@ -78,15 +66,7 @@ async fn test_chat_completion_japanese() {
     loop {
         match chat.chat().await {
             Ok(response) => {
-                println!(
-                    "{:?}",
-                    &response
-                        .choices[0]
-                        .message
-                        .content
-                        .clone()
-                        .expect("Response content should not be empty")
-                );
+                println!("{:?}", &response.choices[0].message.content.clone().expect("Response content should not be empty"));
                 assert!(true);
                 break;
             }
@@ -124,25 +104,14 @@ struct Weather {
 async fn test_chat_completion_with_json_schema() {
     init_tracing();
     let mut openai = ChatCompletion::new();
-    let messages = vec![Message::from_string(
-        Role::User,
-        "Hi there! How's the weather tomorrow in Tokyo? If you can't answer, report error.",
-    )];
+    let messages = vec![Message::from_string(Role::User, "Hi there! How's the weather tomorrow in Tokyo? If you can't answer, report error.")];
 
     let mut json_schema = Schema::chat_json_schema("weather");
     json_schema.add_property("location", "string", "The location to check the weather for.");
     json_schema.add_property("date", "string", "The date to check the weather for.");
     json_schema.add_property("weather", "string", "The weather for the location and date.");
-    json_schema.add_property(
-        "error",
-        "string",
-        "Error message. If there is no error, leave this field empty.",
-    );
-    openai
-        .model_id("gpt-4o-mini")
-        .messages(messages)
-        .temperature(1.0)
-        .json_schema(json_schema);
+    json_schema.add_property("error", "string", "Error message. If there is no error, leave this field empty.");
+    openai.model_id("gpt-4o-mini").messages(messages).temperature(1.0).json_schema(json_schema);
 
     let mut counter = 3;
     loop {
@@ -208,48 +177,24 @@ async fn test_summarize() {
     let messages = vec![Message::from_string(Role::User, instruction.clone())];
 
     let mut json_schema = Schema::chat_json_schema("summary");
-    json_schema.add_property(
-        "is_survey",
-        "boolean",
-        "この論文がサーベイ論文かどうかをtrue/falseで判定．",
-    );
+    json_schema.add_property("is_survey", "boolean", "この論文がサーベイ論文かどうかをtrue/falseで判定．");
     json_schema.add_property(
         "research_question",
         "string",
         "この論文のリサーチクエスチョンの説明．この論文の背景や既存研究との関連も含めて記述する．",
     );
-    json_schema.add_property(
-        "contributions",
-        "string",
-        "この論文のコントリビューションをリスト形式で記述する．",
-    );
-    json_schema.add_property(
-        "dataset",
-        "string",
-        "この論文で使用されているデータセットをリストアップする．",
-    );
+    json_schema.add_property("contributions", "string", "この論文のコントリビューションをリスト形式で記述する．");
+    json_schema.add_property("dataset", "string", "この論文で使用されているデータセットをリストアップする．");
     json_schema.add_property("proposed_method", "string", "提案手法の詳細な説明．");
-    json_schema.add_property(
-        "experiment_results",
-        "string",
-        "実験の結果の詳細な説明．",
-    );
+    json_schema.add_property("experiment_results", "string", "実験の結果の詳細な説明．");
     json_schema.add_property(
         "comparison_with_related_works",
         "string",
         "関連研究と比較した場合のこの論文の新規性についての説明．可能な限り既存研究を参照しながら記述すること．",
     );
-    json_schema.add_property(
-        "future_works",
-        "string",
-        "未解決の課題および将来の研究の方向性について記述．",
-    );
+    json_schema.add_property("future_works", "string", "未解決の課題および将来の研究の方向性について記述．");
 
-    openai
-        .model_id(String::from("gpt-4o-mini"))
-        .messages(messages)
-        .temperature(1.0)
-        .json_schema(json_schema);
+    openai.model_id(String::from("gpt-4o-mini")).messages(messages).temperature(1.0).json_schema(json_schema);
 
     let mut counter = 3;
     loop {
@@ -267,21 +212,12 @@ async fn test_summarize() {
                 ) {
                     Ok(summary) => {
                         tracing::info!("Summary.is_survey: {}", summary.is_survey);
-                        tracing::info!(
-                            "Summary.research_question: {}",
-                            summary.research_question
-                        );
+                        tracing::info!("Summary.research_question: {}", summary.research_question);
                         tracing::info!("Summary.contributions: {}", summary.contributions);
                         tracing::info!("Summary.dataset: {}", summary.dataset);
                         tracing::info!("Summary.proposed_method: {}", summary.proposed_method);
-                        tracing::info!(
-                            "Summary.experiment_results: {}",
-                            summary.experiment_results
-                        );
-                        tracing::info!(
-                            "Summary.comparison_with_related_works: {}",
-                            summary.comparison_with_related_works
-                        );
+                        tracing::info!("Summary.experiment_results: {}", summary.experiment_results);
+                        tracing::info!("Summary.comparison_with_related_works: {}", summary.comparison_with_related_works);
                         tracing::info!("Summary.future_works: {}", summary.future_works);
                         assert!(true);
                     }
@@ -314,32 +250,21 @@ async fn test_summarize() {
 async fn test_chat_completion_with_function_calling() {
     init_tracing();
     let mut chat = ChatCompletion::new();
-    let messages = vec![Message::from_string(
-        Role::User,
-        "Please calculate 25 + 17 using the calculator tool.",
-    )];
+    let messages = vec![Message::from_string(Role::User, "Please calculate 25 + 17 using the calculator tool.")];
 
     // Define a calculator function tool
     let calculator_tool = Tool::function(
         "calculator",
         "A calculator that can perform basic arithmetic operations",
         vec![
-            (
-                "operation",
-                ParameterProperty::from_string(
-                    "The operation to perform (add, subtract, multiply, divide)",
-                ),
-            ),
+            ("operation", ParameterProperty::from_string("The operation to perform (add, subtract, multiply, divide)")),
             ("a", ParameterProperty::from_number("The first number")),
             ("b", ParameterProperty::from_number("The second number")),
         ],
         false, // strict mode
     );
 
-    chat.model_id("gpt-4o-mini")
-        .messages(messages)
-        .temperature(0.1)
-        .tools(vec![calculator_tool]);
+    chat.model_id("gpt-4o-mini").messages(messages).temperature(0.1).tools(vec![calculator_tool]);
     // First call
     let mut counter = 3;
     loop {
@@ -410,19 +335,14 @@ async fn test_chat_completion_with_function_calling() {
     // Second call to ensure the tool is still available
     let messages = chat.get_message_history();
     let mut chat = ChatCompletion::new();
-    chat.model_id("gpt-4o-mini")
-        .messages(messages)
-        .temperature(1.0);
+    chat.model_id("gpt-4o-mini").messages(messages).temperature(1.0);
 
     let mut counter = 3;
     loop {
         match chat.chat().await {
             Ok(response) => {
                 tracing::info!("Second Response: {:#?}", response);
-                assert!(
-                    !response.choices.is_empty(),
-                    "Response should contain at least one choice"
-                );
+                assert!(!response.choices.is_empty(), "Response should contain at least one choice");
                 let content = response.choices[0]
                     .message
                     .content
@@ -432,11 +352,7 @@ async fn test_chat_completion_with_function_calling() {
                     .expect("Response content should not be empty");
                 tracing::info!("Content: {}", content);
                 // Check if the content contains the expected result
-                assert!(
-                    content.contains("42"),
-                    "Expected content to contain '42', found: {}",
-                    content
-                );
+                assert!(content.contains("42"), "Expected content to contain '42', found: {}", content);
                 break;
             }
             Err(e) => match e {

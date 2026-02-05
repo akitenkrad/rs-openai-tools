@@ -145,10 +145,7 @@ impl OpenAIAuth {
     /// let auth = OpenAIAuth::new("sk-your-api-key");
     /// ```
     pub fn new<T: Into<String>>(api_key: T) -> Self {
-        Self {
-            api_key: api_key.into(),
-            base_url: OPENAI_DEFAULT_BASE_URL.to_string(),
-        }
+        Self { api_key: api_key.into(), base_url: OPENAI_DEFAULT_BASE_URL.to_string() }
     }
 
     /// Sets a custom base URL
@@ -205,8 +202,7 @@ impl OpenAIAuth {
     fn apply_headers(&self, headers: &mut HeaderMap) -> Result<()> {
         headers.insert(
             "Authorization",
-            HeaderValue::from_str(&format!("Bearer {}", self.api_key))
-                .map_err(|e| OpenAIToolError::Error(format!("Invalid header value: {}", e)))?,
+            HeaderValue::from_str(&format!("Bearer {}", self.api_key)).map_err(|e| OpenAIToolError::Error(format!("Invalid header value: {}", e)))?,
         );
         Ok(())
     }
@@ -278,10 +274,7 @@ impl AzureAuth {
     /// );
     /// ```
     pub fn new<T: Into<String>>(api_key: T, base_url: T) -> Self {
-        Self {
-            api_key: api_key.into(),
-            base_url: base_url.into(),
-        }
+        Self { api_key: api_key.into(), base_url: base_url.into() }
     }
 
     /// Returns the API key
@@ -311,11 +304,7 @@ impl AzureAuth {
     ///
     /// Uses `api-key` header for Azure OpenAI authentication.
     fn apply_headers(&self, headers: &mut HeaderMap) -> Result<()> {
-        headers.insert(
-            "api-key",
-            HeaderValue::from_str(&self.api_key)
-                .map_err(|e| OpenAIToolError::Error(format!("Invalid header value: {}", e)))?,
-        );
+        headers.insert("api-key", HeaderValue::from_str(&self.api_key).map_err(|e| OpenAIToolError::Error(format!("Invalid header value: {}", e)))?);
         Ok(())
     }
 }
@@ -345,8 +334,7 @@ impl AuthProvider {
     /// ```
     pub fn openai_from_env() -> Result<Self> {
         dotenv().ok();
-        let api_key = env::var("OPENAI_API_KEY")
-            .map_err(|_| OpenAIToolError::Error("OPENAI_API_KEY environment variable not set".into()))?;
+        let api_key = env::var("OPENAI_API_KEY").map_err(|_| OpenAIToolError::Error("OPENAI_API_KEY environment variable not set".into()))?;
         Ok(Self::OpenAI(OpenAIAuth::new(api_key)))
     }
 
@@ -378,12 +366,12 @@ impl AuthProvider {
         dotenv().ok();
 
         // Get API key
-        let api_key = env::var("AZURE_OPENAI_API_KEY")
-            .map_err(|_| OpenAIToolError::Error("AZURE_OPENAI_API_KEY environment variable not set".into()))?;
+        let api_key =
+            env::var("AZURE_OPENAI_API_KEY").map_err(|_| OpenAIToolError::Error("AZURE_OPENAI_API_KEY environment variable not set".into()))?;
 
         // Get base URL (required)
-        let base_url = env::var("AZURE_OPENAI_BASE_URL")
-            .map_err(|_| OpenAIToolError::Error("AZURE_OPENAI_BASE_URL environment variable not set".into()))?;
+        let base_url =
+            env::var("AZURE_OPENAI_BASE_URL").map_err(|_| OpenAIToolError::Error("AZURE_OPENAI_BASE_URL environment variable not set".into()))?;
 
         Ok(Self::Azure(AzureAuth::new(api_key, base_url)))
     }
@@ -604,20 +592,15 @@ impl AuthProvider {
 
         if url_str.contains(".openai.azure.com") {
             // Azure: get credentials from Azure env vars
-            let api_key = env::var("AZURE_OPENAI_API_KEY").map_err(|_| {
-                OpenAIToolError::Error("Azure URL detected but AZURE_OPENAI_API_KEY is not set".into())
-            })?;
+            let api_key = env::var("AZURE_OPENAI_API_KEY")
+                .map_err(|_| OpenAIToolError::Error("Azure URL detected but AZURE_OPENAI_API_KEY is not set".into()))?;
 
             Ok(Self::Azure(AzureAuth::new(api_key, url_str)))
         } else {
             // OpenAI: get credentials from OpenAI env var
-            let api_key = env::var("OPENAI_API_KEY").map_err(|_| {
-                OpenAIToolError::Error("OPENAI_API_KEY environment variable not set".into())
-            })?;
+            let api_key = env::var("OPENAI_API_KEY").map_err(|_| OpenAIToolError::Error("OPENAI_API_KEY environment variable not set".into()))?;
 
-            Ok(Self::OpenAI(
-                OpenAIAuth::new(api_key).with_base_url(url_str),
-            ))
+            Ok(Self::OpenAI(OpenAIAuth::new(api_key).with_base_url(url_str)))
         }
     }
 }
@@ -673,24 +656,16 @@ mod tests {
             "https://my-resource.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2024-08-01-preview",
         );
         assert_eq!(auth.api_key(), "api-key");
-        assert_eq!(
-            auth.base_url(),
-            "https://my-resource.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2024-08-01-preview"
-        );
+        assert_eq!(auth.base_url(), "https://my-resource.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2024-08-01-preview");
     }
 
     #[test]
     fn test_azure_endpoint_returns_base_url() {
         // Azure endpoint() returns base_url as-is (path is ignored)
-        let auth = AzureAuth::new(
-            "key",
-            "https://my-resource.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2024-08-01-preview",
-        );
+        let auth =
+            AzureAuth::new("key", "https://my-resource.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2024-08-01-preview");
         let endpoint = auth.endpoint("ignored");
-        assert_eq!(
-            endpoint,
-            "https://my-resource.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2024-08-01-preview"
-        );
+        assert_eq!(endpoint, "https://my-resource.openai.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2024-08-01-preview");
     }
 
     #[test]
@@ -715,10 +690,7 @@ mod tests {
 
     #[test]
     fn test_auth_provider_azure() {
-        let auth = AuthProvider::Azure(AzureAuth::new(
-            "key",
-            "https://my-resource.openai.azure.com/openai/deployments/gpt-4o",
-        ));
+        let auth = AuthProvider::Azure(AzureAuth::new("key", "https://my-resource.openai.azure.com/openai/deployments/gpt-4o"));
         assert!(auth.is_azure());
         assert!(!auth.is_openai());
         assert_eq!(auth.api_key(), "key");
@@ -727,10 +699,7 @@ mod tests {
     #[test]
     fn test_auth_provider_endpoint_openai() {
         let auth = AuthProvider::OpenAI(OpenAIAuth::new("key"));
-        assert_eq!(
-            auth.endpoint("chat/completions"),
-            "https://api.openai.com/v1/chat/completions"
-        );
+        assert_eq!(auth.endpoint("chat/completions"), "https://api.openai.com/v1/chat/completions");
     }
 
     #[test]
@@ -748,18 +717,10 @@ mod tests {
         let openai_auth = AuthProvider::OpenAI(OpenAIAuth::new("sk-key"));
         let mut headers = HeaderMap::new();
         openai_auth.apply_headers(&mut headers).unwrap();
-        assert!(headers
-            .get("Authorization")
-            .unwrap()
-            .to_str()
-            .unwrap()
-            .starts_with("Bearer"));
+        assert!(headers.get("Authorization").unwrap().to_str().unwrap().starts_with("Bearer"));
 
         // Azure
-        let azure_auth = AuthProvider::Azure(AzureAuth::new(
-            "azure-key",
-            "https://my-resource.openai.azure.com",
-        ));
+        let azure_auth = AuthProvider::Azure(AzureAuth::new("azure-key", "https://my-resource.openai.azure.com"));
         let mut headers = HeaderMap::new();
         azure_auth.apply_headers(&mut headers).unwrap();
         assert_eq!(headers.get("api-key").unwrap(), "azure-key");
@@ -772,10 +733,7 @@ mod tests {
         assert!(openai.is_openai());
         assert!(!openai.is_azure());
 
-        let azure = AuthProvider::Azure(AzureAuth::new(
-            "key",
-            "https://my-resource.openai.azure.com/openai/deployments/gpt-4o",
-        ));
+        let azure = AuthProvider::Azure(AzureAuth::new("key", "https://my-resource.openai.azure.com/openai/deployments/gpt-4o"));
         assert!(azure.is_azure());
         assert!(!azure.is_openai());
     }
@@ -789,10 +747,7 @@ mod tests {
         assert!(auth.is_openai());
         assert!(!auth.is_azure());
         assert_eq!(auth.api_key(), "sk-test-key");
-        assert_eq!(
-            auth.endpoint("chat/completions"),
-            "https://api.openai.com/v1/chat/completions"
-        );
+        assert_eq!(auth.endpoint("chat/completions"), "https://api.openai.com/v1/chat/completions");
     }
 
     #[test]
@@ -815,23 +770,16 @@ mod tests {
         let auth = AuthProvider::from_url_with_key("http://localhost:11434/v1", "ollama");
 
         assert!(auth.is_openai());
-        assert_eq!(
-            auth.endpoint("chat/completions"),
-            "http://localhost:11434/v1/chat/completions"
-        );
+        assert_eq!(auth.endpoint("chat/completions"), "http://localhost:11434/v1/chat/completions");
     }
 
     #[test]
     fn test_from_url_with_key_custom_openai_compatible() {
         // Custom OpenAI-compatible endpoints (e.g., vLLM, LocalAI)
-        let auth =
-            AuthProvider::from_url_with_key("https://my-proxy.example.com/openai/v1", "proxy-key");
+        let auth = AuthProvider::from_url_with_key("https://my-proxy.example.com/openai/v1", "proxy-key");
 
         assert!(auth.is_openai());
-        assert_eq!(
-            auth.endpoint("embeddings"),
-            "https://my-proxy.example.com/openai/v1/embeddings"
-        );
+        assert_eq!(auth.endpoint("embeddings"), "https://my-proxy.example.com/openai/v1/embeddings");
     }
 
     #[test]
@@ -856,18 +804,12 @@ mod tests {
         let mut headers = HeaderMap::new();
         auth.apply_headers(&mut headers).unwrap();
 
-        assert_eq!(
-            headers.get("Authorization").unwrap(),
-            "Bearer sk-secret-key"
-        );
+        assert_eq!(headers.get("Authorization").unwrap(), "Bearer sk-secret-key");
     }
 
     #[test]
     fn test_from_url_with_key_headers_azure() {
-        let auth = AuthProvider::from_url_with_key(
-            "https://resource.openai.azure.com/openai/deployments/gpt-4o",
-            "azure-secret",
-        );
+        let auth = AuthProvider::from_url_with_key("https://resource.openai.azure.com/openai/deployments/gpt-4o", "azure-secret");
 
         let mut headers = HeaderMap::new();
         auth.apply_headers(&mut headers).unwrap();

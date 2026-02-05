@@ -166,8 +166,7 @@ mod tests {
             ]
         }"#;
 
-        let response: ModerationResponse =
-            serde_json::from_str(json).expect("Should deserialize ModerationResponse");
+        let response: ModerationResponse = serde_json::from_str(json).expect("Should deserialize ModerationResponse");
         assert_eq!(response.id, "modr-XXXXX");
         assert_eq!(response.model, "omni-moderation-latest");
         assert_eq!(response.results.len(), 1);
@@ -212,8 +211,7 @@ mod tests {
             ]
         }"#;
 
-        let response: ModerationResponse =
-            serde_json::from_str(json).expect("Should deserialize flagged ModerationResponse");
+        let response: ModerationResponse = serde_json::from_str(json).expect("Should deserialize flagged ModerationResponse");
         assert!(response.results[0].flagged);
         assert!(response.results[0].categories.hate);
         assert!(response.results[0].categories.harassment);
@@ -262,8 +260,7 @@ mod tests {
             ]
         }"#;
 
-        let response: ModerationResponse = serde_json::from_str(json)
-            .expect("Should deserialize ModerationResponse with illicit fields");
+        let response: ModerationResponse = serde_json::from_str(json).expect("Should deserialize ModerationResponse with illicit fields");
         assert_eq!(response.results[0].categories.illicit, Some(false));
         assert_eq!(response.results[0].categories.illicit_violent, Some(false));
         assert!(response.results[0].category_scores.illicit.is_some());
@@ -282,14 +279,8 @@ mod tests {
 
     #[test]
     fn test_moderation_model_as_str() {
-        assert_eq!(
-            ModerationModel::OmniModerationLatest.as_str(),
-            "omni-moderation-latest"
-        );
-        assert_eq!(
-            ModerationModel::TextModerationLatest.as_str(),
-            "text-moderation-latest"
-        );
+        assert_eq!(ModerationModel::OmniModerationLatest.as_str(), "omni-moderation-latest");
+        assert_eq!(ModerationModel::TextModerationLatest.as_str(), "text-moderation-latest");
     }
 
     #[test]
@@ -365,8 +356,7 @@ mod tests {
             ]
         }"#;
 
-        let response: ModerationResponse =
-            serde_json::from_str(json).expect("Should deserialize multiple results");
+        let response: ModerationResponse = serde_json::from_str(json).expect("Should deserialize multiple results");
         assert_eq!(response.results.len(), 2);
         assert!(!response.results[0].flagged);
         assert!(response.results[1].flagged);

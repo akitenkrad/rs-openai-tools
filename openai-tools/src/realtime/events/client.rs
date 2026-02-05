@@ -128,18 +128,12 @@ pub enum ClientEvent {
 impl ClientEvent {
     /// Create a session update event.
     pub fn session_update(config: SessionConfig) -> Self {
-        Self::SessionUpdate {
-            event_id: None,
-            session: config,
-        }
+        Self::SessionUpdate { event_id: None, session: config }
     }
 
     /// Create an input audio buffer append event.
     pub fn append_audio(audio_base64: impl Into<String>) -> Self {
-        Self::InputAudioBufferAppend {
-            event_id: None,
-            audio: audio_base64.into(),
-        }
+        Self::InputAudioBufferAppend { event_id: None, audio: audio_base64.into() }
     }
 
     /// Create an input audio buffer clear event.
@@ -154,36 +148,22 @@ impl ClientEvent {
 
     /// Create a conversation item create event.
     pub fn create_item(item: ConversationItem) -> Self {
-        Self::ConversationItemCreate {
-            event_id: None,
-            previous_item_id: None,
-            item,
-        }
+        Self::ConversationItemCreate { event_id: None, previous_item_id: None, item }
     }
 
     /// Create a conversation item create event with a specific position.
     pub fn create_item_after(item: ConversationItem, previous_item_id: impl Into<String>) -> Self {
-        Self::ConversationItemCreate {
-            event_id: None,
-            previous_item_id: Some(previous_item_id.into()),
-            item,
-        }
+        Self::ConversationItemCreate { event_id: None, previous_item_id: Some(previous_item_id.into()), item }
     }
 
     /// Create a conversation item delete event.
     pub fn delete_item(item_id: impl Into<String>) -> Self {
-        Self::ConversationItemDelete {
-            event_id: None,
-            item_id: item_id.into(),
-        }
+        Self::ConversationItemDelete { event_id: None, item_id: item_id.into() }
     }
 
     /// Create a response create event.
     pub fn create_response(config: Option<ResponseCreateConfig>) -> Self {
-        Self::ResponseCreate {
-            event_id: None,
-            response: config,
-        }
+        Self::ResponseCreate { event_id: None, response: config }
     }
 
     /// Create a response cancel event.

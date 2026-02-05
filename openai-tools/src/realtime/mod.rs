@@ -159,10 +159,7 @@ pub use client::{RealtimeClient, RealtimeSession};
 pub use conversation::{ContentPart, ConversationItem, FunctionCallItem, FunctionCallOutputItem, MessageItem, MessageRole};
 pub use events::client::ClientEvent;
 pub use events::server::ServerEvent;
-pub use session::{
-    MaxTokens, Modality, NamedFunction, NamedToolChoice, RealtimeTool, SessionConfig,
-    SimpleToolChoice, ToolChoice,
-};
+pub use session::{MaxTokens, Modality, NamedFunction, NamedToolChoice, RealtimeTool, SessionConfig, SimpleToolChoice, ToolChoice};
 pub use stream::EventHandler;
 pub use vad::{Eagerness, SemanticVadConfig, ServerVadConfig, TurnDetection};
 
@@ -210,11 +207,7 @@ mod tests {
 
     #[test]
     fn test_vad_config_serialization() {
-        let vad = TurnDetection::ServerVad(ServerVadConfig {
-            threshold: Some(0.5),
-            silence_duration_ms: Some(500),
-            ..Default::default()
-        });
+        let vad = TurnDetection::ServerVad(ServerVadConfig { threshold: Some(0.5), silence_duration_ms: Some(500), ..Default::default() });
         let json = serde_json::to_string(&vad).unwrap();
         assert!(json.contains("\"type\":\"server_vad\""));
         assert!(json.contains("\"threshold\":0.5"));
@@ -222,11 +215,8 @@ mod tests {
 
     #[test]
     fn test_semantic_vad_config_serialization() {
-        let vad = TurnDetection::SemanticVad(SemanticVadConfig {
-            eagerness: Some(Eagerness::High),
-            create_response: Some(true),
-            ..Default::default()
-        });
+        let vad =
+            TurnDetection::SemanticVad(SemanticVadConfig { eagerness: Some(Eagerness::High), create_response: Some(true), ..Default::default() });
         let json = serde_json::to_string(&vad).unwrap();
         assert!(json.contains("\"type\":\"semantic_vad\""));
         assert!(json.contains("\"eagerness\":\"high\""));
@@ -235,16 +225,9 @@ mod tests {
     #[test]
     fn test_tool_integration() {
         // Test with RealtimeTool directly
-        let tool = RealtimeTool::function(
-            "get_weather",
-            "Get weather for location",
-            vec![("location", ParameterProperty::from_string("City name"))],
-        );
+        let tool = RealtimeTool::function("get_weather", "Get weather for location", vec![("location", ParameterProperty::from_string("City name"))]);
 
-        let config = SessionConfig {
-            tools: Some(vec![tool]),
-            ..Default::default()
-        };
+        let config = SessionConfig { tools: Some(vec![tool]), ..Default::default() };
 
         let json = serde_json::to_string(&config).unwrap();
         assert!(json.contains("get_weather"));
@@ -256,12 +239,8 @@ mod tests {
     #[test]
     fn test_tool_conversion_from_chat_tool() {
         // Test conversion from common Tool to RealtimeTool
-        let chat_tool = Tool::function(
-            "get_weather",
-            "Get weather for location",
-            vec![("location", ParameterProperty::from_string("City name"))],
-            false,
-        );
+        let chat_tool =
+            Tool::function("get_weather", "Get weather for location", vec![("location", ParameterProperty::from_string("City name"))], false);
 
         let realtime_tool = RealtimeTool::from(chat_tool);
         assert_eq!(realtime_tool.name, "get_weather");
@@ -279,9 +258,7 @@ mod tests {
         let item = ConversationItem::Message(MessageItem {
             id: Some("msg_123".to_string()),
             role: MessageRole::User,
-            content: vec![ContentPart::InputText {
-                text: "Hello".to_string(),
-            }],
+            content: vec![ContentPart::InputText { text: "Hello".to_string() }],
         });
         let json = serde_json::to_string(&item).unwrap();
         assert!(json.contains("\"type\":\"message\""));
@@ -334,10 +311,7 @@ mod tests {
 
         let event = ClientEvent::SessionUpdate {
             event_id: Some("evt_123".to_string()),
-            session: SessionConfig {
-                modalities: Some(vec![Modality::Text]),
-                ..Default::default()
-            },
+            session: SessionConfig { modalities: Some(vec![Modality::Text]), ..Default::default() },
         };
         let json = serde_json::to_string(&event).unwrap();
         assert!(json.contains("\"type\":\"session.update\""));
@@ -348,10 +322,7 @@ mod tests {
     fn test_client_event_input_audio_buffer_append() {
         use events::client::ClientEvent;
 
-        let event = ClientEvent::InputAudioBufferAppend {
-            event_id: None,
-            audio: "SGVsbG8gV29ybGQ=".to_string(),
-        };
+        let event = ClientEvent::InputAudioBufferAppend { event_id: None, audio: "SGVsbG8gV29ybGQ=".to_string() };
         let json = serde_json::to_string(&event).unwrap();
         assert!(json.contains("\"type\":\"input_audio_buffer.append\""));
         assert!(json.contains("\"audio\":\"SGVsbG8gV29ybGQ=\""));

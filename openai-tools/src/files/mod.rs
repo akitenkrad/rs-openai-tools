@@ -217,8 +217,7 @@ mod tests {
             ]
         }"#;
 
-        let response: FileListResponse =
-            serde_json::from_str(json).expect("Should deserialize FileListResponse");
+        let response: FileListResponse = serde_json::from_str(json).expect("Should deserialize FileListResponse");
         assert_eq!(response.object, "list");
         assert_eq!(response.data.len(), 2);
         assert_eq!(response.data[0].id, "file-abc123");
@@ -233,8 +232,7 @@ mod tests {
             "deleted": true
         }"#;
 
-        let response: DeleteResponse =
-            serde_json::from_str(json).expect("Should deserialize DeleteResponse");
+        let response: DeleteResponse = serde_json::from_str(json).expect("Should deserialize DeleteResponse");
         assert_eq!(response.id, "file-abc123");
         assert_eq!(response.object, "file");
         assert!(response.deleted);

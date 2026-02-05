@@ -48,14 +48,8 @@ mod tests {
         }"#;
 
         let error_resp: ErrorResponse = serde_json::from_str(json).unwrap();
-        assert_eq!(
-            error_resp.error.message,
-            Some("Incorrect API key provided".to_string())
-        );
-        assert_eq!(
-            error_resp.error.code,
-            Some("invalid_api_key".to_string())
-        );
+        assert_eq!(error_resp.error.message, Some("Incorrect API key provided".to_string()));
+        assert_eq!(error_resp.error.code, Some("invalid_api_key".to_string()));
     }
 
     #[test]
@@ -70,14 +64,8 @@ mod tests {
         }"#;
 
         let error_resp: ErrorResponse = serde_json::from_str(json).unwrap();
-        assert_eq!(
-            error_resp.error.message,
-            Some("Rate limit exceeded".to_string())
-        );
-        assert_eq!(
-            error_resp.error.code,
-            Some("rate_limit_exceeded".to_string())
-        );
+        assert_eq!(error_resp.error.message, Some("Rate limit exceeded".to_string()));
+        assert_eq!(error_resp.error.code, Some("rate_limit_exceeded".to_string()));
     }
 
     #[test]
@@ -85,10 +73,7 @@ mod tests {
         let json = r#"{"error": {"message": "Error occurred"}}"#;
 
         let error_resp: ErrorResponse = serde_json::from_str(json).unwrap();
-        assert_eq!(
-            error_resp.error.message,
-            Some("Error occurred".to_string())
-        );
+        assert_eq!(error_resp.error.message, Some("Error occurred".to_string()));
         assert!(error_resp.error.code.is_none());
         assert!(error_resp.error.param.is_none());
         assert!(error_resp.error.type_name.is_none());
@@ -115,10 +100,7 @@ mod tests {
         }"#;
 
         let error_resp: ErrorResponse = serde_json::from_str(json).unwrap();
-        assert_eq!(
-            error_resp.error.message,
-            Some("Invalid value for 'model'".to_string())
-        );
+        assert_eq!(error_resp.error.message, Some("Invalid value for 'model'".to_string()));
         assert_eq!(error_resp.error.param, Some("model".to_string()));
         assert!(error_resp.error.code.is_none());
     }

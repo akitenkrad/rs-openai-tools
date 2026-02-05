@@ -14,10 +14,7 @@ static TRACING_INIT: Once = Once::new();
 fn init_tracing() {
     TRACING_INIT.call_once(|| {
         let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
-        let _ = tracing_subscriber::fmt()
-            .with_env_filter(filter)
-            .with_test_writer()
-            .try_init();
+        let _ = tracing_subscriber::fmt().with_env_filter(filter).with_test_writer().try_init();
     });
 }
 
@@ -26,9 +23,7 @@ async fn test_embedding_with_text() {
     init_tracing();
 
     let mut embedding = Embedding::new().expect("Embedding initialization should succeed");
-    embedding
-        .model(EmbeddingModel::TextEmbedding3Small)
-        .input_text("Hello, world!");
+    embedding.model(EmbeddingModel::TextEmbedding3Small).input_text("Hello, world!");
 
     let mut counter = 3;
     loop {
@@ -42,10 +37,7 @@ async fn test_embedding_with_text() {
                 assert_eq!(response.data.len(), 1);
                 assert!(response.data[0].embedding.is_1d());
 
-                let embedding_vec = response.data[0]
-                    .embedding
-                    .as_1d()
-                    .expect("Embedding should be 1D");
+                let embedding_vec = response.data[0].embedding.as_1d().expect("Embedding should be 1D");
                 tracing::info!("Embedding dimension: {}", embedding_vec.len());
                 assert_eq!(embedding_vec.len(), 1536); // text-embedding-3-small outputs 1536 dimensions
 
@@ -75,9 +67,7 @@ async fn test_embedding_with_text_array() {
 
     let mut embedding = Embedding::new().expect("Embedding initialization should succeed");
     let texts = vec!["Hello, world!", "こんにちは、世界！", "Bonjour le monde!"];
-    embedding
-        .model(EmbeddingModel::TextEmbedding3Small)
-        .input_text_array(texts.clone());
+    embedding.model(EmbeddingModel::TextEmbedding3Small).input_text_array(texts.clone());
 
     let mut counter = 3;
     loop {

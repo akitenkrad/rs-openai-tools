@@ -15,10 +15,7 @@ static INIT: Once = Once::new();
 fn init_tracing() {
     INIT.call_once(|| {
         let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
-        let _ = tracing_subscriber::fmt()
-            .with_env_filter(filter)
-            .with_test_writer()
-            .try_init();
+        let _ = tracing_subscriber::fmt().with_env_filter(filter).with_test_writer().try_init();
     });
 }
 
@@ -33,11 +30,7 @@ async fn test_chat_with_model(model_id: &str) -> Result<(), String> {
     loop {
         match chat.chat().await {
             Ok(response) => {
-                let content = response.choices[0]
-                    .message
-                    .content
-                    .clone()
-                    .expect("Response content should not be empty");
+                let content = response.choices[0].message.content.clone().expect("Response content should not be empty");
                 tracing::info!("[{}] Chat response: {:?}", model_id, content);
                 return Ok(());
             }

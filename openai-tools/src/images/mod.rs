@@ -165,9 +165,7 @@ pub mod response;
 
 #[cfg(test)]
 mod tests {
-    use crate::images::request::{
-        ImageModel, ImageQuality, ImageSize, ImageStyle, ResponseFormat,
-    };
+    use crate::images::request::{ImageModel, ImageQuality, ImageSize, ImageStyle, ResponseFormat};
     use crate::images::response::ImageResponse;
 
     #[test]
@@ -181,14 +179,10 @@ mod tests {
             ]
         }"#;
 
-        let response: ImageResponse =
-            serde_json::from_str(json).expect("Should deserialize ImageResponse");
+        let response: ImageResponse = serde_json::from_str(json).expect("Should deserialize ImageResponse");
         assert_eq!(response.created, 1704067200);
         assert_eq!(response.data.len(), 1);
-        assert_eq!(
-            response.data[0].url,
-            Some("https://example.com/image.png".to_string())
-        );
+        assert_eq!(response.data[0].url, Some("https://example.com/image.png".to_string()));
     }
 
     #[test]
@@ -202,16 +196,12 @@ mod tests {
             ]
         }"#;
 
-        let response: ImageResponse =
-            serde_json::from_str(json).expect("Should deserialize ImageResponse with b64");
+        let response: ImageResponse = serde_json::from_str(json).expect("Should deserialize ImageResponse with b64");
         assert!(response.data[0].has_b64());
         assert!(!response.data[0].has_url());
 
         // Verify decoding
-        let bytes = response.data[0]
-            .as_bytes()
-            .expect("Should have bytes")
-            .expect("Should decode");
+        let bytes = response.data[0].as_bytes().expect("Should have bytes").expect("Should decode");
         assert_eq!(bytes, b"hello world");
     }
 
@@ -227,80 +217,40 @@ mod tests {
             ]
         }"#;
 
-        let response: ImageResponse =
-            serde_json::from_str(json).expect("Should deserialize with revised_prompt");
-        assert_eq!(
-            response.data[0].revised_prompt,
-            Some("A detailed painting of a sunset over calm waters".to_string())
-        );
+        let response: ImageResponse = serde_json::from_str(json).expect("Should deserialize with revised_prompt");
+        assert_eq!(response.data[0].revised_prompt, Some("A detailed painting of a sunset over calm waters".to_string()));
     }
 
     #[test]
     fn test_image_model_serialization() {
-        assert_eq!(
-            serde_json::to_string(&ImageModel::DallE2).unwrap(),
-            "\"dall-e-2\""
-        );
-        assert_eq!(
-            serde_json::to_string(&ImageModel::DallE3).unwrap(),
-            "\"dall-e-3\""
-        );
-        assert_eq!(
-            serde_json::to_string(&ImageModel::GptImage1).unwrap(),
-            "\"gpt-image-1\""
-        );
+        assert_eq!(serde_json::to_string(&ImageModel::DallE2).unwrap(), "\"dall-e-2\"");
+        assert_eq!(serde_json::to_string(&ImageModel::DallE3).unwrap(), "\"dall-e-3\"");
+        assert_eq!(serde_json::to_string(&ImageModel::GptImage1).unwrap(), "\"gpt-image-1\"");
     }
 
     #[test]
     fn test_image_size_serialization() {
-        assert_eq!(
-            serde_json::to_string(&ImageSize::Size256x256).unwrap(),
-            "\"256x256\""
-        );
-        assert_eq!(
-            serde_json::to_string(&ImageSize::Size1024x1024).unwrap(),
-            "\"1024x1024\""
-        );
-        assert_eq!(
-            serde_json::to_string(&ImageSize::Size1792x1024).unwrap(),
-            "\"1792x1024\""
-        );
+        assert_eq!(serde_json::to_string(&ImageSize::Size256x256).unwrap(), "\"256x256\"");
+        assert_eq!(serde_json::to_string(&ImageSize::Size1024x1024).unwrap(), "\"1024x1024\"");
+        assert_eq!(serde_json::to_string(&ImageSize::Size1792x1024).unwrap(), "\"1792x1024\"");
     }
 
     #[test]
     fn test_image_quality_serialization() {
-        assert_eq!(
-            serde_json::to_string(&ImageQuality::Standard).unwrap(),
-            "\"standard\""
-        );
-        assert_eq!(
-            serde_json::to_string(&ImageQuality::Hd).unwrap(),
-            "\"hd\""
-        );
+        assert_eq!(serde_json::to_string(&ImageQuality::Standard).unwrap(), "\"standard\"");
+        assert_eq!(serde_json::to_string(&ImageQuality::Hd).unwrap(), "\"hd\"");
     }
 
     #[test]
     fn test_image_style_serialization() {
-        assert_eq!(
-            serde_json::to_string(&ImageStyle::Vivid).unwrap(),
-            "\"vivid\""
-        );
-        assert_eq!(
-            serde_json::to_string(&ImageStyle::Natural).unwrap(),
-            "\"natural\""
-        );
+        assert_eq!(serde_json::to_string(&ImageStyle::Vivid).unwrap(), "\"vivid\"");
+        assert_eq!(serde_json::to_string(&ImageStyle::Natural).unwrap(), "\"natural\"");
     }
 
     #[test]
     fn test_response_format_serialization() {
-        assert_eq!(
-            serde_json::to_string(&ResponseFormat::Url).unwrap(),
-            "\"url\""
-        );
-        assert_eq!(
-            serde_json::to_string(&ResponseFormat::B64Json).unwrap(),
-            "\"b64_json\""
-        );
+        assert_eq!(serde_json::to_string(&ResponseFormat::Url).unwrap(), "\"url\"");
+        assert_eq!(serde_json::to_string(&ResponseFormat::B64Json).unwrap(), "\"b64_json\"");
     }
 
     #[test]
@@ -323,8 +273,7 @@ mod tests {
             ]
         }"#;
 
-        let response: ImageResponse =
-            serde_json::from_str(json).expect("Should deserialize multiple images");
+        let response: ImageResponse = serde_json::from_str(json).expect("Should deserialize multiple images");
         assert_eq!(response.data.len(), 3);
     }
 }

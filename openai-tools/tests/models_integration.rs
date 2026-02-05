@@ -32,10 +32,7 @@ async fn test_retrieve_model() {
     let models = Models::new().expect("Should create Models client");
 
     // Retrieve a well-known model
-    let model = models
-        .retrieve("gpt-4o-mini")
-        .await
-        .expect("Should retrieve gpt-4o-mini");
+    let model = models.retrieve("gpt-4o-mini").await.expect("Should retrieve gpt-4o-mini");
 
     assert_eq!(model.id, "gpt-4o-mini");
     assert_eq!(model.object, "model");
@@ -53,10 +50,7 @@ async fn test_retrieve_multiple_models() {
     let model_ids = vec!["gpt-4o-mini", "text-embedding-3-small"];
 
     for model_id in model_ids {
-        let model = models
-            .retrieve(model_id)
-            .await
-            .expect(&format!("Should retrieve {}", model_id));
+        let model = models.retrieve(model_id).await.expect(&format!("Should retrieve {}", model_id));
 
         assert_eq!(model.id, model_id);
         println!("Retrieved: {} (created: {})", model.id, model.created);

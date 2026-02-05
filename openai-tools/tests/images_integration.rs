@@ -6,25 +6,16 @@
 //! Note: Image generation tests incur API costs. These tests generate minimal
 //! images to reduce costs while still validating the API integration.
 
-use openai_tools::images::request::{
-    GenerateOptions, ImageModel, ImageQuality, ImageSize, ImageStyle, Images, ResponseFormat,
-};
+use openai_tools::images::request::{GenerateOptions, ImageModel, ImageQuality, ImageSize, ImageStyle, Images, ResponseFormat};
 
 /// Test basic image generation with DALL-E 3.
 #[tokio::test]
 async fn test_generate_image_dall_e_3() {
     let images = Images::new().expect("Should create Images client");
 
-    let options = GenerateOptions {
-        model: Some(ImageModel::DallE3),
-        size: Some(ImageSize::Size1024x1024),
-        ..Default::default()
-    };
+    let options = GenerateOptions { model: Some(ImageModel::DallE3), size: Some(ImageSize::Size1024x1024), ..Default::default() };
 
-    let response = images
-        .generate("A simple red circle on white background", options)
-        .await
-        .expect("Should generate image");
+    let response = images.generate("A simple red circle on white background", options).await.expect("Should generate image");
 
     // Verify response structure
     assert!(response.created > 0, "Created timestamp should be positive");
@@ -55,10 +46,7 @@ async fn test_generate_image_with_options() {
         ..Default::default()
     };
 
-    let response = images
-        .generate("A blue square", options)
-        .await
-        .expect("Should generate image with options");
+    let response = images.generate("A blue square", options).await.expect("Should generate image with options");
 
     assert_eq!(response.data.len(), 1);
     assert!(response.data[0].url.is_some());
@@ -77,10 +65,7 @@ async fn test_generate_image_b64_json() {
         ..Default::default()
     };
 
-    let response = images
-        .generate("A small green dot", options)
-        .await
-        .expect("Should generate image with base64");
+    let response = images.generate("A small green dot", options).await.expect("Should generate image with base64");
 
     assert_eq!(response.data.len(), 1);
     let image = &response.data[0];

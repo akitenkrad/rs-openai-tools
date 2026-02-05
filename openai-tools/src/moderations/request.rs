@@ -201,14 +201,8 @@ impl Moderations {
         let client = create_http_client(self.timeout)?;
         let mut headers = request::header::HeaderMap::new();
         self.auth.apply_headers(&mut headers)?;
-        headers.insert(
-            "Content-Type",
-            request::header::HeaderValue::from_static("application/json"),
-        );
-        headers.insert(
-            "User-Agent",
-            request::header::HeaderValue::from_static("openai-tools-rust"),
-        );
+        headers.insert("Content-Type", request::header::HeaderValue::from_static("application/json"));
+        headers.insert("User-Agent", request::header::HeaderValue::from_static("openai-tools-rust"));
         Ok((client, headers))
     }
 
@@ -244,15 +238,8 @@ impl Moderations {
     ///     Ok(())
     /// }
     /// ```
-    pub async fn moderate_text(
-        &self,
-        text: &str,
-        model: Option<ModerationModel>,
-    ) -> Result<ModerationResponse> {
-        let request_body = ModerationRequest {
-            input: ModerationInput::Single(text.to_string()),
-            model: model.map(|m| m.as_str().to_string()),
-        };
+    pub async fn moderate_text(&self, text: &str, model: Option<ModerationModel>) -> Result<ModerationResponse> {
+        let request_body = ModerationRequest { input: ModerationInput::Single(text.to_string()), model: model.map(|m| m.as_str().to_string()) };
 
         self.send_request(&request_body).await
     }
@@ -291,15 +278,8 @@ impl Moderations {
     ///     Ok(())
     /// }
     /// ```
-    pub async fn moderate_texts(
-        &self,
-        texts: Vec<String>,
-        model: Option<ModerationModel>,
-    ) -> Result<ModerationResponse> {
-        let request_body = ModerationRequest {
-            input: ModerationInput::Multiple(texts),
-            model: model.map(|m| m.as_str().to_string()),
-        };
+    pub async fn moderate_texts(&self, texts: Vec<String>, model: Option<ModerationModel>) -> Result<ModerationResponse> {
+        let request_body = ModerationRequest { input: ModerationInput::Multiple(texts), model: model.map(|m| m.as_str().to_string()) };
 
         self.send_request(&request_body).await
     }
@@ -308,17 +288,10 @@ impl Moderations {
     async fn send_request(&self, request_body: &ModerationRequest) -> Result<ModerationResponse> {
         let (client, headers) = self.create_client()?;
 
-        let body =
-            serde_json::to_string(request_body).map_err(OpenAIToolError::SerdeJsonError)?;
+        let body = serde_json::to_string(request_body).map_err(OpenAIToolError::SerdeJsonError)?;
 
         let url = self.auth.endpoint(MODERATIONS_PATH);
-        let response = client
-            .post(&url)
-            .headers(headers)
-            .body(body)
-            .send()
-            .await
-            .map_err(OpenAIToolError::RequestError)?;
+        let response = client.post(&url).headers(headers).body(body).send().await.map_err(OpenAIToolError::RequestError)?;
 
         let status = response.status();
         let content = response.text().await.map_err(OpenAIToolError::RequestError)?;

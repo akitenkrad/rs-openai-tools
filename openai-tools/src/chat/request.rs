@@ -399,9 +399,7 @@ impl ChatCompletion {
     /// let mut chat = ChatCompletion::new();
     /// ```
     pub fn new() -> Self {
-        let auth = AuthProvider::openai_from_env()
-            .map_err(|e| OpenAIToolError::Error(format!("Failed to load OpenAI auth: {}", e)))
-            .unwrap();
+        let auth = AuthProvider::openai_from_env().map_err(|e| OpenAIToolError::Error(format!("Failed to load OpenAI auth: {}", e))).unwrap();
         Self { auth, request_body: Body::default(), timeout: None }
     }
 
@@ -437,14 +435,8 @@ impl ChatCompletion {
     /// reasoning_chat.temperature(0.5); // Warning logged, value ignored
     /// ```
     pub fn with_model(model: ChatModel) -> Self {
-        let auth = AuthProvider::openai_from_env()
-            .map_err(|e| OpenAIToolError::Error(format!("Failed to load OpenAI auth: {}", e)))
-            .unwrap();
-        Self {
-            auth,
-            request_body: Body { model, ..Default::default() },
-            timeout: None,
-        }
+        let auth = AuthProvider::openai_from_env().map_err(|e| OpenAIToolError::Error(format!("Failed to load OpenAI auth: {}", e))).unwrap();
+        Self { auth, request_body: Body { model, ..Default::default() }, timeout: None }
     }
 
     /// Creates a new ChatCompletion instance with a custom authentication provider
@@ -808,16 +800,15 @@ impl ChatCompletion {
                 if (frequency_penalty as f64 - fixed).abs() > f64::EPSILON {
                     tracing::warn!(
                         "Model '{}' only supports frequency_penalty={}. Ignoring frequency_penalty={}.",
-                        self.request_body.model, fixed, frequency_penalty
+                        self.request_body.model,
+                        fixed,
+                        frequency_penalty
                     );
                     return self;
                 }
             }
             ParameterRestriction::NotSupported => {
-                tracing::warn!(
-                    "Model '{}' does not support frequency_penalty parameter. Ignoring.",
-                    self.request_body.model
-                );
+                tracing::warn!("Model '{}' does not support frequency_penalty parameter. Ignoring.", self.request_body.model);
                 return self;
             }
             ParameterRestriction::Any => {}
@@ -841,14 +832,10 @@ impl ChatCompletion {
     pub fn logit_bias<T: AsRef<str>>(&mut self, logit_bias: HashMap<T, i32>) -> &mut Self {
         let support = self.request_body.model.parameter_support();
         if !support.logit_bias {
-            tracing::warn!(
-                "Model '{}' does not support logit_bias parameter. Ignoring.",
-                self.request_body.model
-            );
+            tracing::warn!("Model '{}' does not support logit_bias parameter. Ignoring.", self.request_body.model);
             return self;
         }
-        self.request_body.logit_bias =
-            Some(logit_bias.into_iter().map(|(k, v)| (k.as_ref().to_string(), v)).collect::<HashMap<String, i32>>());
+        self.request_body.logit_bias = Some(logit_bias.into_iter().map(|(k, v)| (k.as_ref().to_string(), v)).collect::<HashMap<String, i32>>());
         self
     }
 
@@ -867,10 +854,7 @@ impl ChatCompletion {
     pub fn logprobs(&mut self, logprobs: bool) -> &mut Self {
         let support = self.request_body.model.parameter_support();
         if !support.logprobs {
-            tracing::warn!(
-                "Model '{}' does not support logprobs parameter. Ignoring.",
-                self.request_body.model
-            );
+            tracing::warn!("Model '{}' does not support logprobs parameter. Ignoring.", self.request_body.model);
             return self;
         }
         self.request_body.logprobs = Some(logprobs);
@@ -892,10 +876,7 @@ impl ChatCompletion {
     pub fn top_logprobs(&mut self, top_logprobs: u8) -> &mut Self {
         let support = self.request_body.model.parameter_support();
         if !support.top_logprobs {
-            tracing::warn!(
-                "Model '{}' does not support top_logprobs parameter. Ignoring.",
-                self.request_body.model
-            );
+            tracing::warn!("Model '{}' does not support top_logprobs parameter. Ignoring.", self.request_body.model);
             return self;
         }
         self.request_body.top_logprobs = Some(top_logprobs);
@@ -931,10 +912,7 @@ impl ChatCompletion {
     pub fn n(&mut self, n: u32) -> &mut Self {
         let support = self.request_body.model.parameter_support();
         if !support.n_multiple && n != 1 {
-            tracing::warn!(
-                "Model '{}' only supports n=1. Ignoring n={}.",
-                self.request_body.model, n
-            );
+            tracing::warn!("Model '{}' only supports n=1. Ignoring n={}.", self.request_body.model, n);
             return self;
         }
         self.request_body.n = Some(n);
@@ -978,16 +956,15 @@ impl ChatCompletion {
                 if (presence_penalty as f64 - fixed).abs() > f64::EPSILON {
                     tracing::warn!(
                         "Model '{}' only supports presence_penalty={}. Ignoring presence_penalty={}.",
-                        self.request_body.model, fixed, presence_penalty
+                        self.request_body.model,
+                        fixed,
+                        presence_penalty
                     );
                     return self;
                 }
             }
             ParameterRestriction::NotSupported => {
-                tracing::warn!(
-                    "Model '{}' does not support presence_penalty parameter. Ignoring.",
-                    self.request_body.model
-                );
+                tracing::warn!("Model '{}' does not support presence_penalty parameter. Ignoring.", self.request_body.model);
                 return self;
             }
             ParameterRestriction::Any => {}
@@ -1016,18 +993,12 @@ impl ChatCompletion {
         match support.temperature {
             ParameterRestriction::FixedValue(fixed) => {
                 if (temperature as f64 - fixed).abs() > f64::EPSILON {
-                    tracing::warn!(
-                        "Model '{}' only supports temperature={}. Ignoring temperature={}.",
-                        self.request_body.model, fixed, temperature
-                    );
+                    tracing::warn!("Model '{}' only supports temperature={}. Ignoring temperature={}.", self.request_body.model, fixed, temperature);
                     return self;
                 }
             }
             ParameterRestriction::NotSupported => {
-                tracing::warn!(
-                    "Model '{}' does not support temperature parameter. Ignoring.",
-                    self.request_body.model
-                );
+                tracing::warn!("Model '{}' does not support temperature parameter. Ignoring.", self.request_body.model);
                 return self;
             }
             ParameterRestriction::Any => {}
@@ -1172,7 +1143,8 @@ impl ChatCompletion {
                     tracing::warn!(
                         "Reasoning model '{}' does not support custom temperature. \
                          Ignoring temperature={} and using default (1.0).",
-                        model, temp
+                        model,
+                        temp
                     );
                     self.request_body.temperature = None;
                 }
@@ -1184,7 +1156,8 @@ impl ChatCompletion {
                     tracing::warn!(
                         "Reasoning model '{}' does not support frequency_penalty. \
                          Ignoring frequency_penalty={} and using default (0).",
-                        model, fp
+                        model,
+                        fp
                     );
                     self.request_body.frequency_penalty = None;
                 }
@@ -1196,7 +1169,8 @@ impl ChatCompletion {
                     tracing::warn!(
                         "Reasoning model '{}' does not support presence_penalty. \
                          Ignoring presence_penalty={} and using default (0).",
-                        model, pp
+                        model,
+                        pp
                     );
                     self.request_body.presence_penalty = None;
                 }
@@ -1204,28 +1178,19 @@ impl ChatCompletion {
 
             // Logprobs: not supported
             if self.request_body.logprobs.is_some() {
-                tracing::warn!(
-                    "Reasoning model '{}' does not support logprobs. Ignoring logprobs parameter.",
-                    model
-                );
+                tracing::warn!("Reasoning model '{}' does not support logprobs. Ignoring logprobs parameter.", model);
                 self.request_body.logprobs = None;
             }
 
             // Top logprobs: not supported
             if self.request_body.top_logprobs.is_some() {
-                tracing::warn!(
-                    "Reasoning model '{}' does not support top_logprobs. Ignoring top_logprobs parameter.",
-                    model
-                );
+                tracing::warn!("Reasoning model '{}' does not support top_logprobs. Ignoring top_logprobs parameter.", model);
                 self.request_body.top_logprobs = None;
             }
 
             // Logit bias: not supported
             if self.request_body.logit_bias.is_some() {
-                tracing::warn!(
-                    "Reasoning model '{}' does not support logit_bias. Ignoring logit_bias parameter.",
-                    model
-                );
+                tracing::warn!("Reasoning model '{}' does not support logit_bias. Ignoring logit_bias parameter.", model);
                 self.request_body.logit_bias = None;
             }
 
@@ -1235,7 +1200,8 @@ impl ChatCompletion {
                     tracing::warn!(
                         "Reasoning model '{}' does not support n != 1. \
                          Ignoring n={} and using default (1).",
-                        model, n
+                        model,
+                        n
                     );
                     self.request_body.n = None;
                 }
@@ -1254,9 +1220,7 @@ impl ChatCompletion {
 
         if cfg!(debug_assertions) {
             // Replace API key with a placeholder in debug mode
-            let body_for_debug = serde_json::to_string_pretty(&self.request_body)
-                .unwrap()
-                .replace(self.auth.api_key(), "*************");
+            let body_for_debug = serde_json::to_string_pretty(&self.request_body).unwrap().replace(self.auth.api_key(), "*************");
             tracing::info!("Request body: {}", body_for_debug);
         }
 
@@ -1287,11 +1251,7 @@ impl ChatCompletion {
     #[cfg(test)]
     pub(crate) fn test_new_with_model(model: ChatModel) -> Self {
         use crate::common::auth::OpenAIAuth;
-        Self {
-            auth: AuthProvider::OpenAI(OpenAIAuth::new("test-key")),
-            request_body: Body { model, ..Default::default() },
-            timeout: None,
-        }
+        Self { auth: AuthProvider::OpenAI(OpenAIAuth::new("test-key")), request_body: Body { model, ..Default::default() }, timeout: None }
     }
 }
 

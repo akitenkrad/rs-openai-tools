@@ -306,12 +306,9 @@ impl Serialize for Message {
 
         // Ensure that either content or contents is present, but not both
         if self.role != Role::Assistant
-            && ((self.content.is_none() && self.content_list.is_none())
-                || (self.content.is_some() && self.content_list.is_some()))
+            && ((self.content.is_none() && self.content_list.is_none()) || (self.content.is_some() && self.content_list.is_some()))
         {
-            return Err(serde::ser::Error::custom(
-                "Message must have either content or contents",
-            ));
+            return Err(serde::ser::Error::custom("Message must have either content or contents"));
         }
 
         // Serialize optional fields

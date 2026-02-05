@@ -194,10 +194,7 @@ mod tests {
     #[test]
     fn test_embedding_builder_chain() {
         let mut embedding = Embedding::new().expect("Embedding initialization should succeed");
-        embedding
-            .model(EmbeddingModel::TextEmbedding3Small)
-            .input_text("Hello!")
-            .encoding_format("float");
+        embedding.model(EmbeddingModel::TextEmbedding3Small).input_text("Hello!").encoding_format("float");
         // Method chaining works
     }
 }

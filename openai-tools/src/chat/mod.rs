@@ -176,10 +176,7 @@ mod tests {
         let tool = Tool::function(
             "calculator",
             "A simple calculator",
-            vec![
-                ("a", ParameterProperty::from_number("First number")),
-                ("b", ParameterProperty::from_number("Second number")),
-            ],
+            vec![("a", ParameterProperty::from_number("First number")), ("b", ParameterProperty::from_number("Second number"))],
             false,
         );
 

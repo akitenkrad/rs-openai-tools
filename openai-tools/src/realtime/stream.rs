@@ -30,8 +30,7 @@ pub struct EventHandler {
     on_session_created: Option<Box<dyn Fn(&SessionCreatedEvent) + Send + Sync>>,
     on_session_updated: Option<Box<dyn Fn(&SessionUpdatedEvent) + Send + Sync>>,
     on_conversation_item_created: Option<Box<dyn Fn(&ConversationItemCreatedEvent) + Send + Sync>>,
-    on_input_audio_transcription_completed:
-        Option<Box<dyn Fn(&InputAudioTranscriptionCompletedEvent) + Send + Sync>>,
+    on_input_audio_transcription_completed: Option<Box<dyn Fn(&InputAudioTranscriptionCompletedEvent) + Send + Sync>>,
     on_speech_started: Option<Box<dyn Fn(&SpeechStartedEvent) + Send + Sync>>,
     on_speech_stopped: Option<Box<dyn Fn(&SpeechStoppedEvent) + Send + Sync>>,
     on_response_created: Option<Box<dyn Fn(&ResponseCreatedEvent) + Send + Sync>>,
@@ -42,10 +41,8 @@ pub struct EventHandler {
     on_audio_done: Option<Box<dyn Fn(&ResponseAudioDoneEvent) + Send + Sync>>,
     on_audio_transcript_delta: Option<Box<dyn Fn(&ResponseAudioTranscriptDeltaEvent) + Send + Sync>>,
     on_audio_transcript_done: Option<Box<dyn Fn(&ResponseAudioTranscriptDoneEvent) + Send + Sync>>,
-    on_function_call_arguments_delta:
-        Option<Box<dyn Fn(&ResponseFunctionCallArgumentsDeltaEvent) + Send + Sync>>,
-    on_function_call_arguments_done:
-        Option<Box<dyn Fn(&ResponseFunctionCallArgumentsDoneEvent) + Send + Sync>>,
+    on_function_call_arguments_delta: Option<Box<dyn Fn(&ResponseFunctionCallArgumentsDeltaEvent) + Send + Sync>>,
+    on_function_call_arguments_done: Option<Box<dyn Fn(&ResponseFunctionCallArgumentsDoneEvent) + Send + Sync>>,
     on_rate_limits_updated: Option<Box<dyn Fn(&RateLimitsUpdatedEvent) + Send + Sync>>,
     on_error: Option<Box<dyn Fn(&ErrorEvent) + Send + Sync>>,
 }

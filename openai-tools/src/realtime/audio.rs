@@ -63,11 +63,7 @@ pub struct InputAudioTranscription {
 impl InputAudioTranscription {
     /// Create a new transcription configuration with the specified model.
     pub fn new(model: TranscriptionModel) -> Self {
-        Self {
-            model: Some(model),
-            language: None,
-            prompt: None,
-        }
+        Self { model: Some(model), language: None, prompt: None }
     }
 
     /// Set the language hint.

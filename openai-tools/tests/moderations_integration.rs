@@ -10,10 +10,7 @@ use openai_tools::moderations::request::{ModerationModel, Moderations};
 async fn test_moderate_single_safe_text() {
     let moderations = Moderations::new().expect("Should create Moderations client");
 
-    let response = moderations
-        .moderate_text("Hello, how are you today?", None)
-        .await
-        .expect("Should moderate text");
+    let response = moderations.moderate_text("Hello, how are you today?", None).await.expect("Should moderate text");
 
     // Verify response structure
     assert!(!response.id.is_empty(), "ID should not be empty");
@@ -25,14 +22,8 @@ async fn test_moderate_single_safe_text() {
     assert!(!result.flagged, "Safe text should not be flagged");
 
     // Verify category scores are low for safe content
-    assert!(
-        result.category_scores.hate < 0.5,
-        "Hate score should be low for safe text"
-    );
-    assert!(
-        result.category_scores.violence < 0.5,
-        "Violence score should be low for safe text"
-    );
+    assert!(result.category_scores.hate < 0.5, "Hate score should be low for safe text");
+    assert!(result.category_scores.violence < 0.5, "Violence score should be low for safe text");
 
     println!("Moderation ID: {}", response.id);
     println!("Model: {}", response.model);
@@ -44,32 +35,16 @@ async fn test_moderate_single_safe_text() {
 async fn test_moderate_multiple_texts() {
     let moderations = Moderations::new().expect("Should create Moderations client");
 
-    let texts = vec![
-        "Good morning!".to_string(),
-        "Have a nice day!".to_string(),
-        "Thank you for your help.".to_string(),
-    ];
+    let texts = vec!["Good morning!".to_string(), "Have a nice day!".to_string(), "Thank you for your help.".to_string()];
 
-    let response = moderations
-        .moderate_texts(texts.clone(), None)
-        .await
-        .expect("Should moderate multiple texts");
+    let response = moderations.moderate_texts(texts.clone(), None).await.expect("Should moderate multiple texts");
 
     // Should have one result per input
-    assert_eq!(
-        response.results.len(),
-        texts.len(),
-        "Should have one result per input"
-    );
+    assert_eq!(response.results.len(), texts.len(), "Should have one result per input");
 
     // All safe texts should not be flagged
     for (i, result) in response.results.iter().enumerate() {
-        assert!(
-            !result.flagged,
-            "Text {} should not be flagged: '{}'",
-            i + 1,
-            texts[i]
-        );
+        assert!(!result.flagged, "Text {} should not be flagged: '{}'", i + 1, texts[i]);
     }
 
     println!("Moderated {} texts", response.results.len());
@@ -82,17 +57,11 @@ async fn test_moderate_with_specific_model() {
 
     // Test with omni-moderation model
     let response = moderations
-        .moderate_text(
-            "This is a test message.",
-            Some(ModerationModel::OmniModerationLatest),
-        )
+        .moderate_text("This is a test message.", Some(ModerationModel::OmniModerationLatest))
         .await
         .expect("Should moderate with omni-moderation model");
 
-    assert!(
-        response.model.contains("omni-moderation"),
-        "Should use omni-moderation model"
-    );
+    assert!(response.model.contains("omni-moderation"), "Should use omni-moderation model");
 
     println!("Used model: {}", response.model);
 }
@@ -102,10 +71,7 @@ async fn test_moderate_with_specific_model() {
 async fn test_category_scores_returned() {
     let moderations = Moderations::new().expect("Should create Moderations client");
 
-    let response = moderations
-        .moderate_text("A friendly greeting to everyone.", None)
-        .await
-        .expect("Should moderate text");
+    let response = moderations.moderate_text("A friendly greeting to everyone.", None).await.expect("Should moderate text");
 
     let result = &response.results[0];
 
@@ -129,24 +95,12 @@ async fn test_category_scores_returned() {
 #[test]
 fn test_moderation_model_enum() {
     // Test as_str
-    assert_eq!(
-        ModerationModel::OmniModerationLatest.as_str(),
-        "omni-moderation-latest"
-    );
-    assert_eq!(
-        ModerationModel::TextModerationLatest.as_str(),
-        "text-moderation-latest"
-    );
+    assert_eq!(ModerationModel::OmniModerationLatest.as_str(), "omni-moderation-latest");
+    assert_eq!(ModerationModel::TextModerationLatest.as_str(), "text-moderation-latest");
 
     // Test Display
-    assert_eq!(
-        format!("{}", ModerationModel::OmniModerationLatest),
-        "omni-moderation-latest"
-    );
+    assert_eq!(format!("{}", ModerationModel::OmniModerationLatest), "omni-moderation-latest");
 
     // Test Default
-    assert_eq!(
-        ModerationModel::default(),
-        ModerationModel::OmniModerationLatest
-    );
+    assert_eq!(ModerationModel::default(), ModerationModel::OmniModerationLatest);
 }

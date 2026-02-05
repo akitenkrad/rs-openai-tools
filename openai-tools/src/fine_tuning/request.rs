@@ -37,8 +37,8 @@ use crate::common::client::create_http_client;
 use crate::common::errors::{OpenAIToolError, Result};
 use crate::common::models::FineTuningModel;
 use crate::fine_tuning::response::{
-    DpoConfig, FineTuningCheckpointListResponse, FineTuningEventListResponse, FineTuningJob,
-    FineTuningJobListResponse, Hyperparameters, Integration, MethodConfig, SupervisedConfig,
+    DpoConfig, FineTuningCheckpointListResponse, FineTuningEventListResponse, FineTuningJob, FineTuningJobListResponse, Hyperparameters, Integration,
+    MethodConfig, SupervisedConfig,
 };
 use serde::Serialize;
 use std::time::Duration;
@@ -96,15 +96,7 @@ impl CreateFineTuningJobRequest {
     /// );
     /// ```
     pub fn new(model: FineTuningModel, training_file: impl Into<String>) -> Self {
-        Self {
-            model,
-            training_file: training_file.into(),
-            validation_file: None,
-            suffix: None,
-            seed: None,
-            method: None,
-            integrations: None,
-        }
+        Self { model, training_file: training_file.into(), validation_file: None, suffix: None, seed: None, method: None, integrations: None }
     }
 
     /// Sets the validation file for the job.
@@ -127,21 +119,13 @@ impl CreateFineTuningJobRequest {
 
     /// Configures supervised fine-tuning with custom hyperparameters.
     pub fn with_supervised_method(mut self, hyperparameters: Option<Hyperparameters>) -> Self {
-        self.method = Some(MethodConfig {
-            method_type: "supervised".to_string(),
-            supervised: Some(SupervisedConfig { hyperparameters }),
-            dpo: None,
-        });
+        self.method = Some(MethodConfig { method_type: "supervised".to_string(), supervised: Some(SupervisedConfig { hyperparameters }), dpo: None });
         self
     }
 
     /// Configures DPO (Direct Preference Optimization) fine-tuning.
     pub fn with_dpo_method(mut self, hyperparameters: Option<Hyperparameters>) -> Self {
-        self.method = Some(MethodConfig {
-            method_type: "dpo".to_string(),
-            supervised: None,
-            dpo: Some(DpoConfig { hyperparameters }),
-        });
+        self.method = Some(MethodConfig { method_type: "dpo".to_string(), supervised: None, dpo: Some(DpoConfig { hyperparameters }) });
         self
     }
 
@@ -272,14 +256,8 @@ impl FineTuning {
         let client = create_http_client(self.timeout)?;
         let mut headers = request::header::HeaderMap::new();
         self.auth.apply_headers(&mut headers)?;
-        headers.insert(
-            "Content-Type",
-            request::header::HeaderValue::from_static("application/json"),
-        );
-        headers.insert(
-            "User-Agent",
-            request::header::HeaderValue::from_static("openai-tools-rust"),
-        );
+        headers.insert("Content-Type", request::header::HeaderValue::from_static("application/json"));
+        headers.insert("User-Agent", request::header::HeaderValue::from_static("openai-tools-rust"));
         Ok((client, headers))
     }
 
@@ -321,13 +299,7 @@ impl FineTuning {
         let body = serde_json::to_string(&request).map_err(OpenAIToolError::SerdeJsonError)?;
 
         let url = self.auth.endpoint(FINE_TUNING_PATH);
-        let response = client
-            .post(&url)
-            .headers(headers)
-            .body(body)
-            .send()
-            .await
-            .map_err(OpenAIToolError::RequestError)?;
+        let response = client.post(&url).headers(headers).body(body).send().await.map_err(OpenAIToolError::RequestError)?;
 
         let content = response.text().await.map_err(OpenAIToolError::RequestError)?;
 
@@ -370,12 +342,7 @@ impl FineTuning {
         let (client, headers) = self.create_client()?;
         let url = format!("{}/{}", self.auth.endpoint(FINE_TUNING_PATH), job_id);
 
-        let response = client
-            .get(&url)
-            .headers(headers)
-            .send()
-            .await
-            .map_err(OpenAIToolError::RequestError)?;
+        let response = client.get(&url).headers(headers).send().await.map_err(OpenAIToolError::RequestError)?;
 
         let content = response.text().await.map_err(OpenAIToolError::RequestError)?;
 
@@ -415,12 +382,7 @@ impl FineTuning {
         let (client, headers) = self.create_client()?;
         let url = format!("{}/{}/cancel", self.auth.endpoint(FINE_TUNING_PATH), job_id);
 
-        let response = client
-            .post(&url)
-            .headers(headers)
-            .send()
-            .await
-            .map_err(OpenAIToolError::RequestError)?;
+        let response = client.post(&url).headers(headers).send().await.map_err(OpenAIToolError::RequestError)?;
 
         let content = response.text().await.map_err(OpenAIToolError::RequestError)?;
 
@@ -462,11 +424,7 @@ impl FineTuning {
     ///     Ok(())
     /// }
     /// ```
-    pub async fn list(
-        &self,
-        limit: Option<u32>,
-        after: Option<&str>,
-    ) -> Result<FineTuningJobListResponse> {
+    pub async fn list(&self, limit: Option<u32>, after: Option<&str>) -> Result<FineTuningJobListResponse> {
         let (client, headers) = self.create_client()?;
 
         let mut url = self.auth.endpoint(FINE_TUNING_PATH);
@@ -484,12 +442,7 @@ impl FineTuning {
             url.push_str(&params.join("&"));
         }
 
-        let response = client
-            .get(&url)
-            .headers(headers)
-            .send()
-            .await
-            .map_err(OpenAIToolError::RequestError)?;
+        let response = client.get(&url).headers(headers).send().await.map_err(OpenAIToolError::RequestError)?;
 
         let content = response.text().await.map_err(OpenAIToolError::RequestError)?;
 
@@ -497,8 +450,7 @@ impl FineTuning {
             tracing::info!("Response content: {}", content);
         }
 
-        serde_json::from_str::<FineTuningJobListResponse>(&content)
-            .map_err(OpenAIToolError::SerdeJsonError)
+        serde_json::from_str::<FineTuningJobListResponse>(&content).map_err(OpenAIToolError::SerdeJsonError)
     }
 
     /// Lists events for a fine-tuning job.
@@ -533,12 +485,7 @@ impl FineTuning {
     ///     Ok(())
     /// }
     /// ```
-    pub async fn list_events(
-        &self,
-        job_id: &str,
-        limit: Option<u32>,
-        after: Option<&str>,
-    ) -> Result<FineTuningEventListResponse> {
+    pub async fn list_events(&self, job_id: &str, limit: Option<u32>, after: Option<&str>) -> Result<FineTuningEventListResponse> {
         let (client, headers) = self.create_client()?;
 
         let mut url = format!("{}/{}/events", self.auth.endpoint(FINE_TUNING_PATH), job_id);
@@ -556,12 +503,7 @@ impl FineTuning {
             url.push_str(&params.join("&"));
         }
 
-        let response = client
-            .get(&url)
-            .headers(headers)
-            .send()
-            .await
-            .map_err(OpenAIToolError::RequestError)?;
+        let response = client.get(&url).headers(headers).send().await.map_err(OpenAIToolError::RequestError)?;
 
         let content = response.text().await.map_err(OpenAIToolError::RequestError)?;
 
@@ -569,8 +511,7 @@ impl FineTuning {
             tracing::info!("Response content: {}", content);
         }
 
-        serde_json::from_str::<FineTuningEventListResponse>(&content)
-            .map_err(OpenAIToolError::SerdeJsonError)
+        serde_json::from_str::<FineTuningEventListResponse>(&content).map_err(OpenAIToolError::SerdeJsonError)
     }
 
     /// Lists checkpoints for a fine-tuning job.
@@ -606,12 +547,7 @@ impl FineTuning {
     ///     Ok(())
     /// }
     /// ```
-    pub async fn list_checkpoints(
-        &self,
-        job_id: &str,
-        limit: Option<u32>,
-        after: Option<&str>,
-    ) -> Result<FineTuningCheckpointListResponse> {
+    pub async fn list_checkpoints(&self, job_id: &str, limit: Option<u32>, after: Option<&str>) -> Result<FineTuningCheckpointListResponse> {
         let (client, headers) = self.create_client()?;
 
         let mut url = format!("{}/{}/checkpoints", self.auth.endpoint(FINE_TUNING_PATH), job_id);
@@ -629,12 +565,7 @@ impl FineTuning {
             url.push_str(&params.join("&"));
         }
 
-        let response = client
-            .get(&url)
-            .headers(headers)
-            .send()
-            .await
-            .map_err(OpenAIToolError::RequestError)?;
+        let response = client.get(&url).headers(headers).send().await.map_err(OpenAIToolError::RequestError)?;
 
         let content = response.text().await.map_err(OpenAIToolError::RequestError)?;
 
@@ -642,7 +573,6 @@ impl FineTuning {
             tracing::info!("Response content: {}", content);
         }
 
-        serde_json::from_str::<FineTuningCheckpointListResponse>(&content)
-            .map_err(OpenAIToolError::SerdeJsonError)
+        serde_json::from_str::<FineTuningCheckpointListResponse>(&content).map_err(OpenAIToolError::SerdeJsonError)
     }
 }

@@ -41,10 +41,7 @@
 use crate::common::auth::AuthProvider;
 use crate::common::client::create_http_client;
 use crate::common::errors::{ErrorResponse, OpenAIToolError, Result};
-use crate::conversations::response::{
-    Conversation, ConversationItemListResponse, ConversationListResponse,
-    DeleteConversationResponse, InputItem,
-};
+use crate::conversations::response::{Conversation, ConversationItemListResponse, ConversationListResponse, DeleteConversationResponse, InputItem};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::Duration;
@@ -222,14 +219,8 @@ impl Conversations {
         let client = create_http_client(self.timeout)?;
         let mut headers = request::header::HeaderMap::new();
         self.auth.apply_headers(&mut headers)?;
-        headers.insert(
-            "Content-Type",
-            request::header::HeaderValue::from_static("application/json"),
-        );
-        headers.insert(
-            "User-Agent",
-            request::header::HeaderValue::from_static("openai-tools-rust"),
-        );
+        headers.insert("Content-Type", request::header::HeaderValue::from_static("application/json"));
+        headers.insert("User-Agent", request::header::HeaderValue::from_static("openai-tools-rust"));
         Ok((client, headers))
     }
 
@@ -279,24 +270,14 @@ impl Conversations {
     ///     Ok(())
     /// }
     /// ```
-    pub async fn create(
-        &self,
-        metadata: Option<HashMap<String, String>>,
-        items: Option<Vec<InputItem>>,
-    ) -> Result<Conversation> {
+    pub async fn create(&self, metadata: Option<HashMap<String, String>>, items: Option<Vec<InputItem>>) -> Result<Conversation> {
         let (client, headers) = self.create_client()?;
 
         let request_body = CreateConversationRequest { metadata, items };
         let body = serde_json::to_string(&request_body)?;
 
         let url = self.auth.endpoint(CONVERSATIONS_PATH);
-        let response = client
-            .post(&url)
-            .headers(headers)
-            .body(body)
-            .send()
-            .await
-            .map_err(OpenAIToolError::RequestError)?;
+        let response = client.post(&url).headers(headers).body(body).send().await.map_err(OpenAIToolError::RequestError)?;
 
         let status = response.status();
         let content = response.text().await.map_err(OpenAIToolError::RequestError)?;
@@ -342,12 +323,7 @@ impl Conversations {
         let (client, headers) = self.create_client()?;
         let url = format!("{}/{}", self.auth.endpoint(CONVERSATIONS_PATH), conversation_id);
 
-        let response = client
-            .get(&url)
-            .headers(headers)
-            .send()
-            .await
-            .map_err(OpenAIToolError::RequestError)?;
+        let response = client.get(&url).headers(headers).send().await.map_err(OpenAIToolError::RequestError)?;
 
         let status = response.status();
         let content = response.text().await.map_err(OpenAIToolError::RequestError)?;
@@ -393,24 +369,14 @@ impl Conversations {
     ///     Ok(())
     /// }
     /// ```
-    pub async fn update(
-        &self,
-        conversation_id: &str,
-        metadata: HashMap<String, String>,
-    ) -> Result<Conversation> {
+    pub async fn update(&self, conversation_id: &str, metadata: HashMap<String, String>) -> Result<Conversation> {
         let (client, headers) = self.create_client()?;
         let url = format!("{}/{}", self.auth.endpoint(CONVERSATIONS_PATH), conversation_id);
 
         let request_body = UpdateConversationRequest { metadata };
         let body = serde_json::to_string(&request_body)?;
 
-        let response = client
-            .post(&url)
-            .headers(headers)
-            .body(body)
-            .send()
-            .await
-            .map_err(OpenAIToolError::RequestError)?;
+        let response = client.post(&url).headers(headers).body(body).send().await.map_err(OpenAIToolError::RequestError)?;
 
         let status = response.status();
         let content = response.text().await.map_err(OpenAIToolError::RequestError)?;
@@ -457,12 +423,7 @@ impl Conversations {
         let (client, headers) = self.create_client()?;
         let url = format!("{}/{}", self.auth.endpoint(CONVERSATIONS_PATH), conversation_id);
 
-        let response = client
-            .delete(&url)
-            .headers(headers)
-            .send()
-            .await
-            .map_err(OpenAIToolError::RequestError)?;
+        let response = client.delete(&url).headers(headers).send().await.map_err(OpenAIToolError::RequestError)?;
 
         let status = response.status();
         let content = response.text().await.map_err(OpenAIToolError::RequestError)?;
@@ -475,8 +436,7 @@ impl Conversations {
             return Err(Self::handle_error(status, &content));
         }
 
-        serde_json::from_str::<DeleteConversationResponse>(&content)
-            .map_err(OpenAIToolError::SerdeJsonError)
+        serde_json::from_str::<DeleteConversationResponse>(&content).map_err(OpenAIToolError::SerdeJsonError)
     }
 
     /// Creates items in a conversation.
@@ -513,24 +473,14 @@ impl Conversations {
     ///     Ok(())
     /// }
     /// ```
-    pub async fn create_items(
-        &self,
-        conversation_id: &str,
-        items: Vec<InputItem>,
-    ) -> Result<ConversationItemListResponse> {
+    pub async fn create_items(&self, conversation_id: &str, items: Vec<InputItem>) -> Result<ConversationItemListResponse> {
         let (client, headers) = self.create_client()?;
         let url = format!("{}/{}/items", self.auth.endpoint(CONVERSATIONS_PATH), conversation_id);
 
         let request_body = CreateItemsRequest { items };
         let body = serde_json::to_string(&request_body)?;
 
-        let response = client
-            .post(&url)
-            .headers(headers)
-            .body(body)
-            .send()
-            .await
-            .map_err(OpenAIToolError::RequestError)?;
+        let response = client.post(&url).headers(headers).body(body).send().await.map_err(OpenAIToolError::RequestError)?;
 
         let status = response.status();
         let content = response.text().await.map_err(OpenAIToolError::RequestError)?;
@@ -543,8 +493,7 @@ impl Conversations {
             return Err(Self::handle_error(status, &content));
         }
 
-        serde_json::from_str::<ConversationItemListResponse>(&content)
-            .map_err(OpenAIToolError::SerdeJsonError)
+        serde_json::from_str::<ConversationItemListResponse>(&content).map_err(OpenAIToolError::SerdeJsonError)
     }
 
     /// Lists items in a conversation.
@@ -619,12 +568,7 @@ impl Conversations {
             format!("{}/{}/items?{}", self.auth.endpoint(CONVERSATIONS_PATH), conversation_id, params.join("&"))
         };
 
-        let response = client
-            .get(&url)
-            .headers(headers)
-            .send()
-            .await
-            .map_err(OpenAIToolError::RequestError)?;
+        let response = client.get(&url).headers(headers).send().await.map_err(OpenAIToolError::RequestError)?;
 
         let status = response.status();
         let content = response.text().await.map_err(OpenAIToolError::RequestError)?;
@@ -637,8 +581,7 @@ impl Conversations {
             return Err(Self::handle_error(status, &content));
         }
 
-        serde_json::from_str::<ConversationItemListResponse>(&content)
-            .map_err(OpenAIToolError::SerdeJsonError)
+        serde_json::from_str::<ConversationItemListResponse>(&content).map_err(OpenAIToolError::SerdeJsonError)
     }
 
     /// Lists all conversations (if available).
@@ -671,11 +614,7 @@ impl Conversations {
     ///     Ok(())
     /// }
     /// ```
-    pub async fn list(
-        &self,
-        limit: Option<u32>,
-        after: Option<&str>,
-    ) -> Result<ConversationListResponse> {
+    pub async fn list(&self, limit: Option<u32>, after: Option<&str>) -> Result<ConversationListResponse> {
         let (client, headers) = self.create_client()?;
 
         // Build query parameters
@@ -693,12 +632,7 @@ impl Conversations {
             format!("{}?{}", self.auth.endpoint(CONVERSATIONS_PATH), params.join("&"))
         };
 
-        let response = client
-            .get(&url)
-            .headers(headers)
-            .send()
-            .await
-            .map_err(OpenAIToolError::RequestError)?;
+        let response = client.get(&url).headers(headers).send().await.map_err(OpenAIToolError::RequestError)?;
 
         let status = response.status();
         let content = response.text().await.map_err(OpenAIToolError::RequestError)?;
@@ -711,7 +645,6 @@ impl Conversations {
             return Err(Self::handle_error(status, &content));
         }
 
-        serde_json::from_str::<ConversationListResponse>(&content)
-            .map_err(OpenAIToolError::SerdeJsonError)
+        serde_json::from_str::<ConversationListResponse>(&content).map_err(OpenAIToolError::SerdeJsonError)
     }
 }

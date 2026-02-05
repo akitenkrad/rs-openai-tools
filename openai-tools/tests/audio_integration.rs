@@ -14,10 +14,7 @@ async fn test_text_to_speech_basic() {
     let audio = Audio::new().expect("Should create Audio client");
 
     let options = TtsOptions::default();
-    let bytes = audio
-        .text_to_speech("Hello", options)
-        .await
-        .expect("Should generate speech");
+    let bytes = audio.text_to_speech("Hello", options).await.expect("Should generate speech");
 
     // Verify we got audio data
     assert!(!bytes.is_empty(), "Audio bytes should not be empty");
@@ -42,15 +39,9 @@ async fn test_text_to_speech_voices() {
     let voices = vec![Voice::Alloy, Voice::Nova, Voice::Shimmer];
 
     for voice in voices {
-        let options = TtsOptions {
-            voice,
-            ..Default::default()
-        };
+        let options = TtsOptions { voice, ..Default::default() };
 
-        let bytes = audio
-            .text_to_speech("Test", options)
-            .await
-            .expect(&format!("Should generate speech with {:?} voice", voice));
+        let bytes = audio.text_to_speech("Test", options).await.expect(&format!("Should generate speech with {:?} voice", voice));
 
         assert!(!bytes.is_empty(), "{:?} voice should produce audio", voice);
         println!("{:?} voice: {} bytes", voice, bytes.len());
@@ -62,16 +53,9 @@ async fn test_text_to_speech_voices() {
 async fn test_text_to_speech_hd() {
     let audio = Audio::new().expect("Should create Audio client");
 
-    let options = TtsOptions {
-        model: TtsModel::Tts1Hd,
-        voice: Voice::Onyx,
-        ..Default::default()
-    };
+    let options = TtsOptions { model: TtsModel::Tts1Hd, voice: Voice::Onyx, ..Default::default() };
 
-    let bytes = audio
-        .text_to_speech("Hi", options)
-        .await
-        .expect("Should generate HD speech");
+    let bytes = audio.text_to_speech("Hi", options).await.expect("Should generate HD speech");
 
     assert!(!bytes.is_empty(), "HD audio should not be empty");
     println!("HD audio: {} bytes", bytes.len());
@@ -84,29 +68,20 @@ async fn test_text_to_speech_formats() {
 
     // Test a few formats
     let formats = vec![
-        (AudioFormat::Mp3, vec![0x49, 0x44, 0x33]), // ID3 tag
+        (AudioFormat::Mp3, vec![0x49, 0x44, 0x33]),       // ID3 tag
         (AudioFormat::Wav, vec![0x52, 0x49, 0x46, 0x46]), // RIFF header
     ];
 
     for (format, expected_header) in formats {
-        let options = TtsOptions {
-            response_format: format,
-            ..Default::default()
-        };
+        let options = TtsOptions { response_format: format, ..Default::default() };
 
-        let bytes = audio
-            .text_to_speech("A", options)
-            .await
-            .expect(&format!("Should generate {:?} audio", format));
+        let bytes = audio.text_to_speech("A", options).await.expect(&format!("Should generate {:?} audio", format));
 
         assert!(!bytes.is_empty(), "{:?} format should produce audio", format);
 
         // For WAV, check RIFF header
         if format == AudioFormat::Wav {
-            assert!(
-                bytes.len() > 4 && bytes[0..4] == expected_header[..],
-                "WAV should have RIFF header"
-            );
+            assert!(bytes.len() > 4 && bytes[0..4] == expected_header[..], "WAV should have RIFF header");
         }
 
         println!("{:?} format: {} bytes", format, bytes.len());
@@ -123,10 +98,7 @@ async fn test_text_to_speech_speed() {
         ..Default::default()
     };
 
-    let bytes = audio
-        .text_to_speech("Testing speed", options)
-        .await
-        .expect("Should generate speech with custom speed");
+    let bytes = audio.text_to_speech("Testing speed", options).await.expect("Should generate speech with custom speed");
 
     assert!(!bytes.is_empty(), "Should produce audio");
     println!("1.5x speed audio: {} bytes", bytes.len());
