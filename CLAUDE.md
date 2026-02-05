@@ -136,7 +136,7 @@ rs-openai-tools/
   - `response.rs`: `ImageResponse`, `ImageData`
 
 - **`audio/`**: Audio API (`/v1/audio`)
-  - `request.rs`: `Audio` client for TTS, transcription, translation; `TtsModel` (Tts1, Tts1Hd, Gpt4oMiniTts), `Voice` (Alloy, Ash, Coral, Echo, Fable, Onyx, Nova, Sage, Shimmer), `AudioFormat`
+  - `request.rs`: `Audio` client for TTS, transcription, translation; `TtsModel` (Tts1, Tts1Hd, Gpt4oMiniTts), `Voice` (Alloy, Ash, Ballad, Cedar, Coral, Echo, Fable, Marin, Nova, Onyx, Sage, Shimmer, Verse), `AudioFormat`, `TtsOptions` (with `instructions` for gpt-4o-mini-tts)
   - `response.rs`: `TranscriptionResponse`, `Word`, `Segment`
 
 - **`batch/`**: Batch API (`/v1/batches`)
@@ -427,7 +427,7 @@ std::fs::write("robot.png", bytes)?;
 ```rust
 let audio = Audio::new()?;
 
-// Text-to-speech
+// Text-to-speech (basic)
 let options = TtsOptions {
     model: TtsModel::Tts1Hd,
     voice: Voice::Nova,
@@ -435,6 +435,15 @@ let options = TtsOptions {
 };
 let bytes = audio.text_to_speech("Hello!", options).await?;
 std::fs::write("hello.mp3", bytes)?;
+
+// Text-to-speech with instructions (gpt-4o-mini-tts only)
+let options = TtsOptions {
+    model: TtsModel::Gpt4oMiniTts,
+    voice: Voice::Coral,
+    instructions: Some("Speak in a cheerful and positive tone.".to_string()),
+    ..Default::default()
+};
+let bytes = audio.text_to_speech("Welcome!", options).await?;
 
 // Transcribe audio
 let options = TranscribeOptions {
@@ -689,8 +698,11 @@ Each API (Chat, Embedding, etc.) requires its own complete endpoint URL includin
 - Function calling support
 
 **Audio API Features:**
-- Text-to-speech (TTS) with multiple voices: Alloy, Ash, Coral, Echo, Fable, Onyx, Nova, Sage, Shimmer
+- Text-to-speech (TTS) with multiple voices: Alloy, Ash, Ballad, Cedar, Coral, Echo, Fable, Marin, Nova, Onyx, Sage, Shimmer, Verse
 - TTS models: Tts1, Tts1Hd, Gpt4oMiniTts
+- **Instructions parameter** for voice control (gpt-4o-mini-tts only)
+  - Control tone, emotion, pacing with natural language
+  - Example: `instructions: Some("Speak in a cheerful and positive tone.".to_string())`
 - Audio transcription (Whisper, GPT-4o)
 - Audio translation to English
 - Multiple audio formats (MP3, WAV, FLAC, Opus, AAC, PCM)

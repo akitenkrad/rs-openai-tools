@@ -63,6 +63,24 @@ impl TtsModel {
             Self::Gpt4oMiniTts => "gpt-4o-mini-tts",
         }
     }
+
+    /// Checks if this model supports the `instructions` parameter.
+    ///
+    /// Only `gpt-4o-mini-tts` supports the instructions parameter for
+    /// controlling voice characteristics like tone, emotion, and pacing.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use openai_tools::audio::request::TtsModel;
+    ///
+    /// assert!(TtsModel::Gpt4oMiniTts.supports_instructions());
+    /// assert!(!TtsModel::Tts1.supports_instructions());
+    /// assert!(!TtsModel::Tts1Hd.supports_instructions());
+    /// ```
+    pub fn supports_instructions(&self) -> bool {
+        matches!(self, Self::Gpt4oMiniTts)
+    }
 }
 
 impl std::fmt::Display for TtsModel {
@@ -80,20 +98,28 @@ pub enum Voice {
     Alloy,
     /// Ash voice
     Ash,
+    /// Ballad voice
+    Ballad,
+    /// Cedar voice (recommended for quality)
+    Cedar,
     /// Coral voice
     Coral,
     /// Echo voice
     Echo,
     /// Fable voice
     Fable,
-    /// Onyx voice
-    Onyx,
+    /// Marin voice (recommended for quality)
+    Marin,
     /// Nova voice
     Nova,
+    /// Onyx voice
+    Onyx,
     /// Sage voice
     Sage,
     /// Shimmer voice
     Shimmer,
+    /// Verse voice
+    Verse,
 }
 
 impl Voice {
@@ -102,13 +128,17 @@ impl Voice {
         match self {
             Self::Alloy => "alloy",
             Self::Ash => "ash",
+            Self::Ballad => "ballad",
+            Self::Cedar => "cedar",
             Self::Coral => "coral",
             Self::Echo => "echo",
             Self::Fable => "fable",
-            Self::Onyx => "onyx",
+            Self::Marin => "marin",
             Self::Nova => "nova",
+            Self::Onyx => "onyx",
             Self::Sage => "sage",
             Self::Shimmer => "shimmer",
+            Self::Verse => "verse",
         }
     }
 }
@@ -252,6 +282,20 @@ pub struct TtsOptions {
     pub response_format: AudioFormat,
     /// Speech speed (0.25 to 4.0, defaults to 1.0)
     pub speed: Option<f32>,
+    /// Instructions for controlling voice characteristics.
+    ///
+    /// Only supported by `gpt-4o-mini-tts` model.
+    /// Use natural language to control tone, emotion, and pacing.
+    ///
+    /// # Examples
+    ///
+    /// - `"Speak in a cheerful and positive tone."`
+    /// - `"Use a calm and soothing voice."`
+    /// - `"Speak with enthusiasm and energy."`
+    ///
+    /// If set with an unsupported model (`tts-1` or `tts-1-hd`),
+    /// this parameter will be ignored and a warning will be logged.
+    pub instructions: Option<String>,
 }
 
 /// Options for audio transcription.
@@ -294,6 +338,9 @@ struct TtsRequest {
     response_format: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     speed: Option<f32>,
+    /// Instructions for voice control (only for gpt-4o-mini-tts).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    instructions: Option<String>,
 }
 
 /// Client for interacting with the OpenAI Audio API.
@@ -406,10 +453,7 @@ impl Audio {
         let client = create_http_client(self.timeout)?;
         let mut headers = request::header::HeaderMap::new();
         self.auth.apply_headers(&mut headers)?;
-        headers.insert(
-            "User-Agent",
-            request::header::HeaderValue::from_static("openai-tools-rust"),
-        );
+        headers.insert("User-Agent", request::header::HeaderValue::from_static("openai-tools-rust"));
         Ok((client, headers))
     }
 
@@ -451,10 +495,19 @@ impl Audio {
     /// ```
     pub async fn text_to_speech(&self, text: &str, options: TtsOptions) -> Result<Vec<u8>> {
         let (client, mut headers) = self.create_client()?;
-        headers.insert(
-            "Content-Type",
-            request::header::HeaderValue::from_static("application/json"),
-        );
+        headers.insert("Content-Type", request::header::HeaderValue::from_static("application/json"));
+
+        // Check if instructions parameter is supported by the model
+        let instructions = if options.instructions.is_some() {
+            if options.model.supports_instructions() {
+                options.instructions
+            } else {
+                tracing::warn!("Model '{}' does not support instructions parameter. Ignoring instructions.", options.model);
+                None
+            }
+        } else {
+            None
+        };
 
         let request_body = TtsRequest {
             model: options.model.as_str().to_string(),
@@ -462,25 +515,16 @@ impl Audio {
             voice: options.voice.as_str().to_string(),
             response_format: Some(options.response_format.as_str().to_string()),
             speed: options.speed,
+            instructions,
         };
 
-        let body =
-            serde_json::to_string(&request_body).map_err(OpenAIToolError::SerdeJsonError)?;
+        let body = serde_json::to_string(&request_body).map_err(OpenAIToolError::SerdeJsonError)?;
 
         let url = format!("{}/speech", self.auth.endpoint(AUDIO_PATH));
 
-        let response = client
-            .post(&url)
-            .headers(headers)
-            .body(body)
-            .send()
-            .await
-            .map_err(OpenAIToolError::RequestError)?;
+        let response = client.post(&url).headers(headers).body(body).send().await.map_err(OpenAIToolError::RequestError)?;
 
-        let bytes = response
-            .bytes()
-            .await
-            .map_err(OpenAIToolError::RequestError)?;
+        let bytes = response.bytes().await.map_err(OpenAIToolError::RequestError)?;
 
         Ok(bytes.to_vec())
     }
@@ -517,23 +561,12 @@ impl Audio {
     ///     Ok(())
     /// }
     /// ```
-    pub async fn transcribe(
-        &self,
-        audio_path: &str,
-        options: TranscribeOptions,
-    ) -> Result<TranscriptionResponse> {
-        let audio_content = tokio::fs::read(audio_path)
-            .await
-            .map_err(|e| OpenAIToolError::Error(format!("Failed to read audio file: {}", e)))?;
+    pub async fn transcribe(&self, audio_path: &str, options: TranscribeOptions) -> Result<TranscriptionResponse> {
+        let audio_content = tokio::fs::read(audio_path).await.map_err(|e| OpenAIToolError::Error(format!("Failed to read audio file: {}", e)))?;
 
-        let filename = Path::new(audio_path)
-            .file_name()
-            .and_then(|n| n.to_str())
-            .unwrap_or("audio.mp3")
-            .to_string();
+        let filename = Path::new(audio_path).file_name().and_then(|n| n.to_str()).unwrap_or("audio.mp3").to_string();
 
-        self.transcribe_bytes(&audio_content, &filename, options)
-            .await
+        self.transcribe_bytes(&audio_content, &filename, options).await
     }
 
     /// Transcribes audio from bytes.
@@ -570,12 +603,7 @@ impl Audio {
     ///     Ok(())
     /// }
     /// ```
-    pub async fn transcribe_bytes(
-        &self,
-        audio_data: &[u8],
-        filename: &str,
-        options: TranscribeOptions,
-    ) -> Result<TranscriptionResponse> {
+    pub async fn transcribe_bytes(&self, audio_data: &[u8], filename: &str, options: TranscribeOptions) -> Result<TranscriptionResponse> {
         let (client, headers) = self.create_client()?;
 
         let audio_part = Part::bytes(audio_data.to_vec())
@@ -610,13 +638,7 @@ impl Audio {
 
         let url = format!("{}/transcriptions", self.auth.endpoint(AUDIO_PATH));
 
-        let response = client
-            .post(&url)
-            .headers(headers)
-            .multipart(form)
-            .send()
-            .await
-            .map_err(OpenAIToolError::RequestError)?;
+        let response = client.post(&url).headers(headers).multipart(form).send().await.map_err(OpenAIToolError::RequestError)?;
 
         let status = response.status();
         let content = response.text().await.map_err(OpenAIToolError::RequestError)?;
@@ -632,8 +654,7 @@ impl Audio {
             return Err(OpenAIToolError::Error(format!("API error ({}): {}", status, content)));
         }
 
-        serde_json::from_str::<TranscriptionResponse>(&content)
-            .map_err(OpenAIToolError::SerdeJsonError)
+        serde_json::from_str::<TranscriptionResponse>(&content).map_err(OpenAIToolError::SerdeJsonError)
     }
 
     /// Translates audio to English text.
@@ -666,23 +687,12 @@ impl Audio {
     ///     Ok(())
     /// }
     /// ```
-    pub async fn translate(
-        &self,
-        audio_path: &str,
-        options: TranslateOptions,
-    ) -> Result<TranscriptionResponse> {
-        let audio_content = tokio::fs::read(audio_path)
-            .await
-            .map_err(|e| OpenAIToolError::Error(format!("Failed to read audio file: {}", e)))?;
+    pub async fn translate(&self, audio_path: &str, options: TranslateOptions) -> Result<TranscriptionResponse> {
+        let audio_content = tokio::fs::read(audio_path).await.map_err(|e| OpenAIToolError::Error(format!("Failed to read audio file: {}", e)))?;
 
-        let filename = Path::new(audio_path)
-            .file_name()
-            .and_then(|n| n.to_str())
-            .unwrap_or("audio.mp3")
-            .to_string();
+        let filename = Path::new(audio_path).file_name().and_then(|n| n.to_str()).unwrap_or("audio.mp3").to_string();
 
-        self.translate_bytes(&audio_content, &filename, options)
-            .await
+        self.translate_bytes(&audio_content, &filename, options).await
     }
 
     /// Translates audio from bytes to English text.
@@ -697,12 +707,7 @@ impl Audio {
     ///
     /// * `Ok(TranscriptionResponse)` - The translation result
     /// * `Err(OpenAIToolError)` - If the request fails
-    pub async fn translate_bytes(
-        &self,
-        audio_data: &[u8],
-        filename: &str,
-        options: TranslateOptions,
-    ) -> Result<TranscriptionResponse> {
+    pub async fn translate_bytes(&self, audio_data: &[u8], filename: &str, options: TranslateOptions) -> Result<TranscriptionResponse> {
         let (client, headers) = self.create_client()?;
 
         let audio_part = Part::bytes(audio_data.to_vec())
@@ -729,13 +734,7 @@ impl Audio {
 
         let url = format!("{}/translations", self.auth.endpoint(AUDIO_PATH));
 
-        let response = client
-            .post(&url)
-            .headers(headers)
-            .multipart(form)
-            .send()
-            .await
-            .map_err(OpenAIToolError::RequestError)?;
+        let response = client.post(&url).headers(headers).multipart(form).send().await.map_err(OpenAIToolError::RequestError)?;
 
         let status = response.status();
         let content = response.text().await.map_err(OpenAIToolError::RequestError)?;
@@ -751,7 +750,246 @@ impl Audio {
             return Err(OpenAIToolError::Error(format!("API error ({}): {}", status, content)));
         }
 
-        serde_json::from_str::<TranscriptionResponse>(&content)
-            .map_err(OpenAIToolError::SerdeJsonError)
+        serde_json::from_str::<TranscriptionResponse>(&content).map_err(OpenAIToolError::SerdeJsonError)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // =========================================================================
+    // TtsModel Tests
+    // =========================================================================
+
+    #[test]
+    fn test_tts_model_as_str() {
+        assert_eq!(TtsModel::Tts1.as_str(), "tts-1");
+        assert_eq!(TtsModel::Tts1Hd.as_str(), "tts-1-hd");
+        assert_eq!(TtsModel::Gpt4oMiniTts.as_str(), "gpt-4o-mini-tts");
+    }
+
+    #[test]
+    fn test_tts_model_supports_instructions() {
+        // Only gpt-4o-mini-tts supports instructions
+        assert!(TtsModel::Gpt4oMiniTts.supports_instructions());
+        assert!(!TtsModel::Tts1.supports_instructions());
+        assert!(!TtsModel::Tts1Hd.supports_instructions());
+    }
+
+    #[test]
+    fn test_tts_model_default() {
+        let model = TtsModel::default();
+        assert_eq!(model, TtsModel::Tts1);
+    }
+
+    #[test]
+    fn test_tts_model_display() {
+        assert_eq!(format!("{}", TtsModel::Gpt4oMiniTts), "gpt-4o-mini-tts");
+    }
+
+    // =========================================================================
+    // Voice Tests
+    // =========================================================================
+
+    #[test]
+    fn test_voice_as_str_all_voices() {
+        assert_eq!(Voice::Alloy.as_str(), "alloy");
+        assert_eq!(Voice::Ash.as_str(), "ash");
+        assert_eq!(Voice::Ballad.as_str(), "ballad");
+        assert_eq!(Voice::Cedar.as_str(), "cedar");
+        assert_eq!(Voice::Coral.as_str(), "coral");
+        assert_eq!(Voice::Echo.as_str(), "echo");
+        assert_eq!(Voice::Fable.as_str(), "fable");
+        assert_eq!(Voice::Marin.as_str(), "marin");
+        assert_eq!(Voice::Nova.as_str(), "nova");
+        assert_eq!(Voice::Onyx.as_str(), "onyx");
+        assert_eq!(Voice::Sage.as_str(), "sage");
+        assert_eq!(Voice::Shimmer.as_str(), "shimmer");
+        assert_eq!(Voice::Verse.as_str(), "verse");
+    }
+
+    #[test]
+    fn test_voice_new_voices() {
+        // Test the newly added voices
+        assert_eq!(Voice::Ballad.as_str(), "ballad");
+        assert_eq!(Voice::Cedar.as_str(), "cedar");
+        assert_eq!(Voice::Marin.as_str(), "marin");
+        assert_eq!(Voice::Verse.as_str(), "verse");
+    }
+
+    #[test]
+    fn test_voice_default() {
+        let voice = Voice::default();
+        assert_eq!(voice, Voice::Alloy);
+    }
+
+    #[test]
+    fn test_voice_serialization() {
+        let voice = Voice::Coral;
+        let json = serde_json::to_string(&voice).unwrap();
+        assert_eq!(json, "\"coral\"");
+
+        // Test new voices
+        let ballad = Voice::Ballad;
+        let json = serde_json::to_string(&ballad).unwrap();
+        assert_eq!(json, "\"ballad\"");
+    }
+
+    #[test]
+    fn test_voice_deserialization() {
+        let voice: Voice = serde_json::from_str("\"coral\"").unwrap();
+        assert_eq!(voice, Voice::Coral);
+
+        // Test new voices
+        let cedar: Voice = serde_json::from_str("\"cedar\"").unwrap();
+        assert_eq!(cedar, Voice::Cedar);
+
+        let marin: Voice = serde_json::from_str("\"marin\"").unwrap();
+        assert_eq!(marin, Voice::Marin);
+    }
+
+    // =========================================================================
+    // TtsOptions Tests
+    // =========================================================================
+
+    #[test]
+    fn test_tts_options_default() {
+        let options = TtsOptions::default();
+        assert_eq!(options.model, TtsModel::Tts1);
+        assert_eq!(options.voice, Voice::Alloy);
+        assert_eq!(options.response_format, AudioFormat::Mp3);
+        assert!(options.speed.is_none());
+        assert!(options.instructions.is_none());
+    }
+
+    #[test]
+    fn test_tts_options_with_instructions() {
+        let options = TtsOptions {
+            model: TtsModel::Gpt4oMiniTts,
+            voice: Voice::Coral,
+            instructions: Some("Speak in a cheerful tone.".to_string()),
+            ..Default::default()
+        };
+        assert_eq!(options.model, TtsModel::Gpt4oMiniTts);
+        assert_eq!(options.instructions, Some("Speak in a cheerful tone.".to_string()));
+    }
+
+    // =========================================================================
+    // TtsRequest Tests
+    // =========================================================================
+
+    #[test]
+    fn test_tts_request_serialization_with_instructions() {
+        let request = TtsRequest {
+            model: "gpt-4o-mini-tts".to_string(),
+            input: "Hello, world!".to_string(),
+            voice: "coral".to_string(),
+            response_format: Some("mp3".to_string()),
+            speed: None,
+            instructions: Some("Speak cheerfully.".to_string()),
+        };
+        let json = serde_json::to_value(&request).unwrap();
+
+        assert_eq!(json["model"], "gpt-4o-mini-tts");
+        assert_eq!(json["input"], "Hello, world!");
+        assert_eq!(json["voice"], "coral");
+        assert_eq!(json["response_format"], "mp3");
+        assert_eq!(json["instructions"], "Speak cheerfully.");
+        assert!(json.get("speed").is_none());
+    }
+
+    #[test]
+    fn test_tts_request_serialization_without_instructions() {
+        let request = TtsRequest {
+            model: "tts-1".to_string(),
+            input: "Hello".to_string(),
+            voice: "alloy".to_string(),
+            response_format: Some("mp3".to_string()),
+            speed: Some(1.0),
+            instructions: None,
+        };
+        let json = serde_json::to_value(&request).unwrap();
+
+        assert_eq!(json["model"], "tts-1");
+        assert_eq!(json["speed"], 1.0);
+        // instructions should be omitted when None
+        assert!(json.get("instructions").is_none());
+    }
+
+    #[test]
+    fn test_tts_request_skip_serializing_none_fields() {
+        let request = TtsRequest {
+            model: "tts-1".to_string(),
+            input: "Test".to_string(),
+            voice: "echo".to_string(),
+            response_format: None,
+            speed: None,
+            instructions: None,
+        };
+        let json = serde_json::to_value(&request).unwrap();
+
+        // Required fields are present
+        assert!(json.get("model").is_some());
+        assert!(json.get("input").is_some());
+        assert!(json.get("voice").is_some());
+
+        // Optional fields with None are omitted
+        assert!(json.get("response_format").is_none());
+        assert!(json.get("speed").is_none());
+        assert!(json.get("instructions").is_none());
+    }
+
+    // =========================================================================
+    // AudioFormat Tests
+    // =========================================================================
+
+    #[test]
+    fn test_audio_format_as_str() {
+        assert_eq!(AudioFormat::Mp3.as_str(), "mp3");
+        assert_eq!(AudioFormat::Opus.as_str(), "opus");
+        assert_eq!(AudioFormat::Aac.as_str(), "aac");
+        assert_eq!(AudioFormat::Flac.as_str(), "flac");
+        assert_eq!(AudioFormat::Wav.as_str(), "wav");
+        assert_eq!(AudioFormat::Pcm.as_str(), "pcm");
+    }
+
+    #[test]
+    fn test_audio_format_file_extension() {
+        assert_eq!(AudioFormat::Mp3.file_extension(), "mp3");
+        assert_eq!(AudioFormat::Wav.file_extension(), "wav");
+    }
+
+    // =========================================================================
+    // SttModel Tests
+    // =========================================================================
+
+    #[test]
+    fn test_stt_model_as_str() {
+        assert_eq!(SttModel::Whisper1.as_str(), "whisper-1");
+        assert_eq!(SttModel::Gpt4oTranscribe.as_str(), "gpt-4o-transcribe");
+    }
+
+    // =========================================================================
+    // TranscriptionFormat Tests
+    // =========================================================================
+
+    #[test]
+    fn test_transcription_format_as_str() {
+        assert_eq!(TranscriptionFormat::Json.as_str(), "json");
+        assert_eq!(TranscriptionFormat::Text.as_str(), "text");
+        assert_eq!(TranscriptionFormat::Srt.as_str(), "srt");
+        assert_eq!(TranscriptionFormat::VerboseJson.as_str(), "verbose_json");
+        assert_eq!(TranscriptionFormat::Vtt.as_str(), "vtt");
+    }
+
+    // =========================================================================
+    // TimestampGranularity Tests
+    // =========================================================================
+
+    #[test]
+    fn test_timestamp_granularity_as_str() {
+        assert_eq!(TimestampGranularity::Word.as_str(), "word");
+        assert_eq!(TimestampGranularity::Segment.as_str(), "segment");
     }
 }

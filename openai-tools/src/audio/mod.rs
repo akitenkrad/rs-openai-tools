@@ -45,10 +45,35 @@
 //!         voice: Voice::Nova,
 //!         response_format: AudioFormat::Mp3,
 //!         speed: Some(1.1),
+//!         ..Default::default()
 //!     };
 //!
 //!     let bytes = audio.text_to_speech("Welcome to the podcast!", options).await?;
 //!     std::fs::write("intro.mp3", bytes)?;
+//!
+//!     Ok(())
+//! }
+//! ```
+//!
+//! ### Text-to-Speech with Instructions (gpt-4o-mini-tts only)
+//!
+//! ```rust,no_run
+//! use openai_tools::audio::request::{Audio, TtsOptions, TtsModel, Voice};
+//!
+//! #[tokio::main]
+//! async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//!     let audio = Audio::new()?;
+//!
+//!     // Use instructions to control voice characteristics
+//!     let options = TtsOptions {
+//!         model: TtsModel::Gpt4oMiniTts,
+//!         voice: Voice::Coral,
+//!         instructions: Some("Speak in a cheerful and positive tone.".to_string()),
+//!         ..Default::default()
+//!     };
+//!
+//!     let bytes = audio.text_to_speech("Hello, welcome!", options).await?;
+//!     std::fs::write("welcome.mp3", bytes)?;
 //!
 //!     Ok(())
 //! }
@@ -163,9 +188,7 @@ pub mod response;
 
 #[cfg(test)]
 mod tests {
-    use crate::audio::request::{
-        AudioFormat, SttModel, TimestampGranularity, TranscriptionFormat, TtsModel, Voice,
-    };
+    use crate::audio::request::{AudioFormat, SttModel, TimestampGranularity, TranscriptionFormat, TtsModel, Voice};
     use crate::audio::response::TranscriptionResponse;
 
     #[test]
@@ -174,8 +197,7 @@ mod tests {
             "text": "Hello, world!"
         }"#;
 
-        let response: TranscriptionResponse =
-            serde_json::from_str(json).expect("Should deserialize TranscriptionResponse");
+        let response: TranscriptionResponse = serde_json::from_str(json).expect("Should deserialize TranscriptionResponse");
         assert_eq!(response.text, "Hello, world!");
         assert!(response.language.is_none());
         assert!(response.duration.is_none());
@@ -189,8 +211,7 @@ mod tests {
             "duration": 1.5
         }"#;
 
-        let response: TranscriptionResponse =
-            serde_json::from_str(json).expect("Should deserialize verbose response");
+        let response: TranscriptionResponse = serde_json::from_str(json).expect("Should deserialize verbose response");
         assert_eq!(response.text, "Hello, world!");
         assert_eq!(response.language, Some("en".to_string()));
         assert_eq!(response.duration, Some(1.5));
@@ -206,8 +227,7 @@ mod tests {
             ]
         }"#;
 
-        let response: TranscriptionResponse =
-            serde_json::from_str(json).expect("Should deserialize with words");
+        let response: TranscriptionResponse = serde_json::from_str(json).expect("Should deserialize with words");
         let words = response.words.expect("Should have words");
         assert_eq!(words.len(), 2);
         assert_eq!(words[0].word, "Hello");
@@ -217,72 +237,36 @@ mod tests {
 
     #[test]
     fn test_tts_model_serialization() {
-        assert_eq!(
-            serde_json::to_string(&TtsModel::Tts1).unwrap(),
-            "\"tts-1\""
-        );
-        assert_eq!(
-            serde_json::to_string(&TtsModel::Tts1Hd).unwrap(),
-            "\"tts-1-hd\""
-        );
-        assert_eq!(
-            serde_json::to_string(&TtsModel::Gpt4oMiniTts).unwrap(),
-            "\"gpt-4o-mini-tts\""
-        );
+        assert_eq!(serde_json::to_string(&TtsModel::Tts1).unwrap(), "\"tts-1\"");
+        assert_eq!(serde_json::to_string(&TtsModel::Tts1Hd).unwrap(), "\"tts-1-hd\"");
+        assert_eq!(serde_json::to_string(&TtsModel::Gpt4oMiniTts).unwrap(), "\"gpt-4o-mini-tts\"");
     }
 
     #[test]
     fn test_voice_serialization() {
         assert_eq!(serde_json::to_string(&Voice::Alloy).unwrap(), "\"alloy\"");
         assert_eq!(serde_json::to_string(&Voice::Nova).unwrap(), "\"nova\"");
-        assert_eq!(
-            serde_json::to_string(&Voice::Shimmer).unwrap(),
-            "\"shimmer\""
-        );
+        assert_eq!(serde_json::to_string(&Voice::Shimmer).unwrap(), "\"shimmer\"");
     }
 
     #[test]
     fn test_audio_format_serialization() {
-        assert_eq!(
-            serde_json::to_string(&AudioFormat::Mp3).unwrap(),
-            "\"mp3\""
-        );
-        assert_eq!(
-            serde_json::to_string(&AudioFormat::Wav).unwrap(),
-            "\"wav\""
-        );
-        assert_eq!(
-            serde_json::to_string(&AudioFormat::Flac).unwrap(),
-            "\"flac\""
-        );
+        assert_eq!(serde_json::to_string(&AudioFormat::Mp3).unwrap(), "\"mp3\"");
+        assert_eq!(serde_json::to_string(&AudioFormat::Wav).unwrap(), "\"wav\"");
+        assert_eq!(serde_json::to_string(&AudioFormat::Flac).unwrap(), "\"flac\"");
     }
 
     #[test]
     fn test_stt_model_serialization() {
-        assert_eq!(
-            serde_json::to_string(&SttModel::Whisper1).unwrap(),
-            "\"whisper-1\""
-        );
-        assert_eq!(
-            serde_json::to_string(&SttModel::Gpt4oTranscribe).unwrap(),
-            "\"gpt-4o-transcribe\""
-        );
+        assert_eq!(serde_json::to_string(&SttModel::Whisper1).unwrap(), "\"whisper-1\"");
+        assert_eq!(serde_json::to_string(&SttModel::Gpt4oTranscribe).unwrap(), "\"gpt-4o-transcribe\"");
     }
 
     #[test]
     fn test_transcription_format_serialization() {
-        assert_eq!(
-            serde_json::to_string(&TranscriptionFormat::Json).unwrap(),
-            "\"json\""
-        );
-        assert_eq!(
-            serde_json::to_string(&TranscriptionFormat::VerboseJson).unwrap(),
-            "\"verbose_json\""
-        );
-        assert_eq!(
-            serde_json::to_string(&TranscriptionFormat::Srt).unwrap(),
-            "\"srt\""
-        );
+        assert_eq!(serde_json::to_string(&TranscriptionFormat::Json).unwrap(), "\"json\"");
+        assert_eq!(serde_json::to_string(&TranscriptionFormat::VerboseJson).unwrap(), "\"verbose_json\"");
+        assert_eq!(serde_json::to_string(&TranscriptionFormat::Srt).unwrap(), "\"srt\"");
     }
 
     #[test]
