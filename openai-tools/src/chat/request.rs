@@ -198,7 +198,7 @@ use crate::common::{
     auth::{AuthProvider, OpenAIAuth},
     client::create_http_client,
     errors::{ErrorResponse, OpenAIToolError, Result},
-    message::Message,
+    message::{Content, Message},
     models::{ChatModel, ParameterRestriction},
     structured_output::Schema,
     tool::Tool,
@@ -234,6 +234,113 @@ impl Format {
     }
 }
 
+// =============================================================================
+// Chat API serialization wrappers
+//
+// The shared `Content` type uses Responses API format ("input_text", "input_image"),
+// but Chat Completions API expects different type names and structure:
+//   - "input_text"  → {"type": "text", "text": "..."}
+//   - "input_image" → {"type": "image_url", "image_url": {"url": "..."}}
+//
+// These zero-copy wrappers convert at serialization time without changing
+// the public API or affecting the Responses API path.
+// =============================================================================
+
+/// Wraps `&Content` to serialize in Chat Completions API format.
+struct ChatContentRef<'a>(&'a Content);
+
+impl<'a> Serialize for ChatContentRef<'a> {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeStruct;
+
+        match self.0.type_name.as_str() {
+            "input_text" => {
+                let mut state = serializer.serialize_struct("Content", 2)?;
+                state.serialize_field("type", "text")?;
+                state.serialize_field("text", &self.0.text)?;
+                state.end()
+            }
+            "input_image" => {
+                #[derive(Serialize)]
+                struct ImageUrl<'b> {
+                    url: &'b str,
+                }
+                let mut state = serializer.serialize_struct("Content", 2)?;
+                state.serialize_field("type", "image_url")?;
+                if let Some(ref url) = self.0.image_url {
+                    state.serialize_field("image_url", &ImageUrl { url })?;
+                }
+                state.end()
+            }
+            other => {
+                // Pass through unknown types as-is
+                let mut state = serializer.serialize_struct("Content", 3)?;
+                state.serialize_field("type", other)?;
+                if let Some(ref text) = self.0.text {
+                    state.serialize_field("text", text)?;
+                }
+                if let Some(ref url) = self.0.image_url {
+                    state.serialize_field("image_url", url)?;
+                }
+                state.end()
+            }
+        }
+    }
+}
+
+/// Wraps `&Message` to serialize in Chat Completions API format.
+///
+/// - Single content (`content` field): extracts `.text` as a plain string (existing behavior)
+/// - Content list (`content_list` field): wraps each element with `ChatContentRef`
+struct ChatMessageRef<'a>(&'a Message);
+
+impl<'a> Serialize for ChatMessageRef<'a> {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeStruct;
+
+        let msg = self.0;
+        let mut state = serializer.serialize_struct("Message", 3)?;
+        state.serialize_field("role", &msg.role)?;
+
+        if let Some(ref content) = msg.content {
+            // Single content: serialize as plain text string
+            state.serialize_field("content", &content.text)?;
+        } else if let Some(ref contents) = msg.content_list {
+            // Multi-modal content: wrap each element with ChatContentRef
+            let chat_contents: Vec<ChatContentRef<'_>> = contents.iter().map(ChatContentRef).collect();
+            state.serialize_field("content", &chat_contents)?;
+        }
+
+        if let Some(ref tool_call_id) = msg.tool_call_id {
+            state.serialize_field("tool_call_id", tool_call_id)?;
+        }
+        if let Some(ref tool_calls) = msg.tool_calls {
+            state.serialize_field("tool_calls", tool_calls)?;
+        }
+
+        state.end()
+    }
+}
+
+/// Custom serializer for `Vec<Message>` that converts to Chat API format.
+fn serialize_chat_messages<S>(messages: &Vec<Message>, serializer: S) -> std::result::Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    use serde::ser::SerializeSeq;
+    let mut seq = serializer.serialize_seq(Some(messages.len()))?;
+    for msg in messages {
+        seq.serialize_element(&ChatMessageRef(msg))?;
+    }
+    seq.end()
+}
+
 /// Request body structure for OpenAI Chat Completions API
 ///
 /// This structure represents the parameters that will be sent in the request body
@@ -241,6 +348,7 @@ impl Format {
 #[derive(Debug, Clone, Deserialize, Serialize, Default)]
 pub(crate) struct Body {
     pub(crate) model: ChatModel,
+    #[serde(serialize_with = "serialize_chat_messages")]
     pub(crate) messages: Vec<Message>,
     /// Whether to store the request and response at OpenAI
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -1647,5 +1755,101 @@ mod tests {
         let mut chat_reasoning = ChatCompletion::test_new_with_model(ChatModel::O1);
         chat_reasoning.store(false);
         assert_eq!(chat_reasoning.request_body.store, Some(false));
+    }
+
+    // =============================================================================
+    // Chat API Content Serialization Tests
+    // =============================================================================
+
+    #[test]
+    fn test_chat_text_content_serialization() {
+        use crate::common::message::Content;
+
+        let content = Content::from_text("Hello, world!");
+        let wrapper = ChatContentRef(&content);
+        let json = serde_json::to_value(&wrapper).unwrap();
+
+        assert_eq!(json["type"], "text");
+        assert_eq!(json["text"], "Hello, world!");
+        assert!(json.get("image_url").is_none());
+    }
+
+    #[test]
+    fn test_chat_image_content_serialization() {
+        use crate::common::message::Content;
+
+        let content = Content::from_image_url("https://example.com/image.png");
+        let wrapper = ChatContentRef(&content);
+        let json = serde_json::to_value(&wrapper).unwrap();
+
+        assert_eq!(json["type"], "image_url");
+        assert_eq!(json["image_url"]["url"], "https://example.com/image.png");
+    }
+
+    #[test]
+    fn test_chat_multimodal_message_serialization() {
+        use crate::common::message::{Content, Message};
+        use crate::common::role::Role;
+
+        let contents = vec![Content::from_text("What's in this image?"), Content::from_image_url("https://example.com/image.png")];
+        let message = Message::from_message_array(Role::User, contents);
+        let wrapper = ChatMessageRef(&message);
+        let json = serde_json::to_value(&wrapper).unwrap();
+
+        assert_eq!(json["role"], "user");
+        let content_arr = json["content"].as_array().unwrap();
+        assert_eq!(content_arr.len(), 2);
+
+        // First element: text
+        assert_eq!(content_arr[0]["type"], "text");
+        assert_eq!(content_arr[0]["text"], "What's in this image?");
+
+        // Second element: image_url with nested object
+        assert_eq!(content_arr[1]["type"], "image_url");
+        assert_eq!(content_arr[1]["image_url"]["url"], "https://example.com/image.png");
+    }
+
+    #[test]
+    fn test_chat_single_text_message_serialization() {
+        use crate::common::message::Message;
+        use crate::common::role::Role;
+
+        let message = Message::from_string(Role::User, "Hello!");
+        let wrapper = ChatMessageRef(&message);
+        let json = serde_json::to_value(&wrapper).unwrap();
+
+        assert_eq!(json["role"], "user");
+        // Single text content should be serialized as a plain string, not an array
+        assert_eq!(json["content"], "Hello!");
+    }
+
+    #[test]
+    fn test_chat_body_messages_serialization() {
+        use crate::common::message::{Content, Message};
+        use crate::common::role::Role;
+
+        let messages = vec![
+            Message::from_string(Role::System, "You are a helpful assistant."),
+            Message::from_message_array(
+                Role::User,
+                vec![Content::from_text("Describe this image"), Content::from_image_url("https://example.com/photo.jpg")],
+            ),
+        ];
+
+        let body = Body { model: ChatModel::Gpt4oMini, messages, ..Default::default() };
+
+        let json = serde_json::to_value(&body).unwrap();
+        let msgs = json["messages"].as_array().unwrap();
+
+        // System message: plain string content
+        assert_eq!(msgs[0]["role"], "system");
+        assert_eq!(msgs[0]["content"], "You are a helpful assistant.");
+
+        // User multimodal message: array content with Chat API types
+        assert_eq!(msgs[1]["role"], "user");
+        let content_arr = msgs[1]["content"].as_array().unwrap();
+        assert_eq!(content_arr[0]["type"], "text");
+        assert_eq!(content_arr[1]["type"], "image_url");
+        assert_eq!(content_arr[1]["image_url"]["url"], "https://example.com/photo.jpg");
     }
 }
