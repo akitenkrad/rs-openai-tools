@@ -31,7 +31,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! openai-tools = "0.1.0"
+//! openai-tools = "1.0"
 //! tokio = { version = "1.0", features = ["full"] }
 //! serde = { version = "1.0", features = ["derive"] }
 //! ```
@@ -160,7 +160,42 @@
 //! }
 //! ```
 //!
-//! ## Multi-modal Input with Responses API
+//! ## Multi-modal Input (Text + Image)
+//!
+//! Both Chat Completions API and Responses API support multi-modal messages.
+//! The same `Content` and `Message` types work with both APIs - serialization
+//! format differences are handled automatically.
+//!
+//! ### Chat Completions API
+//!
+//! ```rust,no_run
+//! use openai_tools::chat::request::ChatCompletion;
+//! use openai_tools::common::{message::{Message, Content}, role::Role, models::ChatModel};
+//!
+//! #[tokio::main]
+//! async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//!     let mut chat = ChatCompletion::new();
+//!
+//!     let message = Message::from_message_array(
+//!         Role::User,
+//!         vec![
+//!             Content::from_text("What do you see in this image?"),
+//!             Content::from_image_url("https://example.com/image.jpg"),
+//!         ],
+//!     );
+//!
+//!     let response = chat
+//!         .model(ChatModel::Gpt4oMini)
+//!         .messages(vec![message])
+//!         .chat()
+//!         .await?;
+//!
+//!     println!("AI: {}", response.choices[0].message.content.as_ref().unwrap().text.as_ref().unwrap());
+//!     Ok(())
+//! }
+//! ```
+//!
+//! ### Responses API
 //!
 //! ```rust,no_run
 //! use openai_tools::responses::request::Responses;
@@ -174,7 +209,6 @@
 //!         .model(ChatModel::Gpt4oMini)
 //!         .instructions("You are an image analysis assistant.");
 //!
-//!     // Multi-modal message with text and image
 //!     let message = Message::from_message_array(
 //!         Role::User,
 //!         vec![

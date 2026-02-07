@@ -117,7 +117,7 @@ use openai_tools::fine_tuning::FineTuning;
 
 | API | Endpoint | Features |
 |-----|----------|----------|
-| **Chat** | `/v1/chat/completions` | Structured Output, Function Calling, Image Input |
+| **Chat** | `/v1/chat/completions` | Structured Output, Function Calling, Multi-modal Input (Text + Image) |
 | **Responses** | `/v1/responses` | CRUD, Structured Output, Function Calling, Image Input, Reasoning, Tool Choice, Prompt Templates |
 | **Conversations** | `/v1/conversations` | CRUD |
 | **Embedding** | `/v1/embeddings` | Basic |
@@ -134,21 +134,50 @@ use openai_tools::fine_tuning::FineTuning;
 
 ```rust
 use openai_tools::chat::request::ChatCompletion;
-use openai_tools::common::message::Message;
+use openai_tools::common::{message::Message, role::Role, models::ChatModel};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let messages = vec![Message::from_string("user", "Hello!")];
+    let messages = vec![Message::from_string(Role::User, "Hello!")];
 
     let mut chat = ChatCompletion::new();
     let response = chat
-        .model_id("gpt-4o-mini")
+        .model(ChatModel::Gpt4oMini)
         .messages(messages)
         .temperature(0.7)
         .chat()
         .await?;
 
-    println!("{}", response.choices[0].message.content);
+    println!("{:?}", response.choices[0].message.content);
+    Ok(())
+}
+```
+
+### Multi-modal Input (Text + Image)
+
+```rust
+use openai_tools::chat::request::ChatCompletion;
+use openai_tools::common::{message::{Message, Content}, role::Role, models::ChatModel};
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let mut chat = ChatCompletion::new();
+
+    let message = Message::from_message_array(
+        Role::User,
+        vec![
+            Content::from_text("What do you see in this image?"),
+            Content::from_image_url("https://example.com/image.jpg"),
+        ],
+    );
+
+    let response = chat
+        .model(ChatModel::Gpt4oMini)
+        .messages(vec![message])
+        .chat()
+        .await?;
+
+    println!("{:?}", response.choices[0].message.content);
     Ok(())
 }
 ```
@@ -157,17 +186,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ```rust
 use openai_tools::responses::request::Responses;
+use openai_tools::common::models::ChatModel;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut client = Responses::new();
     let response = client
-        .model_id("gpt-4o")
+        .model(ChatModel::Gpt4oMini)
         .str_message("What is the capital of France?")
         .complete()
         .await?;
 
-    println!("{}", response.output_text());
+    println!("{}", response.output_text().unwrap());
     Ok(())
 }
 ```
@@ -486,12 +516,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ```rust
 use openai_tools::embedding::request::Embedding;
+use openai_tools::common::models::EmbeddingModel;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut embedding = Embedding::new();
     let response = embedding
-        .model("text-embedding-3-small")
+        .model(EmbeddingModel::TextEmbedding3Small)
         .input_text("Hello, world!")
         .embed()
         .await?;
@@ -502,6 +533,27 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ```
 
 ## Update History
+
+<details>
+<summary>v1.0.6</summary>
+
+- Fixed Chat Completions API multimodal message serialization
+  - `Content` type was sending Responses API format (`input_text`, `input_image`) to Chat API
+  - Chat API requires `text` and `image_url` type names with nested `{"url": "..."}` structure
+  - Added zero-copy serialization wrappers that automatically convert at request time
+  - No public API changes - existing code works without modification
+
+</details>
+
+<details>
+<summary>v1.0.5</summary>
+
+- Added `instructions` parameter for TTS API (`gpt-4o-mini-tts` model)
+  - Control voice tone, emotion, and pacing with natural language instructions
+  - Available via `TtsOptions.instructions` field
+- Applied cargo fmt formatting
+
+</details>
 
 <details>
 <summary>v1.0.4</summary>

@@ -174,6 +174,31 @@ chat.model(ChatModel::Gpt4oMini)  // Type-safe model selection
     .await?;
 ```
 
+**Multi-modal Input (Chat API)**: Text and image content in Chat Completions API:
+```rust
+use openai_tools::chat::request::ChatCompletion;
+use openai_tools::common::{message::{Message, Content}, role::Role, models::ChatModel};
+
+let message = Message::from_message_array(
+    Role::User,
+    vec![
+        Content::from_text("What do you see?"),
+        Content::from_image_url("https://example.com/image.jpg"),
+    ],
+);
+
+let mut chat = ChatCompletion::new();
+let response = chat
+    .model(ChatModel::Gpt4oMini)
+    .messages(vec![message])
+    .chat()
+    .await?;
+```
+
+Note: The same `Content` and `Message` types work with both Chat API and Responses API.
+Serialization format differences (`input_text`/`input_image` vs `text`/`image_url`) are
+handled automatically by API-specific serialization wrappers.
+
 **Timeout Configuration**: All HTTP-based API clients support optional request timeouts:
 ```rust
 use std::time::Duration;
@@ -614,7 +639,7 @@ Each API (Chat, Embedding, etc.) requires its own complete endpoint URL includin
 
 | API | Endpoint | Features |
 |-----|----------|----------|
-| **Chat** | `/v1/chat/completions` | Structured Output, Function Calling, Image Input |
+| **Chat** | `/v1/chat/completions` | Structured Output, Function Calling, Multi-modal Input (Text + Image) |
 | **Responses** | `/v1/responses` | CRUD, Structured Output, Function Calling, Image Input, Reasoning, Tool Choice, Prompt Templates |
 | **Conversations** | `/v1/conversations` | CRUD |
 | **Embedding** | `/v1/embeddings` | Basic |
