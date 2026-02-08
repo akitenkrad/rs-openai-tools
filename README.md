@@ -107,8 +107,8 @@ use openai_tools::fine_tuning::FineTuning;
 
 | API | Endpoint | Features |
 |-----|----------|----------|
-| **Chat** | `/v1/chat/completions` | Structured Output, Function Calling, Multi-modal Input (Text + Image) |
-| **Responses** | `/v1/responses` | CRUD, Structured Output, Function Calling, Image Input, Reasoning, Tool Choice, Prompt Templates |
+| **Chat** | `/v1/chat/completions` | Structured Output, Function Calling, Multi-modal Input (Text + Image), Safety Identifier |
+| **Responses** | `/v1/responses` | CRUD, Structured Output, Function Calling, Image Input, Reasoning, Tool Choice, Prompt Templates, Safety Identifier |
 | **Conversations** | `/v1/conversations` | CRUD |
 | **Embedding** | `/v1/embeddings` | Basic |
 | **Realtime** | `wss://api.openai.com/v1/realtime` | Function Calling, Audio I/O, VAD, WebSocket |
@@ -164,6 +164,29 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let response = chat
         .model(ChatModel::Gpt4oMini)
         .messages(vec![message])
+        .chat()
+        .await?;
+
+    println!("{:?}", response.choices[0].message.content);
+    Ok(())
+}
+```
+
+### Safety Identifier
+
+Track end users for abuse detection with `safety_identifier` (successor to the legacy `user` parameter):
+
+```rust
+use openai_tools::chat::request::ChatCompletion;
+use openai_tools::common::{message::Message, role::Role, models::ChatModel};
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let mut chat = ChatCompletion::new();
+    let response = chat
+        .model(ChatModel::Gpt4oMini)
+        .messages(vec![Message::from_string(Role::User, "Hello!")])
+        .safety_identifier("hashed-user-id")  // SHA-256 hash recommended
         .chat()
         .await?;
 
@@ -486,6 +509,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ```
 
 ## Update History
+
+<details>
+<summary>v1.0.7</summary>
+
+- Added `safety_identifier` parameter to Chat Completions API
+  - Successor to the legacy `user` parameter for end-user abuse detection
+  - Available via `ChatCompletion::safety_identifier()` builder method
+  - Also improves cache hit rates when set
+- Note: Images API does **not** support `safety_identifier` (use `user` field instead)
+
+</details>
 
 <details>
 <summary>v1.0.6</summary>

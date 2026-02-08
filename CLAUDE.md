@@ -220,6 +220,23 @@ let file = files.upload_path("data.jsonl", FilePurpose::FineTune).await?;
 
 Timeout is optional - if not set, requests have no timeout limit (default reqwest behavior).
 
+**Safety Identifier**: End-user identification for abuse detection (Chat and Responses APIs only):
+```rust
+use openai_tools::chat::request::ChatCompletion;
+use openai_tools::common::models::ChatModel;
+
+let mut chat = ChatCompletion::new();
+chat.model(ChatModel::Gpt4oMini)
+    .messages(messages)
+    .safety_identifier("hashed-user-id")  // SHA-256 hash recommended
+    .chat()
+    .await?;
+```
+
+Note: `safety_identifier` is the successor to the legacy `user` parameter. It is supported by
+Chat Completions API and Responses API. Images API does **not** support this parameter (use the
+`user` field in `GenerateOptions`/`EditOptions`/`VariationOptions` instead).
+
 **Type-Safe Model Selection**: All APIs use enum-based model selection for compile-time validation:
 
 | Enum | API | Available Variants |
@@ -639,8 +656,8 @@ Each API (Chat, Embedding, etc.) requires its own complete endpoint URL includin
 
 | API | Endpoint | Features |
 |-----|----------|----------|
-| **Chat** | `/v1/chat/completions` | Structured Output, Function Calling, Multi-modal Input (Text + Image) |
-| **Responses** | `/v1/responses` | CRUD, Structured Output, Function Calling, Image Input, Reasoning, Tool Choice, Prompt Templates |
+| **Chat** | `/v1/chat/completions` | Structured Output, Function Calling, Multi-modal Input (Text + Image), Safety Identifier |
+| **Responses** | `/v1/responses` | CRUD, Structured Output, Function Calling, Image Input, Reasoning, Tool Choice, Prompt Templates, Safety Identifier |
 | **Conversations** | `/v1/conversations` | CRUD |
 | **Embedding** | `/v1/embeddings` | Basic |
 | **Realtime** | `wss://api.openai.com/v1/realtime` | Function Calling, Audio I/O, VAD, WebSocket |
@@ -651,6 +668,14 @@ Each API (Chat, Embedding, etc.) requires its own complete endpoint URL includin
 | **Audio** | `/v1/audio` | Audio I/O, Multipart Upload |
 | **Batch** | `/v1/batches` | CRUD |
 | **Fine-tuning** | `/v1/fine_tuning/jobs` | CRUD |
+
+**Chat Completions API Features:**
+- Structured output (JSON schema)
+- Function calling with tools
+- Multi-modal input (text + image)
+- Safety identifier (`safety_identifier`) for end-user abuse detection
+  - Successor to the legacy `user` parameter
+  - Recommended: hash user identifiers (e.g., SHA-256 of email) rather than sending PII
 
 **Responses API Features:**
 - Multi-modal input support (text, images)
@@ -667,6 +692,7 @@ Each API (Chat, Embedding, etc.) requires its own complete endpoint URL includin
   - `ImageUrlInComputerCallOutput` - computer call output images
   - `LogprobsInOutput` - token log probabilities
   - `ReasoningEncryptedContent` - encrypted reasoning content
+- Safety identifier (`safety_identifier`) for end-user abuse detection
 - Parallel tool calls support
 - Conversation integration
 - Metadata tracking
