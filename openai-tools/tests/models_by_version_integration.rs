@@ -24,7 +24,7 @@ async fn test_chat_with_model(model_id: &str) -> Result<(), String> {
     let mut chat = ChatCompletion::new();
     let messages = vec![Message::from_string(Role::User, "Say 'Hello' in one word.")];
 
-    chat.model_id(model_id).messages(messages).temperature(1.0);
+    chat.model_id(model_id).messages(messages).temperature(1.0).safety_identifier("a5c75abeef286919b4bf3ae40bc74c2d9ba03ac1bde3759e470e0f2b7056a5a1");
 
     let mut counter = 3;
     loop {
@@ -56,6 +56,7 @@ async fn test_responses_with_model(model_id: &str) -> Result<(), String> {
     let mut responses = Responses::new();
     responses.model_id(model_id);
     responses.str_message("Say 'Hello' in one word.");
+    responses.safety_identifier("a5c75abeef286919b4bf3ae40bc74c2d9ba03ac1bde3759e470e0f2b7056a5a1");
 
     let mut counter = 3;
     loop {

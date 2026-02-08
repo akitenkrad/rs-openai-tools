@@ -32,6 +32,7 @@ async fn test_init_with_endpoint() {
     responses.model_id("gpt-4o-mini");
     responses.instructions("test instructions");
     responses.str_message("Hello world!");
+    responses.safety_identifier("a5c75abeef286919b4bf3ae40bc74c2d9ba03ac1bde3759e470e0f2b7056a5a1");
 
     let body_json = serde_json::to_string_pretty(&responses.request_body).unwrap();
     tracing::info!("Request body: {}", body_json);
@@ -66,6 +67,7 @@ async fn test_responses_with_plain_text() {
     responses.model_id("gpt-4o-mini");
     responses.instructions("test instructions");
     responses.str_message("Hello world!");
+    responses.safety_identifier("a5c75abeef286919b4bf3ae40bc74c2d9ba03ac1bde3759e470e0f2b7056a5a1");
 
     let body_json = serde_json::to_string_pretty(&responses.request_body).unwrap();
     tracing::info!("Request body: {}", body_json);
@@ -101,6 +103,7 @@ async fn test_responses_with_messages() {
     responses.instructions("test instructions");
     let messages = vec![Message::from_string(Role::User, "Hello world!")];
     responses.messages(messages);
+    responses.safety_identifier("a5c75abeef286919b4bf3ae40bc74c2d9ba03ac1bde3759e470e0f2b7056a5a1");
 
     let body_json = serde_json::to_string_pretty(&responses.request_body).unwrap();
     tracing::info!("Request body: {}", body_json);
@@ -137,6 +140,7 @@ async fn test_responses_with_multi_turn_conversations() {
     responses.model_id("gpt-4o-mini");
     let messages = vec![Message::from_string(Role::User, "Hello!")];
     responses.messages(messages);
+    responses.safety_identifier("a5c75abeef286919b4bf3ae40bc74c2d9ba03ac1bde3759e470e0f2b7056a5a1");
 
     let body_json = serde_json::to_string_pretty(&responses.request_body).unwrap();
     tracing::info!("Request body: {}", body_json);
@@ -174,6 +178,7 @@ async fn test_responses_with_multi_turn_conversations() {
     let messages = vec![Message::from_string(Role::User, "What's the weather like today?")];
     responses.messages(messages);
     responses.previous_response_id(conversation_id);
+    responses.safety_identifier("a5c75abeef286919b4bf3ae40bc74c2d9ba03ac1bde3759e470e0f2b7056a5a1");
 
     let body_json = serde_json::to_string_pretty(&responses.request_body).unwrap();
     tracing::info!("Request body for second turn: {}", body_json);
@@ -209,6 +214,7 @@ async fn test_responses_with_tools() {
     responses.instructions("test instructions");
     let messages = vec![Message::from_string(Role::User, "Calculate 2 + 2 using a calculator tool.")];
     responses.messages(messages);
+    responses.safety_identifier("a5c75abeef286919b4bf3ae40bc74c2d9ba03ac1bde3759e470e0f2b7056a5a1");
 
     let tool = Tool::function(
         "calculator",
@@ -263,6 +269,7 @@ async fn test_responses_with_json_schema() {
     init_tracing();
     let mut responses = Responses::new();
     responses.model_id("gpt-4o-mini");
+    responses.safety_identifier("a5c75abeef286919b4bf3ae40bc74c2d9ba03ac1bde3759e470e0f2b7056a5a1");
 
     let messages = vec![Message::from_string(Role::User, "What is the capital of France? Also, list some countries with their population.")];
     responses.messages(messages);
@@ -305,6 +312,7 @@ async fn test_responses_with_image_input() {
     init_tracing();
 
     let mut responses = Responses::new();
+    responses.safety_identifier("a5c75abeef286919b4bf3ae40bc74c2d9ba03ac1bde3759e470e0f2b7056a5a1");
     responses.model_id("gpt-4o-mini").messages(vec![Message::from_message_array(
         Role::User,
         vec![
@@ -345,6 +353,7 @@ async fn test_error_handling_missing_messages() {
 
     // Set basic required parameters without messages
     responses.model_id("gpt-4o-mini");
+    responses.safety_identifier("a5c75abeef286919b4bf3ae40bc74c2d9ba03ac1bde3759e470e0f2b7056a5a1");
     let response = responses.complete().await;
     tracing::info!("Response result: {:?}", response);
     assert!(response.is_err(), "Expected error due to missing messages");
@@ -359,6 +368,7 @@ async fn test_error_handling_empty_messages() {
     // Set basic required parameters without messages
     responses.model_id("gpt-4o-mini");
     responses.messages(vec![]); // Empty messages
+    responses.safety_identifier("a5c75abeef286919b4bf3ae40bc74c2d9ba03ac1bde3759e470e0f2b7056a5a1");
     let response = responses.complete().await;
     tracing::info!("Response result: {:?}", response);
     assert!(response.is_err(), "Expected error due to empty messages");
@@ -560,6 +570,7 @@ async fn test_gpt52_with_reasoning_none() {
     responses.str_message("What is 2+2? Reply with just the number.");
     responses.reasoning(ReasoningEffort::None, ReasoningSummary::Auto);
     responses.max_output_tokens(50);
+    responses.safety_identifier("a5c75abeef286919b4bf3ae40bc74c2d9ba03ac1bde3759e470e0f2b7056a5a1");
 
     let result = responses.complete().await;
     tracing::info!("GPT-5.2 with ReasoningEffort::None result: {:?}", result);
@@ -587,6 +598,7 @@ async fn test_gpt52_with_text_verbosity() {
     responses.str_message("What is photosynthesis?");
     responses.text_verbosity(TextVerbosity::Low);
     responses.max_output_tokens(100);
+    responses.safety_identifier("a5c75abeef286919b4bf3ae40bc74c2d9ba03ac1bde3759e470e0f2b7056a5a1");
 
     let result = responses.complete().await;
     tracing::info!("GPT-5.2 with TextVerbosity::Low result: {:?}", result);
@@ -612,6 +624,7 @@ async fn test_with_model_constructor() {
     let mut responses = Responses::with_model(ChatModel::Gpt4oMini);
     responses.str_message("Say hello in Japanese.");
     responses.max_output_tokens(50);
+    responses.safety_identifier("a5c75abeef286919b4bf3ae40bc74c2d9ba03ac1bde3759e470e0f2b7056a5a1");
 
     let result = responses.complete().await;
     tracing::info!("with_model constructor result: {:?}", result);
@@ -639,6 +652,7 @@ async fn test_create_and_retrieve_response() {
     responses.str_message("Say 'test' and nothing else.");
     responses.max_output_tokens(20);
     responses.store(true); // Store the response so we can retrieve it
+    responses.safety_identifier("a5c75abeef286919b4bf3ae40bc74c2d9ba03ac1bde3759e470e0f2b7056a5a1");
 
     let create_result = responses.complete().await;
     assert!(create_result.is_ok(), "Failed to create response: {:?}", create_result.err());
@@ -673,6 +687,7 @@ async fn test_delete_response() {
     responses.str_message("Say 'delete test'.");
     responses.max_output_tokens(20);
     responses.store(true);
+    responses.safety_identifier("a5c75abeef286919b4bf3ae40bc74c2d9ba03ac1bde3759e470e0f2b7056a5a1");
 
     let create_result = responses.complete().await;
     assert!(create_result.is_ok(), "Failed to create response");
@@ -705,6 +720,7 @@ async fn test_tool_choice_auto() {
     responses.str_message("What is 2 + 2?");
     responses.tool_choice(ToolChoice::Simple(ToolChoiceMode::Auto));
     responses.max_output_tokens(50);
+    responses.safety_identifier("a5c75abeef286919b4bf3ae40bc74c2d9ba03ac1bde3759e470e0f2b7056a5a1");
 
     let result = responses.complete().await;
     tracing::info!("Tool choice auto result: {:?}", result);
@@ -722,6 +738,7 @@ async fn test_tool_choice_none() {
     responses.str_message("Hello!");
     responses.tool_choice(ToolChoice::Simple(ToolChoiceMode::None));
     responses.max_output_tokens(50);
+    responses.safety_identifier("a5c75abeef286919b4bf3ae40bc74c2d9ba03ac1bde3759e470e0f2b7056a5a1");
 
     let result = responses.complete().await;
     tracing::info!("Tool choice none result: {:?}", result);

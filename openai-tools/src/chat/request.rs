@@ -386,6 +386,9 @@ pub(crate) struct Body {
     /// Optional tools that can be used by the model
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) tools: Option<Vec<Tool>>,
+    /// A stable identifier for the end user, used for safety monitoring and abuse detection
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) safety_identifier: Option<String>,
 }
 
 /// OpenAI Chat Completions API client
@@ -1150,6 +1153,34 @@ impl ChatCompletion {
         self
     }
 
+    /// Sets the safety identifier for end-user tracking
+    ///
+    /// A stable identifier used to help OpenAI detect users of your application
+    /// that may be violating usage policies. This enables per-user safety
+    /// monitoring and abuse detection.
+    ///
+    /// # Arguments
+    ///
+    /// * `safety_id` - A unique, stable identifier for the end user
+    ///   (recommended: hash of email or internal user ID)
+    ///
+    /// # Returns
+    ///
+    /// A mutable reference to self for method chaining
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use openai_tools::chat::request::ChatCompletion;
+    ///
+    /// let mut chat = ChatCompletion::new();
+    /// chat.safety_identifier("user_abc123");
+    /// ```
+    pub fn safety_identifier<T: AsRef<str>>(&mut self, safety_id: T) -> &mut Self {
+        self.request_body.safety_identifier = Some(safety_id.as_ref().to_string());
+        self
+    }
+
     /// Gets the current message history
     ///
     /// # Returns
@@ -1851,5 +1882,23 @@ mod tests {
         assert_eq!(content_arr[0]["type"], "text");
         assert_eq!(content_arr[1]["type"], "image_url");
         assert_eq!(content_arr[1]["image_url"]["url"], "https://example.com/photo.jpg");
+    }
+
+    #[test]
+    fn test_safety_identifier() {
+        let mut chat = ChatCompletion::test_new_with_model(ChatModel::Gpt4oMini);
+        chat.safety_identifier("user_abc123");
+        assert_eq!(chat.request_body.safety_identifier, Some("user_abc123".to_string()));
+
+        // Verify serialization
+        let json = serde_json::to_value(&chat.request_body).unwrap();
+        assert_eq!(json["safety_identifier"], "user_abc123");
+    }
+
+    #[test]
+    fn test_safety_identifier_not_serialized_when_none() {
+        let chat = ChatCompletion::test_new_with_model(ChatModel::Gpt4oMini);
+        let json = serde_json::to_value(&chat.request_body).unwrap();
+        assert!(json.get("safety_identifier").is_none());
     }
 }
