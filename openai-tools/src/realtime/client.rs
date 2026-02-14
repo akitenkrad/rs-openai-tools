@@ -36,7 +36,7 @@ const REALTIME_PATH: &str = "realtime";
 /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ///     let mut client = RealtimeClient::new();
 ///     client
-///         .model(RealtimeModel::Gpt4oRealtimePreview)
+///         .model(RealtimeModel::GptRealtime_2025_08_28)
 ///         .modalities(vec![Modality::Text, Modality::Audio])
 ///         .voice(Voice::Alloy)
 ///         .instructions("You are a helpful assistant.");
@@ -114,7 +114,7 @@ impl RealtimeClient {
     /// use openai_tools::common::models::RealtimeModel;
     ///
     /// let mut client = RealtimeClient::new();
-    /// client.model(RealtimeModel::Gpt4oRealtimePreview);
+    /// client.model(RealtimeModel::GptRealtime_2025_08_28);
     /// ```
     pub fn model(&mut self, model: RealtimeModel) -> &mut Self {
         self.model = model;

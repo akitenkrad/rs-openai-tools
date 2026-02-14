@@ -55,8 +55,8 @@
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     let models = Models::new()?;
 //!
-//!     // Get details of gpt-4o-mini
-//!     let model = models.retrieve("gpt-4o-mini").await?;
+//!     // Get details of gpt-5-mini
+//!     let model = models.retrieve("gpt-5-mini").await?;
 //!     println!("Model: {}", model.id);
 //!     println!("Owned by: {}", model.owned_by);
 //!     println!("Created: {}", model.created);
@@ -75,7 +75,7 @@
 //!     let models = Models::new()?;
 //!
 //!     // Delete a fine-tuned model (must be owned by you)
-//!     let result = models.delete("ft:gpt-4o-mini:my-org:my-suffix:id").await?;
+//!     let result = models.delete("ft:gpt-4.1-mini:my-org:my-suffix:id").await?;
 //!     if result.deleted {
 //!         println!("Successfully deleted: {}", result.id);
 //!     }
@@ -89,7 +89,7 @@
 //! ### Model Object
 //!
 //! Each model object contains:
-//! - `id`: Model identifier (e.g., "gpt-4o-mini")
+//! - `id`: Model identifier (e.g., "gpt-5-mini")
 //! - `object`: Always "model"
 //! - `created`: Unix timestamp of creation
 //! - `owned_by`: Organization that owns the model
@@ -111,14 +111,14 @@ mod tests {
     #[test]
     fn test_model_deserialization() {
         let json = r#"{
-            "id": "gpt-4o-mini",
+            "id": "gpt-5-mini",
             "object": "model",
             "created": 1686935002,
             "owned_by": "openai"
         }"#;
 
         let model: Model = serde_json::from_str(json).expect("Should deserialize Model");
-        assert_eq!(model.id, "gpt-4o-mini");
+        assert_eq!(model.id, "gpt-5-mini");
         assert_eq!(model.object, "model");
         assert_eq!(model.created, 1686935002);
         assert_eq!(model.owned_by, "openai");
@@ -130,7 +130,7 @@ mod tests {
             "object": "list",
             "data": [
                 {
-                    "id": "gpt-4o-mini",
+                    "id": "gpt-5-mini",
                     "object": "model",
                     "created": 1686935002,
                     "owned_by": "openai"
@@ -147,30 +147,30 @@ mod tests {
         let response: ModelsListResponse = serde_json::from_str(json).expect("Should deserialize ModelsListResponse");
         assert_eq!(response.object, "list");
         assert_eq!(response.data.len(), 2);
-        assert_eq!(response.data[0].id, "gpt-4o-mini");
+        assert_eq!(response.data[0].id, "gpt-5-mini");
         assert_eq!(response.data[1].id, "text-embedding-3-small");
     }
 
     #[test]
     fn test_delete_response_deserialization() {
         let json = r#"{
-            "id": "ft:gpt-4o-mini:my-org:my-suffix:abc123",
+            "id": "ft:gpt-4.1-mini:my-org:my-suffix:abc123",
             "object": "model",
             "deleted": true
         }"#;
 
         let response: DeleteResponse = serde_json::from_str(json).expect("Should deserialize DeleteResponse");
-        assert_eq!(response.id, "ft:gpt-4o-mini:my-org:my-suffix:abc123");
+        assert_eq!(response.id, "ft:gpt-4.1-mini:my-org:my-suffix:abc123");
         assert_eq!(response.object, "model");
         assert!(response.deleted);
     }
 
     #[test]
     fn test_model_serialization() {
-        let model = Model { id: "gpt-4o-mini".to_string(), object: "model".to_string(), created: 1686935002, owned_by: "openai".to_string() };
+        let model = Model { id: "gpt-5-mini".to_string(), object: "model".to_string(), created: 1686935002, owned_by: "openai".to_string() };
 
         let json = serde_json::to_string(&model).expect("Should serialize Model");
-        assert!(json.contains("\"id\":\"gpt-4o-mini\""));
+        assert!(json.contains("\"id\":\"gpt-5-mini\""));
         assert!(json.contains("\"object\":\"model\""));
     }
 }

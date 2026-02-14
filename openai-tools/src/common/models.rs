@@ -26,7 +26,7 @@
 //! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! // Using ChatModel enum
 //! let mut chat = ChatCompletion::new();
-//! chat.model(ChatModel::Gpt4oMini);
+//! chat.model(ChatModel::Gpt5Mini);
 //!
 //! // Using EmbeddingModel enum
 //! let mut embedding = Embedding::new()?;
@@ -164,11 +164,6 @@ impl ParameterSupport {
 /// - [`Gpt4_1Mini`]: Balanced performance and cost
 /// - [`Gpt4_1Nano`]: Fastest and most cost-efficient
 ///
-/// ## GPT-4o Series
-/// - [`Gpt4o`]: High-intelligence flagship model
-/// - [`Gpt4oMini`]: Cost-effective GPT-4o variant
-/// - [`Gpt4oAudioPreview`]: Audio-capable GPT-4o
-///
 /// ## Reasoning Models (o-series)
 /// - [`O1`], [`O1Pro`]: Full reasoning models
 /// - [`O3`], [`O3Mini`]: Latest reasoning models
@@ -248,6 +243,7 @@ pub enum ChatModel {
 
     /// GPT-5 Mini - Smaller, faster GPT-5 variant
     #[serde(rename = "gpt-5-mini")]
+    #[default]
     Gpt5Mini,
 
     // === GPT-4.1 Series ===
@@ -262,20 +258,6 @@ pub enum ChatModel {
     /// GPT-4.1 Nano - Fastest and most cost-efficient
     #[serde(rename = "gpt-4.1-nano")]
     Gpt4_1Nano,
-
-    // === GPT-4o Series ===
-    /// GPT-4o - High-intelligence flagship model (multimodal)
-    #[serde(rename = "gpt-4o")]
-    Gpt4o,
-
-    /// GPT-4o Mini - Cost-effective GPT-4o variant
-    #[serde(rename = "gpt-4o-mini")]
-    #[default]
-    Gpt4oMini,
-
-    /// GPT-4o Audio Preview - Audio-capable GPT-4o
-    #[serde(rename = "gpt-4o-audio-preview")]
-    Gpt4oAudioPreview,
 
     // === GPT-4 Series ===
     /// GPT-4 Turbo - High capability with faster responses
@@ -326,7 +308,7 @@ impl ChatModel {
     /// ```rust
     /// use openai_tools::common::models::ChatModel;
     ///
-    /// assert_eq!(ChatModel::Gpt4oMini.as_str(), "gpt-4o-mini");
+    /// assert_eq!(ChatModel::Gpt5Mini.as_str(), "gpt-5-mini");
     /// assert_eq!(ChatModel::O3Mini.as_str(), "o3-mini");
     /// assert_eq!(ChatModel::Gpt5_2.as_str(), "gpt-5.2");
     /// ```
@@ -344,10 +326,6 @@ impl ChatModel {
             Self::Gpt4_1 => "gpt-4.1",
             Self::Gpt4_1Mini => "gpt-4.1-mini",
             Self::Gpt4_1Nano => "gpt-4.1-nano",
-            // GPT-4o Series
-            Self::Gpt4o => "gpt-4o",
-            Self::Gpt4oMini => "gpt-4o-mini",
-            Self::Gpt4oAudioPreview => "gpt-4o-audio-preview",
             // GPT-4 Series
             Self::Gpt4Turbo => "gpt-4-turbo",
             Self::Gpt4 => "gpt-4",
@@ -379,8 +357,8 @@ impl ChatModel {
     ///
     /// assert!(ChatModel::O3Mini.is_reasoning_model());
     /// assert!(ChatModel::Gpt5_2.is_reasoning_model());
-    /// assert!(!ChatModel::Gpt4oMini.is_reasoning_model());
     /// assert!(!ChatModel::Gpt4_1.is_reasoning_model());
+    /// assert!(!ChatModel::Gpt4_1Mini.is_reasoning_model());
     /// ```
     pub fn is_reasoning_model(&self) -> bool {
         matches!(
@@ -408,7 +386,7 @@ impl ChatModel {
     /// use openai_tools::common::models::{ChatModel, ParameterRestriction};
     ///
     /// // Standard model supports all parameters
-    /// let standard = ChatModel::Gpt4oMini;
+    /// let standard = ChatModel::Gpt4_1;
     /// let support = standard.parameter_support();
     /// assert_eq!(support.temperature, ParameterRestriction::Any);
     /// assert!(support.logprobs);
@@ -466,10 +444,6 @@ impl From<&str> for ChatModel {
             "gpt-4.1" => Self::Gpt4_1,
             "gpt-4.1-mini" => Self::Gpt4_1Mini,
             "gpt-4.1-nano" => Self::Gpt4_1Nano,
-            // GPT-4o Series
-            "gpt-4o" => Self::Gpt4o,
-            "gpt-4o-mini" => Self::Gpt4oMini,
-            "gpt-4o-audio-preview" => Self::Gpt4oAudioPreview,
             // GPT-4 Series
             "gpt-4-turbo" => Self::Gpt4Turbo,
             "gpt-4" => Self::Gpt4,
@@ -600,31 +574,27 @@ impl From<&str> for EmbeddingModel {
 ///
 /// # Available Models
 ///
-/// - [`Gpt4oRealtimePreview`]: Full-featured realtime preview (default)
-/// - [`Gpt4oMiniRealtimePreview`]: Cost-effective realtime preview
+/// - [`GptRealtime_2025_08_28`]: GPT Realtime model (default)
 ///
 /// # Example
 ///
 /// ```rust
 /// use openai_tools::common::models::RealtimeModel;
 ///
-/// let model = RealtimeModel::Gpt4oRealtimePreview;
-/// assert_eq!(model.as_str(), "gpt-4o-realtime-preview");
+/// let model = RealtimeModel::GptRealtime_2025_08_28;
+/// assert_eq!(model.as_str(), "gpt-realtime-2025-08-28");
 /// ```
 ///
 /// # Reference
 ///
 /// See [OpenAI Realtime API Documentation](https://platform.openai.com/docs/guides/realtime)
+#[allow(non_camel_case_types)]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 pub enum RealtimeModel {
-    /// gpt-4o-realtime-preview - Full-featured realtime model
-    #[serde(rename = "gpt-4o-realtime-preview")]
+    /// gpt-realtime-2025-08-28 - GPT Realtime model
+    #[serde(rename = "gpt-realtime-2025-08-28")]
     #[default]
-    Gpt4oRealtimePreview,
-
-    /// gpt-4o-mini-realtime-preview - Cost-effective realtime model
-    #[serde(rename = "gpt-4o-mini-realtime-preview")]
-    Gpt4oMiniRealtimePreview,
+    GptRealtime_2025_08_28,
 
     /// Custom model ID for new models not yet in enum
     #[serde(untagged)]
@@ -635,8 +605,7 @@ impl RealtimeModel {
     /// Returns the model identifier string for API requests.
     pub fn as_str(&self) -> &str {
         match self {
-            Self::Gpt4oRealtimePreview => "gpt-4o-realtime-preview",
-            Self::Gpt4oMiniRealtimePreview => "gpt-4o-mini-realtime-preview",
+            Self::GptRealtime_2025_08_28 => "gpt-realtime-2025-08-28",
             Self::Custom(s) => s.as_str(),
         }
     }
@@ -656,8 +625,7 @@ impl std::fmt::Display for RealtimeModel {
 impl From<&str> for RealtimeModel {
     fn from(s: &str) -> Self {
         match s {
-            "gpt-4o-realtime-preview" => Self::Gpt4oRealtimePreview,
-            "gpt-4o-mini-realtime-preview" => Self::Gpt4oMiniRealtimePreview,
+            "gpt-realtime-2025-08-28" => Self::GptRealtime_2025_08_28,
             other => Self::Custom(other.to_string()),
         }
     }
@@ -680,10 +648,6 @@ impl From<&str> for RealtimeModel {
 /// - [`Gpt41Mini_2025_04_14`]: GPT-4.1 Mini for fine-tuning
 /// - [`Gpt41Nano_2025_04_14`]: GPT-4.1 Nano for fine-tuning
 ///
-/// ## GPT-4o Series
-/// - [`Gpt4oMini_2024_07_18`]: GPT-4o Mini for fine-tuning
-/// - [`Gpt4o_2024_08_06`]: GPT-4o for fine-tuning
-///
 /// ## GPT-4 Series
 /// - [`Gpt4_0613`]: GPT-4 for fine-tuning
 ///
@@ -695,8 +659,8 @@ impl From<&str> for RealtimeModel {
 /// ```rust
 /// use openai_tools::common::models::FineTuningModel;
 ///
-/// let model = FineTuningModel::Gpt4oMini_2024_07_18;
-/// assert_eq!(model.as_str(), "gpt-4o-mini-2024-07-18");
+/// let model = FineTuningModel::Gpt41Mini_2025_04_14;
+/// assert_eq!(model.as_str(), "gpt-4.1-mini-2025-04-14");
 /// ```
 ///
 /// # Reference
@@ -712,21 +676,12 @@ pub enum FineTuningModel {
 
     /// gpt-4.1-mini-2025-04-14 - GPT-4.1 Mini for fine-tuning
     #[serde(rename = "gpt-4.1-mini-2025-04-14")]
+    #[default]
     Gpt41Mini_2025_04_14,
 
     /// gpt-4.1-nano-2025-04-14 - GPT-4.1 Nano for fine-tuning
     #[serde(rename = "gpt-4.1-nano-2025-04-14")]
     Gpt41Nano_2025_04_14,
-
-    // === GPT-4o Series ===
-    /// gpt-4o-mini-2024-07-18 - GPT-4o Mini for fine-tuning
-    #[serde(rename = "gpt-4o-mini-2024-07-18")]
-    #[default]
-    Gpt4oMini_2024_07_18,
-
-    /// gpt-4o-2024-08-06 - GPT-4o for fine-tuning
-    #[serde(rename = "gpt-4o-2024-08-06")]
-    Gpt4o_2024_08_06,
 
     // === GPT-4 Series ===
     /// gpt-4-0613 - GPT-4 for fine-tuning
@@ -755,9 +710,6 @@ impl FineTuningModel {
             Self::Gpt41_2025_04_14 => "gpt-4.1-2025-04-14",
             Self::Gpt41Mini_2025_04_14 => "gpt-4.1-mini-2025-04-14",
             Self::Gpt41Nano_2025_04_14 => "gpt-4.1-nano-2025-04-14",
-            // GPT-4o Series
-            Self::Gpt4oMini_2024_07_18 => "gpt-4o-mini-2024-07-18",
-            Self::Gpt4o_2024_08_06 => "gpt-4o-2024-08-06",
             // GPT-4 Series
             Self::Gpt4_0613 => "gpt-4-0613",
             // GPT-3.5 Series
@@ -780,7 +732,7 @@ mod tests {
 
     #[test]
     fn test_chat_model_as_str() {
-        assert_eq!(ChatModel::Gpt4oMini.as_str(), "gpt-4o-mini");
+        assert_eq!(ChatModel::Gpt5Mini.as_str(), "gpt-5-mini");
         assert_eq!(ChatModel::O3Mini.as_str(), "o3-mini");
         assert_eq!(ChatModel::Gpt4_1.as_str(), "gpt-4.1");
         // GPT-5 models
@@ -807,13 +759,13 @@ mod tests {
         assert!(ChatModel::Gpt5_1CodexMax.is_reasoning_model());
         assert!(ChatModel::Gpt5Mini.is_reasoning_model());
         // Non-reasoning models
-        assert!(!ChatModel::Gpt4oMini.is_reasoning_model());
         assert!(!ChatModel::Gpt4_1.is_reasoning_model());
+        assert!(!ChatModel::Gpt4_1Mini.is_reasoning_model());
     }
 
     #[test]
     fn test_chat_model_from_str() {
-        assert_eq!(ChatModel::from("gpt-4o-mini"), ChatModel::Gpt4oMini);
+        assert_eq!(ChatModel::from("gpt-5-mini"), ChatModel::Gpt5Mini);
         assert_eq!(ChatModel::from("o3-mini"), ChatModel::O3Mini);
         // GPT-5 models
         assert_eq!(ChatModel::from("gpt-5.2"), ChatModel::Gpt5_2);
@@ -847,20 +799,20 @@ mod tests {
 
     #[test]
     fn test_realtime_model_as_str() {
-        assert_eq!(RealtimeModel::Gpt4oRealtimePreview.as_str(), "gpt-4o-realtime-preview");
+        assert_eq!(RealtimeModel::GptRealtime_2025_08_28.as_str(), "gpt-realtime-2025-08-28");
     }
 
     #[test]
     fn test_fine_tuning_model_as_str() {
-        assert_eq!(FineTuningModel::Gpt4oMini_2024_07_18.as_str(), "gpt-4o-mini-2024-07-18");
+        assert_eq!(FineTuningModel::Gpt41Mini_2025_04_14.as_str(), "gpt-4.1-mini-2025-04-14");
         assert_eq!(FineTuningModel::Gpt41_2025_04_14.as_str(), "gpt-4.1-2025-04-14");
     }
 
     #[test]
     fn test_chat_model_serialization() {
-        let model = ChatModel::Gpt4oMini;
+        let model = ChatModel::Gpt4_1;
         let json = serde_json::to_string(&model).unwrap();
-        assert_eq!(json, "\"gpt-4o-mini\"");
+        assert_eq!(json, "\"gpt-4.1\"");
         // GPT-5 serialization
         let gpt52 = ChatModel::Gpt5_2;
         let json = serde_json::to_string(&gpt52).unwrap();
@@ -869,8 +821,8 @@ mod tests {
 
     #[test]
     fn test_chat_model_deserialization() {
-        let model: ChatModel = serde_json::from_str("\"gpt-4o-mini\"").unwrap();
-        assert_eq!(model, ChatModel::Gpt4oMini);
+        let model: ChatModel = serde_json::from_str("\"gpt-4.1\"").unwrap();
+        assert_eq!(model, ChatModel::Gpt4_1);
         // GPT-5 deserialization
         let gpt52: ChatModel = serde_json::from_str("\"gpt-5.2\"").unwrap();
         assert_eq!(gpt52, ChatModel::Gpt5_2);
@@ -878,7 +830,7 @@ mod tests {
 
     #[test]
     fn test_parameter_support_standard_model() {
-        let model = ChatModel::Gpt4oMini;
+        let model = ChatModel::Gpt4_1;
         let support = model.parameter_support();
 
         // Standard models support all parameters
@@ -956,17 +908,8 @@ mod tests {
     #[test]
     fn test_all_standard_models_are_not_reasoning() {
         // Standard models should NOT be detected as reasoning models
-        let standard_models = vec![
-            ChatModel::Gpt4oMini,
-            ChatModel::Gpt4o,
-            ChatModel::Gpt4oAudioPreview,
-            ChatModel::Gpt4Turbo,
-            ChatModel::Gpt4,
-            ChatModel::Gpt3_5Turbo,
-            ChatModel::Gpt4_1,
-            ChatModel::Gpt4_1Mini,
-            ChatModel::Gpt4_1Nano,
-        ];
+        let standard_models =
+            vec![ChatModel::Gpt4Turbo, ChatModel::Gpt4, ChatModel::Gpt3_5Turbo, ChatModel::Gpt4_1, ChatModel::Gpt4_1Mini, ChatModel::Gpt4_1Nano];
 
         for model in standard_models {
             assert!(!model.is_reasoning_model(), "Expected {} to NOT be a reasoning model", model.as_str());
@@ -1089,15 +1032,7 @@ mod tests {
 
     #[test]
     fn test_parameter_support_all_standard_gpt4_series() {
-        let gpt4_series = vec![
-            ChatModel::Gpt4oMini,
-            ChatModel::Gpt4o,
-            ChatModel::Gpt4Turbo,
-            ChatModel::Gpt4,
-            ChatModel::Gpt4_1,
-            ChatModel::Gpt4_1Mini,
-            ChatModel::Gpt4_1Nano,
-        ];
+        let gpt4_series = vec![ChatModel::Gpt4Turbo, ChatModel::Gpt4, ChatModel::Gpt4_1, ChatModel::Gpt4_1Mini, ChatModel::Gpt4_1Nano];
 
         for model in gpt4_series {
             let support = model.parameter_support();
@@ -1220,10 +1155,7 @@ mod tests {
 
     #[test]
     fn test_realtime_model_string_roundtrip() {
-        let realtime_models = vec![
-            ("gpt-4o-realtime-preview", RealtimeModel::Gpt4oRealtimePreview),
-            ("gpt-4o-mini-realtime-preview", RealtimeModel::Gpt4oMiniRealtimePreview),
-        ];
+        let realtime_models = vec![("gpt-realtime-2025-08-28", RealtimeModel::GptRealtime_2025_08_28)];
 
         for (model_str, expected_model) in realtime_models {
             let parsed = RealtimeModel::from(model_str);
@@ -1249,8 +1181,6 @@ mod tests {
             ("gpt-4.1-2025-04-14", FineTuningModel::Gpt41_2025_04_14),
             ("gpt-4.1-mini-2025-04-14", FineTuningModel::Gpt41Mini_2025_04_14),
             ("gpt-4.1-nano-2025-04-14", FineTuningModel::Gpt41Nano_2025_04_14),
-            ("gpt-4o-mini-2024-07-18", FineTuningModel::Gpt4oMini_2024_07_18),
-            ("gpt-4o-2024-08-06", FineTuningModel::Gpt4o_2024_08_06),
             ("gpt-4-0613", FineTuningModel::Gpt4_0613),
             ("gpt-3.5-turbo-0125", FineTuningModel::Gpt35Turbo_0125),
             ("gpt-3.5-turbo-1106", FineTuningModel::Gpt35Turbo_1106),
@@ -1264,7 +1194,7 @@ mod tests {
 
     #[test]
     fn test_fine_tuning_model_serialization_roundtrip() {
-        let models = vec![FineTuningModel::Gpt41_2025_04_14, FineTuningModel::Gpt4oMini_2024_07_18, FineTuningModel::Gpt35Turbo_0125];
+        let models = vec![FineTuningModel::Gpt41_2025_04_14, FineTuningModel::Gpt41Mini_2025_04_14, FineTuningModel::Gpt35Turbo_0125];
 
         for model in models {
             let json = serde_json::to_string(&model).unwrap();

@@ -269,8 +269,8 @@ mod tests {
     #[test]
     fn test_responses_builder_model() {
         let mut responses = Responses::new();
-        responses.model(ChatModel::Gpt4oMini);
-        assert_eq!(responses.request_body.model, ChatModel::Gpt4oMini);
+        responses.model(ChatModel::Gpt5Mini);
+        assert_eq!(responses.request_body.model, ChatModel::Gpt5Mini);
     }
 
     #[test]
@@ -322,6 +322,7 @@ mod tests {
     #[test]
     fn test_responses_builder_temperature() {
         let mut responses = Responses::new();
+        responses.model(ChatModel::Gpt4_1Mini);
         responses.temperature(0.7);
         assert_eq!(responses.request_body.temperature, Some(0.7));
     }
@@ -407,20 +408,20 @@ mod tests {
     #[test]
     fn test_request_body_serialization() {
         let mut responses = Responses::new();
-        responses.model(ChatModel::Gpt4oMini);
+        responses.model(ChatModel::Gpt5Mini);
         responses.str_message("Test message");
         responses.temperature(0.5);
         responses.max_output_tokens(100);
 
         let json = serde_json::to_string(&responses.request_body).unwrap();
-        assert!(json.contains("gpt-4o-mini"));
+        assert!(json.contains("gpt-5-mini"));
         assert!(json.contains("Test message"));
     }
 
     #[test]
     fn test_optional_parameters_serialization() {
         let mut responses = Responses::new();
-        responses.model(ChatModel::Gpt4oMini);
+        responses.model(ChatModel::Gpt4_1Mini);
         responses.str_message("Test");
         responses.temperature(0.7);
         responses.max_output_tokens(100);
@@ -500,12 +501,12 @@ mod tests {
     fn test_non_reasoning_model() {
         // Test that regular models are not affected
         let mut responses = Responses::new();
-        responses.model(ChatModel::Gpt4o);
+        responses.model(ChatModel::Gpt4_1);
         responses.str_message("Test");
         responses.temperature(0.7);
 
         assert_eq!(responses.request_body.temperature, Some(0.7));
-        assert_eq!(responses.request_body.model, ChatModel::Gpt4o);
+        assert_eq!(responses.request_body.model, ChatModel::Gpt4_1);
     }
 
     #[test]
@@ -767,7 +768,7 @@ mod tests {
     #[test]
     fn test_request_body_with_tool_choice_serialization() {
         let mut responses = Responses::new();
-        responses.model(ChatModel::Gpt4oMini);
+        responses.model(ChatModel::Gpt5Mini);
         responses.str_message("Test");
         responses.tool_choice(ToolChoice::Simple(ToolChoiceMode::Auto));
 
@@ -778,7 +779,7 @@ mod tests {
     #[test]
     fn test_request_body_with_prompt_serialization() {
         let mut responses = Responses::new();
-        responses.model(ChatModel::Gpt4oMini);
+        responses.model(ChatModel::Gpt5Mini);
         responses.str_message("Test");
         responses.prompt(Prompt::new("prompt-id"));
         responses.prompt_cache_key("cache-key");
@@ -858,7 +859,7 @@ mod tests {
     #[test]
     fn test_standard_model_accepts_all_top_p_values() {
         let mut responses = Responses::new();
-        responses.model(ChatModel::Gpt4oMini);
+        responses.model(ChatModel::Gpt4_1Mini);
         responses.str_message("Test");
 
         // Standard models should accept any top_p value
@@ -875,7 +876,7 @@ mod tests {
     #[test]
     fn test_standard_model_accepts_all_temperature_values() {
         let mut responses = Responses::new();
-        responses.model(ChatModel::Gpt4o);
+        responses.model(ChatModel::Gpt4_1);
         responses.str_message("Test");
 
         // Standard models should accept any valid temperature value
@@ -1020,7 +1021,7 @@ mod tests {
     #[test]
     fn test_standard_model_accepts_top_logprobs() {
         let mut responses = Responses::new();
-        responses.model(ChatModel::Gpt4oMini);
+        responses.model(ChatModel::Gpt4_1Mini);
         responses.str_message("Test");
         responses.top_logprobs(5);
 
@@ -1055,7 +1056,7 @@ mod tests {
     fn test_max_output_tokens_accepted_by_all_models() {
         // Standard model
         let mut responses_standard = Responses::new();
-        responses_standard.model(ChatModel::Gpt4oMini);
+        responses_standard.model(ChatModel::Gpt5Mini);
         responses_standard.max_output_tokens(1000);
         assert_eq!(responses_standard.request_body.max_output_tokens, Some(1000));
 
@@ -1074,7 +1075,7 @@ mod tests {
 
     #[test]
     fn test_store_accepted_by_all_models() {
-        let models = vec![ChatModel::Gpt4oMini, ChatModel::O1, ChatModel::Gpt5_2];
+        let models = vec![ChatModel::Gpt5Mini, ChatModel::O1, ChatModel::Gpt5_2];
 
         for model in models {
             let mut responses = Responses::new();
@@ -1086,7 +1087,7 @@ mod tests {
 
     #[test]
     fn test_metadata_accepted_by_all_models() {
-        let models = vec![ChatModel::Gpt4oMini, ChatModel::O3Mini, ChatModel::Gpt5_1];
+        let models = vec![ChatModel::Gpt5Mini, ChatModel::O3Mini, ChatModel::Gpt5_1];
 
         for model in models {
             let mut responses = Responses::new();
@@ -1099,7 +1100,7 @@ mod tests {
 
     #[test]
     fn test_include_accepted_by_all_models() {
-        let models = vec![ChatModel::Gpt4o, ChatModel::O1Pro, ChatModel::Gpt5_2Pro];
+        let models = vec![ChatModel::Gpt4_1, ChatModel::O1Pro, ChatModel::Gpt5_2Pro];
 
         for model in models {
             let mut responses = Responses::new();

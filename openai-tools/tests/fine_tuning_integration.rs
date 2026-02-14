@@ -103,7 +103,7 @@ async fn test_create_fine_tuning_job() {
         ..Default::default()
     };
 
-    let request = CreateFineTuningJobRequest::new("gpt-4o-mini-2024-07-18", &file.id)
+    let request = CreateFineTuningJobRequest::new("gpt-4.1-mini-2025-04-14", &file.id)
         .with_suffix("integration-test")
         .with_supervised_method(Some(hyperparams));
 

@@ -31,12 +31,12 @@
 //!
 //!     // Send the request and get a response
 //!     let response = chat
-//!         .model_id("gpt-4o-mini")
+//!         .model_id("gpt-5-mini")
 //!         .messages(messages)
 //!         .temperature(0.7)
 //!         .chat()
 //!         .await?;
-//!         
+//!
 //!     println!("AI Response: {}",
 //!              response.choices[0].message.content.as_ref().unwrap().text.as_ref().unwrap());
 //!     Ok(())
@@ -77,7 +77,7 @@
 //!     ];
 //!
 //!     let response = chat
-//!         .model_id("gpt-4o-mini")
+//!         .model_id("gpt-5-mini")
 //!         .messages(messages)
 //!         .json_schema(schema)
 //!         .chat()
@@ -124,7 +124,7 @@
 //!     ];
 //!
 //!     let response = chat
-//!         .model_id("gpt-4o-mini")
+//!         .model_id("gpt-5-mini")
 //!         .messages(messages)
 //!         .tools(vec![weather_tool])
 //!         .temperature(0.1)
@@ -172,7 +172,7 @@
 //! async fn main() {
 //!     let mut chat = ChatCompletion::new();
 //!     
-//!     match chat.model_id("gpt-4o-mini").chat().await {
+//!     match chat.model_id("gpt-5-mini").chat().await {
 //!         Ok(response) => {
 //!             if let Some(content) = &response.choices[0].message.content {
 //!                 if let Some(text) = &content.text {
@@ -409,7 +409,7 @@ pub(crate) struct Body {
 /// let messages = vec![Message::from_string(Role::User, "Hello!")];
 ///
 /// let response = chat
-///     .model_id("gpt-4o-mini")
+///     .model_id("gpt-5-mini")
 ///     .messages(messages)
 ///     .temperature(1.0)
 ///     .chat()
@@ -447,7 +447,7 @@ const CHAT_COMPLETIONS_PATH: &str = "chat/completions";
 /// let messages = vec![Message::from_string(Role::User, "Hello!")];
 ///
 /// let response = chat
-///     .model_id("gpt-4o-mini")
+///     .model_id("gpt-5-mini")
 ///     .messages(messages)
 ///     .chat()
 ///     .await?;
@@ -539,7 +539,7 @@ impl ChatCompletion {
     /// use openai_tools::common::models::ChatModel;
     ///
     /// // Recommended: specify model at creation time
-    /// let mut chat = ChatCompletion::with_model(ChatModel::Gpt4oMini);
+    /// let mut chat = ChatCompletion::with_model(ChatModel::Gpt5Mini);
     ///
     /// // For reasoning models, unsupported parameters are validated at setter time
     /// let mut reasoning_chat = ChatCompletion::with_model(ChatModel::O3Mini);
@@ -761,7 +761,7 @@ impl ChatCompletion {
     ///
     /// # Arguments
     ///
-    /// * `model` - The model to use (e.g., `ChatModel::Gpt4oMini`, `ChatModel::Gpt4o`)
+    /// * `model` - The model to use (e.g., `ChatModel::Gpt5Mini`, `ChatModel::Gpt4_1`, `ChatModel::O3Mini`)
     ///
     /// # Returns
     ///
@@ -774,7 +774,7 @@ impl ChatCompletion {
     /// use openai_tools::common::models::ChatModel;
     ///
     /// let mut chat = ChatCompletion::new();
-    /// chat.model(ChatModel::Gpt4oMini);
+    /// chat.model(ChatModel::Gpt5Mini);
     /// ```
     pub fn model(&mut self, model: ChatModel) -> &mut Self {
         self.request_body.model = model;
@@ -787,7 +787,7 @@ impl ChatCompletion {
     ///
     /// # Arguments
     ///
-    /// * `model_id` - OpenAI model ID string (e.g., "gpt-4o-mini")
+    /// * `model_id` - OpenAI model ID string (e.g., "gpt-5-mini")
     ///
     /// # Returns
     ///
@@ -799,7 +799,7 @@ impl ChatCompletion {
     /// use openai_tools::chat::request::ChatCompletion;
     ///
     /// let mut chat = ChatCompletion::new();
-    /// chat.model_id("gpt-4o-mini");
+    /// chat.model_id("gpt-5-mini");
     /// ```
     #[deprecated(since = "0.2.0", note = "Use `model(ChatModel)` instead for type safety")]
     pub fn model_id<T: AsRef<str>>(&mut self, model_id: T) -> &mut Self {
@@ -824,7 +824,7 @@ impl ChatCompletion {
     /// use openai_tools::chat::request::ChatCompletion;
     ///
     /// let mut chat = ChatCompletion::new();
-    /// chat.model_id("gpt-4o-mini")
+    /// chat.model_id("gpt-5-mini")
     ///     .timeout(Duration::from_secs(30));
     /// ```
     pub fn timeout(&mut self, timeout: Duration) -> &mut Self {
@@ -1255,7 +1255,7 @@ impl ChatCompletion {
     /// let messages = vec![Message::from_string(Role::User, "Hello!")];
     ///
     /// let response = chat
-    ///     .model_id("gpt-4o-mini")
+    ///     .model_id("gpt-5-mini")
     ///     .messages(messages)
     ///     .temperature(1.0)
     ///     .chat()
@@ -1406,7 +1406,7 @@ mod tests {
 
     #[test]
     fn test_standard_model_accepts_all_parameters() {
-        let mut chat = ChatCompletion::test_new_with_model(ChatModel::Gpt4oMini);
+        let mut chat = ChatCompletion::test_new_with_model(ChatModel::Gpt4_1Mini);
 
         // Standard models should accept all parameters
         chat.temperature(0.7);
@@ -1429,8 +1429,8 @@ mod tests {
     }
 
     #[test]
-    fn test_gpt4o_accepts_all_parameters() {
-        let mut chat = ChatCompletion::test_new_with_model(ChatModel::Gpt4o);
+    fn test_gpt4_1_model_accepts_all_parameters() {
+        let mut chat = ChatCompletion::test_new_with_model(ChatModel::Gpt4_1);
 
         chat.temperature(0.3);
         chat.frequency_penalty(-1.0);
@@ -1718,7 +1718,7 @@ mod tests {
 
     #[test]
     fn test_temperature_boundary_values() {
-        let mut chat = ChatCompletion::test_new_with_model(ChatModel::Gpt4oMini);
+        let mut chat = ChatCompletion::test_new_with_model(ChatModel::Gpt4_1Mini);
 
         // Minimum value
         chat.temperature(0.0);
@@ -1731,7 +1731,7 @@ mod tests {
 
     #[test]
     fn test_frequency_penalty_boundary_values() {
-        let mut chat = ChatCompletion::test_new_with_model(ChatModel::Gpt4oMini);
+        let mut chat = ChatCompletion::test_new_with_model(ChatModel::Gpt4_1Mini);
 
         // Minimum value
         chat.frequency_penalty(-2.0);
@@ -1744,7 +1744,7 @@ mod tests {
 
     #[test]
     fn test_presence_penalty_boundary_values() {
-        let mut chat = ChatCompletion::test_new_with_model(ChatModel::Gpt4oMini);
+        let mut chat = ChatCompletion::test_new_with_model(ChatModel::Gpt4_1Mini);
 
         // Minimum value
         chat.presence_penalty(-2.0);
@@ -1762,7 +1762,7 @@ mod tests {
     #[test]
     fn test_max_completion_tokens_accepted_by_all_models() {
         // Standard model
-        let mut chat_standard = ChatCompletion::test_new_with_model(ChatModel::Gpt4oMini);
+        let mut chat_standard = ChatCompletion::test_new_with_model(ChatModel::Gpt4_1Mini);
         chat_standard.max_completion_tokens(1000);
         assert_eq!(chat_standard.request_body.max_completion_tokens, Some(1000));
 
@@ -1779,7 +1779,7 @@ mod tests {
 
     #[test]
     fn test_store_accepted_by_all_models() {
-        let mut chat_standard = ChatCompletion::test_new_with_model(ChatModel::Gpt4oMini);
+        let mut chat_standard = ChatCompletion::test_new_with_model(ChatModel::Gpt4_1Mini);
         chat_standard.store(true);
         assert_eq!(chat_standard.request_body.store, Some(true));
 
@@ -1867,7 +1867,7 @@ mod tests {
             ),
         ];
 
-        let body = Body { model: ChatModel::Gpt4oMini, messages, ..Default::default() };
+        let body = Body { model: ChatModel::Gpt5Mini, messages, ..Default::default() };
 
         let json = serde_json::to_value(&body).unwrap();
         let msgs = json["messages"].as_array().unwrap();
@@ -1886,7 +1886,7 @@ mod tests {
 
     #[test]
     fn test_safety_identifier() {
-        let mut chat = ChatCompletion::test_new_with_model(ChatModel::Gpt4oMini);
+        let mut chat = ChatCompletion::test_new_with_model(ChatModel::Gpt5Mini);
         chat.safety_identifier("user_abc123");
         assert_eq!(chat.request_body.safety_identifier, Some("user_abc123".to_string()));
 
@@ -1897,7 +1897,7 @@ mod tests {
 
     #[test]
     fn test_safety_identifier_not_serialized_when_none() {
-        let chat = ChatCompletion::test_new_with_model(ChatModel::Gpt4oMini);
+        let chat = ChatCompletion::test_new_with_model(ChatModel::Gpt5Mini);
         let json = serde_json::to_value(&chat.request_body).unwrap();
         assert!(json.get("safety_identifier").is_none());
     }

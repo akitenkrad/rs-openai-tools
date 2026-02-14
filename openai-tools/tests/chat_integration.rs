@@ -26,7 +26,7 @@ async fn test_chat_completion() {
     let mut chat = ChatCompletion::new();
     let messages = vec![Message::from_string(Role::User, "Hi there!")];
 
-    chat.model_id("gpt-4o-mini")
+    chat.model_id("gpt-5-mini")
         .messages(messages)
         .temperature(1.0)
         .safety_identifier("a5c75abeef286919b4bf3ae40bc74c2d9ba03ac1bde3759e470e0f2b7056a5a1");
@@ -63,7 +63,7 @@ async fn test_chat_completion_japanese() {
     let mut chat = ChatCompletion::new();
     let messages = vec![Message::from_string(Role::User, "トンネルを抜けると？")];
 
-    chat.model_id("gpt-4o-mini")
+    chat.model_id("gpt-5-mini")
         .messages(messages)
         .temperature(1.5)
         .safety_identifier("a5c75abeef286919b4bf3ae40bc74c2d9ba03ac1bde3759e470e0f2b7056a5a1");
@@ -118,7 +118,7 @@ async fn test_chat_completion_with_json_schema() {
     json_schema.add_property("weather", "string", "The weather for the location and date.");
     json_schema.add_property("error", "string", "Error message. If there is no error, leave this field empty.");
     openai
-        .model_id("gpt-4o-mini")
+        .model_id("gpt-5-mini")
         .messages(messages)
         .temperature(1.0)
         .json_schema(json_schema)
@@ -206,7 +206,7 @@ async fn test_summarize() {
     json_schema.add_property("future_works", "string", "未解決の課題および将来の研究の方向性について記述．");
 
     openai
-        .model_id(String::from("gpt-4o-mini"))
+        .model_id(String::from("gpt-5-mini"))
         .messages(messages)
         .temperature(1.0)
         .json_schema(json_schema)
@@ -280,7 +280,7 @@ async fn test_chat_completion_with_function_calling() {
         false, // strict mode
     );
 
-    chat.model_id("gpt-4o-mini")
+    chat.model_id("gpt-5-mini")
         .messages(messages)
         .temperature(0.1)
         .tools(vec![calculator_tool])
@@ -355,7 +355,7 @@ async fn test_chat_completion_with_function_calling() {
     // Second call to ensure the tool is still available
     let messages = chat.get_message_history();
     let mut chat = ChatCompletion::new();
-    chat.model_id("gpt-4o-mini")
+    chat.model_id("gpt-5-mini")
         .messages(messages)
         .temperature(1.0)
         .safety_identifier("a5c75abeef286919b4bf3ae40bc74c2d9ba03ac1bde3759e470e0f2b7056a5a1");

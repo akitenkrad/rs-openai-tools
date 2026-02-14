@@ -72,7 +72,7 @@
 //!     // Use the conversation with Responses API
 //!     let mut client = Responses::new();
 //!     let response = client
-//!         .model_id("gpt-4o")
+//!         .model_id("gpt-4.1")
 //!         .conversation(&conv.id)  // Pass conversation ID
 //!         .str_message("Hello!")
 //!         .complete()

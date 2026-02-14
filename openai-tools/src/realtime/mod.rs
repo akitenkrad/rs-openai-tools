@@ -1,7 +1,7 @@
 //! # OpenAI Realtime API
 //!
 //! This module provides a type-safe interface for OpenAI's Realtime API, enabling
-//! real-time audio and text communication with GPT-4o models through WebSocket connections.
+//! real-time audio and text communication with OpenAI models through WebSocket connections.
 //!
 //! ## Features
 //!
@@ -10,7 +10,7 @@
 //! - **Text Messages**: Real-time text-based conversations
 //! - **Voice Activity Detection (VAD)**: Server-side and semantic turn detection
 //! - **Function Calling**: Integrate tools and functions into conversations
-//! - **Transcription**: Automatic speech-to-text via Whisper or GPT-4o
+//! - **Transcription**: Automatic speech-to-text via Whisper
 //!
 //! ## Quick Start
 //!
@@ -24,7 +24,7 @@
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     let mut client = RealtimeClient::new();
 //!     client
-//!         .model(RealtimeModel::Gpt4oRealtimePreview)
+//!         .model(RealtimeModel::GptRealtime_2025_08_28)
 //!         .modalities(vec![Modality::Text, Modality::Audio])
 //!         .voice(Voice::Alloy)
 //!         .instructions("You are a helpful voice assistant.");

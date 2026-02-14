@@ -29,7 +29,7 @@ fn init_tracing() {
 async fn test_init_with_endpoint() {
     init_tracing();
     let mut responses = Responses::from_endpoint("https://api.openai.com/v1/responses");
-    responses.model_id("gpt-4o-mini");
+    responses.model_id("gpt-5-mini");
     responses.instructions("test instructions");
     responses.str_message("Hello world!");
     responses.safety_identifier("a5c75abeef286919b4bf3ae40bc74c2d9ba03ac1bde3759e470e0f2b7056a5a1");
@@ -64,7 +64,7 @@ async fn test_init_with_endpoint() {
 async fn test_responses_with_plain_text() {
     init_tracing();
     let mut responses = Responses::new();
-    responses.model_id("gpt-4o-mini");
+    responses.model_id("gpt-5-mini");
     responses.instructions("test instructions");
     responses.str_message("Hello world!");
     responses.safety_identifier("a5c75abeef286919b4bf3ae40bc74c2d9ba03ac1bde3759e470e0f2b7056a5a1");
@@ -99,7 +99,7 @@ async fn test_responses_with_plain_text() {
 async fn test_responses_with_messages() {
     init_tracing();
     let mut responses = Responses::new();
-    responses.model_id("gpt-4o-mini");
+    responses.model_id("gpt-5-mini");
     responses.instructions("test instructions");
     let messages = vec![Message::from_string(Role::User, "Hello world!")];
     responses.messages(messages);
@@ -137,7 +137,7 @@ async fn test_responses_with_multi_turn_conversations() {
 
     // First interaction
     let mut responses = Responses::new();
-    responses.model_id("gpt-4o-mini");
+    responses.model_id("gpt-5-mini");
     let messages = vec![Message::from_string(Role::User, "Hello!")];
     responses.messages(messages);
     responses.safety_identifier("a5c75abeef286919b4bf3ae40bc74c2d9ba03ac1bde3759e470e0f2b7056a5a1");
@@ -174,7 +174,7 @@ async fn test_responses_with_multi_turn_conversations() {
 
     // Second interaction in the same conversation
     let mut responses = Responses::new();
-    responses.model_id("gpt-4o-mini");
+    responses.model_id("gpt-5-mini");
     let messages = vec![Message::from_string(Role::User, "What's the weather like today?")];
     responses.messages(messages);
     responses.previous_response_id(conversation_id);
@@ -210,7 +210,7 @@ async fn test_responses_with_multi_turn_conversations() {
 async fn test_responses_with_tools() {
     init_tracing();
     let mut responses = Responses::new();
-    responses.model_id("gpt-4o-mini");
+    responses.model_id("gpt-5-mini");
     responses.instructions("test instructions");
     let messages = vec![Message::from_string(Role::User, "Calculate 2 + 2 using a calculator tool.")];
     responses.messages(messages);
@@ -268,7 +268,7 @@ async fn test_responses_with_json_schema() {
 
     init_tracing();
     let mut responses = Responses::new();
-    responses.model_id("gpt-4o-mini");
+    responses.model_id("gpt-5-mini");
     responses.safety_identifier("a5c75abeef286919b4bf3ae40bc74c2d9ba03ac1bde3759e470e0f2b7056a5a1");
 
     let messages = vec![Message::from_string(Role::User, "What is the capital of France? Also, list some countries with their population.")];
@@ -313,7 +313,7 @@ async fn test_responses_with_image_input() {
 
     let mut responses = Responses::new();
     responses.safety_identifier("a5c75abeef286919b4bf3ae40bc74c2d9ba03ac1bde3759e470e0f2b7056a5a1");
-    responses.model_id("gpt-4o-mini").messages(vec![Message::from_message_array(
+    responses.model_id("gpt-5-mini").messages(vec![Message::from_message_array(
         Role::User,
         vec![
             Content::from_text("What do you see in this image?"),
@@ -352,7 +352,7 @@ async fn test_error_handling_missing_messages() {
     let mut responses = Responses::new();
 
     // Set basic required parameters without messages
-    responses.model_id("gpt-4o-mini");
+    responses.model_id("gpt-5-mini");
     responses.safety_identifier("a5c75abeef286919b4bf3ae40bc74c2d9ba03ac1bde3759e470e0f2b7056a5a1");
     let response = responses.complete().await;
     tracing::info!("Response result: {:?}", response);
@@ -366,7 +366,7 @@ async fn test_error_handling_empty_messages() {
     let mut responses = Responses::new();
 
     // Set basic required parameters without messages
-    responses.model_id("gpt-4o-mini");
+    responses.model_id("gpt-5-mini");
     responses.messages(vec![]); // Empty messages
     responses.safety_identifier("a5c75abeef286919b4bf3ae40bc74c2d9ba03ac1bde3759e470e0f2b7056a5a1");
     let response = responses.complete().await;
@@ -382,10 +382,10 @@ fn test_optional_parameters() {
     let mut responses = Responses::new();
 
     // Set basic required parameters
-    responses.model_id("gpt-4o-mini");
+    responses.model_id("gpt-4.1-mini");
     responses.str_message("Write a short poem about programming in exactly 50 words.");
 
-    // Test various optional parameters
+    // Test various optional parameters (use standard model to avoid reasoning model restrictions)
     responses.temperature(0.7); // Creativity control
     responses.max_output_tokens(100); // Output length limit
     responses.max_tool_calls(2); // Tool call limit
@@ -621,7 +621,7 @@ async fn test_gpt52_with_text_verbosity() {
 async fn test_with_model_constructor() {
     init_tracing();
 
-    let mut responses = Responses::with_model(ChatModel::Gpt4oMini);
+    let mut responses = Responses::with_model(ChatModel::Gpt5Mini);
     responses.str_message("Say hello in Japanese.");
     responses.max_output_tokens(50);
     responses.safety_identifier("a5c75abeef286919b4bf3ae40bc74c2d9ba03ac1bde3759e470e0f2b7056a5a1");
@@ -648,7 +648,7 @@ async fn test_create_and_retrieve_response() {
 
     // First, create a response
     let mut responses = Responses::new();
-    responses.model(ChatModel::Gpt4oMini);
+    responses.model(ChatModel::Gpt5Mini);
     responses.str_message("Say 'test' and nothing else.");
     responses.max_output_tokens(20);
     responses.store(true); // Store the response so we can retrieve it
@@ -683,7 +683,7 @@ async fn test_delete_response() {
 
     // First, create a response
     let mut responses = Responses::new();
-    responses.model(ChatModel::Gpt4oMini);
+    responses.model(ChatModel::Gpt5Mini);
     responses.str_message("Say 'delete test'.");
     responses.max_output_tokens(20);
     responses.store(true);
@@ -716,7 +716,7 @@ async fn test_tool_choice_auto() {
     init_tracing();
 
     let mut responses = Responses::new();
-    responses.model(ChatModel::Gpt4oMini);
+    responses.model(ChatModel::Gpt5Mini);
     responses.str_message("What is 2 + 2?");
     responses.tool_choice(ToolChoice::Simple(ToolChoiceMode::Auto));
     responses.max_output_tokens(50);
@@ -734,7 +734,7 @@ async fn test_tool_choice_none() {
     init_tracing();
 
     let mut responses = Responses::new();
-    responses.model(ChatModel::Gpt4oMini);
+    responses.model(ChatModel::Gpt5Mini);
     responses.str_message("Hello!");
     responses.tool_choice(ToolChoice::Simple(ToolChoiceMode::None));
     responses.max_output_tokens(50);
@@ -752,7 +752,7 @@ fn test_new_parameters_serialization() {
     init_tracing();
 
     let mut responses = Responses::new();
-    responses.model(ChatModel::Gpt4oMini);
+    responses.model(ChatModel::Gpt5Mini);
     responses.str_message("Test");
     responses.tool_choice(ToolChoice::Simple(ToolChoiceMode::Required));
     responses.prompt_cache_key("my-cache-key-123");

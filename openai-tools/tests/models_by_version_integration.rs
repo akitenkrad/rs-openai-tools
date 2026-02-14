@@ -175,20 +175,6 @@ async fn test_chat_gpt4_turbo() {
     assert!(result.is_ok(), "{}", result.unwrap_err());
 }
 
-#[tokio::test]
-async fn test_chat_gpt4o() {
-    init_tracing();
-    let result = test_chat_with_model("gpt-4o").await;
-    assert!(result.is_ok(), "{}", result.unwrap_err());
-}
-
-#[tokio::test]
-async fn test_chat_gpt4o_mini() {
-    init_tracing();
-    let result = test_chat_with_model("gpt-4o-mini").await;
-    assert!(result.is_ok(), "{}", result.unwrap_err());
-}
-
 // =============================================================================
 // GPT-4 Series Tests - Responses API
 // =============================================================================
@@ -204,19 +190,5 @@ async fn test_responses_gpt4() {
 async fn test_responses_gpt4_turbo() {
     init_tracing();
     let result = test_responses_with_model("gpt-4-turbo").await;
-    assert!(result.is_ok(), "{}", result.unwrap_err());
-}
-
-#[tokio::test]
-async fn test_responses_gpt4o() {
-    init_tracing();
-    let result = test_responses_with_model("gpt-4o").await;
-    assert!(result.is_ok(), "{}", result.unwrap_err());
-}
-
-#[tokio::test]
-async fn test_responses_gpt4o_mini() {
-    init_tracing();
-    let result = test_responses_with_model("gpt-4o-mini").await;
     assert!(result.is_ok(), "{}", result.unwrap_err());
 }

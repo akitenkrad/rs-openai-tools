@@ -55,30 +55,6 @@
 //! }
 //! ```
 //!
-//! ### Text-to-Speech with Instructions (gpt-4o-mini-tts only)
-//!
-//! ```rust,no_run
-//! use openai_tools::audio::request::{Audio, TtsOptions, TtsModel, Voice};
-//!
-//! #[tokio::main]
-//! async fn main() -> Result<(), Box<dyn std::error::Error>> {
-//!     let audio = Audio::new()?;
-//!
-//!     // Use instructions to control voice characteristics
-//!     let options = TtsOptions {
-//!         model: TtsModel::Gpt4oMiniTts,
-//!         voice: Voice::Coral,
-//!         instructions: Some("Speak in a cheerful and positive tone.".to_string()),
-//!         ..Default::default()
-//!     };
-//!
-//!     let bytes = audio.text_to_speech("Hello, welcome!", options).await?;
-//!     std::fs::write("welcome.mp3", bytes)?;
-//!
-//!     Ok(())
-//! }
-//! ```
-//!
 //! ### Transcribe Audio File
 //!
 //! ```rust,no_run
@@ -239,7 +215,6 @@ mod tests {
     fn test_tts_model_serialization() {
         assert_eq!(serde_json::to_string(&TtsModel::Tts1).unwrap(), "\"tts-1\"");
         assert_eq!(serde_json::to_string(&TtsModel::Tts1Hd).unwrap(), "\"tts-1-hd\"");
-        assert_eq!(serde_json::to_string(&TtsModel::Gpt4oMiniTts).unwrap(), "\"gpt-4o-mini-tts\"");
     }
 
     #[test]
@@ -259,7 +234,6 @@ mod tests {
     #[test]
     fn test_stt_model_serialization() {
         assert_eq!(serde_json::to_string(&SttModel::Whisper1).unwrap(), "\"whisper-1\"");
-        assert_eq!(serde_json::to_string(&SttModel::Gpt4oTranscribe).unwrap(), "\"gpt-4o-transcribe\"");
     }
 
     #[test]

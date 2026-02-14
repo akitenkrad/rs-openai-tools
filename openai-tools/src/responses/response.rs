@@ -117,10 +117,10 @@ pub struct Response {
     pub status: Option<String>,
     /// Whether the response was processed in the background
     pub background: Option<bool>,
-    /// Error message if the request failed
-    pub error: Option<String>,
-    /// Details about incomplete responses
-    pub incomplete_details: Option<String>,
+    /// Error details if the request failed
+    pub error: Option<Value>,
+    /// Details about incomplete responses (e.g., `{"reason": "max_output_tokens"}`)
+    pub incomplete_details: Option<Value>,
     /// Instructions that were used for this response
     pub instructions: Option<String>,
     /// Maximum number of output tokens that were allowed

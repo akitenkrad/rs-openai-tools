@@ -52,7 +52,7 @@ const MODELS_PATH: &str = "models";
 ///     let models = Models::new()?;
 ///
 ///     // Get details of a specific model
-///     let model = models.retrieve("gpt-4o-mini").await?;
+///     let model = models.retrieve("gpt-5-mini").await?;
 ///     println!("Model: {} (created: {})", model.id, model.created);
 ///
 ///     Ok(())
@@ -212,7 +212,7 @@ impl Models {
     ///
     /// # Arguments
     ///
-    /// * `model_id` - The ID of the model to retrieve (e.g., "gpt-4o-mini")
+    /// * `model_id` - The ID of the model to retrieve (e.g., "gpt-5-mini")
     ///
     /// # Returns
     ///
@@ -227,7 +227,7 @@ impl Models {
     /// #[tokio::main]
     /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ///     let models = Models::new()?;
-    ///     let model = models.retrieve("gpt-4o-mini").await?;
+    ///     let model = models.retrieve("gpt-5-mini").await?;
     ///
     ///     println!("Model: {}", model.id);
     ///     println!("Owned by: {}", model.owned_by);
@@ -282,7 +282,7 @@ impl Models {
     ///     let models = Models::new()?;
     ///
     ///     // Delete a fine-tuned model
-    ///     let result = models.delete("ft:gpt-4o-mini:my-org:my-model:abc123").await?;
+    ///     let result = models.delete("ft:gpt-4.1-mini:my-org:my-model:abc123").await?;
     ///     if result.deleted {
     ///         println!("Model {} was deleted", result.id);
     ///     }

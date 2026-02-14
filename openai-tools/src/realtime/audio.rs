@@ -36,12 +36,6 @@ pub enum TranscriptionModel {
     #[serde(rename = "whisper-1")]
     #[default]
     Whisper1,
-    #[serde(rename = "gpt-4o-transcribe")]
-    Gpt4oTranscribe,
-    #[serde(rename = "gpt-4o-mini-transcribe")]
-    Gpt4oMiniTranscribe,
-    #[serde(rename = "gpt-4o-transcribe-diarize")]
-    Gpt4oTranscribeDiarize,
 }
 
 /// Input audio transcription configuration.
