@@ -23,7 +23,7 @@ use openai_tools::common::{message::Message, role::Role, models::ChatModel};
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let response = ChatCompletion::new()
-        .model(ChatModel::Gpt4oMini)
+        .model(ChatModel::Gpt5Mini)
         .messages(vec![Message::from_string(Role::User, "Hello!")])
         .chat()
         .await?;
@@ -132,7 +132,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut chat = ChatCompletion::new();
     let response = chat
-        .model(ChatModel::Gpt4oMini)
+        .model(ChatModel::Gpt5Mini)
         .messages(messages)
         .temperature(0.7)
         .chat()
@@ -162,7 +162,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
 
     let response = chat
-        .model(ChatModel::Gpt4oMini)
+        .model(ChatModel::Gpt5Mini)
         .messages(vec![message])
         .chat()
         .await?;
@@ -184,7 +184,7 @@ use openai_tools::common::{message::Message, role::Role, models::ChatModel};
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut chat = ChatCompletion::new();
     let response = chat
-        .model(ChatModel::Gpt4oMini)
+        .model(ChatModel::Gpt5Mini)
         .messages(vec![Message::from_string(Role::User, "Hello!")])
         .safety_identifier("hashed-user-id")  // SHA-256 hash recommended
         .chat()
@@ -205,7 +205,7 @@ use openai_tools::common::models::ChatModel;
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut client = Responses::new();
     let response = client
-        .model(ChatModel::Gpt4oMini)
+        .model(ChatModel::Gpt5Mini)
         .str_message("What is the capital of France?")
         .complete()
         .await?;
@@ -254,7 +254,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ## Realtime API
 
-Real-time audio and text communication with GPT-4o models through WebSocket:
+Real-time audio and text communication through WebSocket:
 
 ```rust
 use openai_tools::realtime::{RealtimeClient, Modality, Voice};
@@ -264,7 +264,7 @@ use openai_tools::realtime::events::server::ServerEvent;
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut client = RealtimeClient::new();
     client
-        .model("gpt-4o-realtime-preview")
+        .model("gpt-realtime-2025-08-28")
         .modalities(vec![Modality::Text, Modality::Audio])
         .voice(Voice::Alloy)
         .instructions("You are a helpful assistant.");
@@ -307,7 +307,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // Retrieve a specific model
-    let model = models.retrieve("gpt-4o-mini").await?;
+    let model = models.retrieve("gpt-5-mini").await?;
     println!("Model: {}", model.id);
 
     Ok(())
@@ -477,7 +477,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         n_epochs: Some(3),
         ..Default::default()
     };
-    let request = CreateFineTuningJobRequest::new("gpt-4o-mini-2024-07-18", "file-abc123")
+    let request = CreateFineTuningJobRequest::new("gpt-4.1-mini-2025-04-14", "file-abc123")
         .with_suffix("my-model")
         .with_supervised_method(Some(hyperparams));
 
@@ -511,6 +511,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ## Update History
 
 <details>
+<summary>v2.0.0</summary>
+
+- **Breaking Change**: Removed GPT-4o model family
+  - `ChatModel`: Removed `Gpt4o`, `Gpt4oMini`, `Gpt4oAudioPreview`. Default changed to `Gpt5Mini`
+  - `RealtimeModel`: Removed `Gpt4oRealtimePreview`, `Gpt4oMiniRealtimePreview`. Added `GptRealtime_2025_08_28` as default
+  - `FineTuningModel`: Removed `Gpt4oMini_2024_07_18`, `Gpt4o_2024_08_06`. Default changed to `Gpt41Mini_2025_04_14`
+  - `TtsModel`: Removed `Gpt4oMiniTts`. Removed `instructions` field from `TtsOptions`. Removed `supports_instructions()` method
+  - `SttModel`: Removed `Gpt4oTranscribe`
+  - `TranscriptionModel` (Realtime): Removed `Gpt4oTranscribe`, `Gpt4oMiniTranscribe`, `Gpt4oTranscribeDiarize`
+- **Fix**: `Response.incomplete_details` changed from `Option<String>` to `Option<Value>`
+- **Fix**: `Response.error` changed from `Option<String>` to `Option<Value>`
+
+</details>
+
+<details>
 <summary>v1.0.7</summary>
 
 - Added `safety_identifier` parameter to Chat Completions API
@@ -535,7 +550,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 <details>
 <summary>v1.0.5</summary>
 
-- Added `instructions` parameter for TTS API (`gpt-4o-mini-tts` model)
+- Added `instructions` parameter for TTS API
   - Control voice tone, emotion, and pacing with natural language instructions
   - Available via `TtsOptions.instructions` field
 - Applied cargo fmt formatting

@@ -112,7 +112,7 @@ rs-openai-tools/
 - **`realtime/`**: Realtime API (WebSocket, `wss://api.openai.com/v1/realtime`)
   - `client.rs`: `RealtimeClient` builder and `RealtimeSession` handle
   - `session.rs`: `SessionConfig`, `Modality`, `ToolChoice`
-  - `audio.rs`: `AudioFormat`, `Voice` (Alloy, Ash, Ballad, Coral, Echo, Sage, Shimmer, Verse), `TranscriptionModel` (Whisper1, Gpt4oTranscribe, Gpt4oMiniTranscribe, Gpt4oTranscribeDiarize), `InputAudioTranscription`, `InputAudioNoiseReduction`
+  - `audio.rs`: `AudioFormat`, `Voice` (Alloy, Ash, Ballad, Coral, Echo, Sage, Shimmer, Verse), `TranscriptionModel` (Whisper1), `InputAudioTranscription`, `InputAudioNoiseReduction`
   - `vad.rs`: `TurnDetection`, `ServerVadConfig`, `SemanticVadConfig`
   - `conversation.rs`: `ConversationItem`, `ContentPart`
   - `events/client.rs`: Client-to-server events (9 types)
@@ -136,7 +136,7 @@ rs-openai-tools/
   - `response.rs`: `ImageResponse`, `ImageData`
 
 - **`audio/`**: Audio API (`/v1/audio`)
-  - `request.rs`: `Audio` client for TTS, transcription, translation; `TtsModel` (Tts1, Tts1Hd, Gpt4oMiniTts), `Voice` (Alloy, Ash, Ballad, Cedar, Coral, Echo, Fable, Marin, Nova, Onyx, Sage, Shimmer, Verse), `AudioFormat`, `TtsOptions` (with `instructions` for gpt-4o-mini-tts)
+  - `request.rs`: `Audio` client for TTS, transcription, translation; `TtsModel` (Tts1, Tts1Hd), `Voice` (Alloy, Ash, Ballad, Cedar, Coral, Echo, Fable, Marin, Nova, Onyx, Sage, Shimmer, Verse), `AudioFormat`, `TtsOptions`
   - `response.rs`: `TranscriptionResponse`, `Word`, `Segment`
 
 - **`batch/`**: Batch API (`/v1/batches`)
@@ -167,7 +167,7 @@ rs-openai-tools/
 use openai_tools::common::models::ChatModel;
 
 let mut chat = ChatCompletion::new();
-chat.model(ChatModel::Gpt4oMini)  // Type-safe model selection
+chat.model(ChatModel::Gpt5Mini)  // Type-safe model selection
     .messages(messages)
     .temperature(0.7)
     .chat()
@@ -189,7 +189,7 @@ let message = Message::from_message_array(
 
 let mut chat = ChatCompletion::new();
 let response = chat
-    .model(ChatModel::Gpt4oMini)
+    .model(ChatModel::Gpt5Mini)
     .messages(vec![message])
     .chat()
     .await?;
@@ -206,7 +206,7 @@ use openai_tools::common::models::ChatModel;
 
 // Builder pattern clients
 let mut chat = ChatCompletion::new();
-chat.model(ChatModel::Gpt4oMini)
+chat.model(ChatModel::Gpt5Mini)
     .timeout(Duration::from_secs(30))  // Set 30 second timeout
     .messages(messages)
     .chat()
@@ -226,7 +226,7 @@ use openai_tools::chat::request::ChatCompletion;
 use openai_tools::common::models::ChatModel;
 
 let mut chat = ChatCompletion::new();
-chat.model(ChatModel::Gpt4oMini)
+chat.model(ChatModel::Gpt5Mini)
     .messages(messages)
     .safety_identifier("hashed-user-id")  // SHA-256 hash recommended
     .chat()
@@ -241,10 +241,10 @@ Chat Completions API and Responses API. Images API does **not** support this par
 
 | Enum | API | Available Variants |
 |------|-----|-------------------|
-| `ChatModel` | Chat, Responses | **GPT-5**: `Gpt5_2`, `Gpt5_2ChatLatest`, `Gpt5_2Pro`, `Gpt5_1`, `Gpt5_1ChatLatest`, `Gpt5_1CodexMax`, `Gpt5Mini` / **GPT-4.1**: `Gpt4_1`, `Gpt4_1Mini`, `Gpt4_1Nano` / **GPT-4o**: `Gpt4o`, `Gpt4oMini`, `Gpt4oAudioPreview` / **GPT-4/3.5**: `Gpt4Turbo`, `Gpt4`, `Gpt3_5Turbo` / **Reasoning**: `O1`, `O1Pro`, `O3`, `O3Mini`, `O4Mini` / `Custom(String)` |
+| `ChatModel` | Chat, Responses | **GPT-5**: `Gpt5_2`, `Gpt5_2ChatLatest`, `Gpt5_2Pro`, `Gpt5_1`, `Gpt5_1ChatLatest`, `Gpt5_1CodexMax`, `Gpt5Mini` / **GPT-4.1**: `Gpt4_1`, `Gpt4_1Mini`, `Gpt4_1Nano` / **GPT-4/3.5**: `Gpt4Turbo`, `Gpt4`, `Gpt3_5Turbo` / **Reasoning**: `O1`, `O1Pro`, `O3`, `O3Mini`, `O4Mini` / `Custom(String)` |
 | `EmbeddingModel` | Embedding | `TextEmbedding3Small`, `TextEmbedding3Large`, `TextEmbeddingAda002` |
-| `RealtimeModel` | Realtime | `Gpt4oRealtimePreview`, `Gpt4oMiniRealtimePreview`, `Custom(String)` |
-| `FineTuningModel` | Fine-tuning | `Gpt41_2025_04_14`, `Gpt41Mini_2025_04_14`, `Gpt41Nano_2025_04_14`, `Gpt4oMini_2024_07_18`, `Gpt4o_2024_08_06`, `Gpt4_0613`, `Gpt35Turbo_0125`, etc. |
+| `RealtimeModel` | Realtime | `GptRealtime_2025_08_28`, `Custom(String)` |
+| `FineTuningModel` | Fine-tuning | `Gpt41_2025_04_14`, `Gpt41Mini_2025_04_14`, `Gpt41Nano_2025_04_14`, `Gpt4_0613`, `Gpt35Turbo_0125`, etc. |
 
 ```rust
 use openai_tools::common::models::{ChatModel, EmbeddingModel, RealtimeModel, FineTuningModel};
@@ -255,20 +255,20 @@ responses.model(ChatModel::Gpt5_2Pro);  // GPT-5.2 Pro - most capable (Responses
 chat.model(ChatModel::Gpt5_1);          // GPT-5.1 - configurable reasoning
 
 // Chat/Responses API - Other models
-chat.model(ChatModel::Gpt4oMini);       // Cost-effective
+chat.model(ChatModel::Gpt5Mini);       // Cost-effective
 responses.model(ChatModel::O3Mini);     // Reasoning model
 
 // Embedding API
 embedding.model(EmbeddingModel::TextEmbedding3Small);
 
 // Realtime API
-client.model(RealtimeModel::Gpt4oRealtimePreview);
+client.model(RealtimeModel::GptRealtime_2025_08_28);
 
 // Fine-tuning API
-CreateFineTuningJobRequest::new(FineTuningModel::Gpt4oMini_2024_07_18, "file-id");
+CreateFineTuningJobRequest::new(FineTuningModel::Gpt41Mini_2025_04_14, "file-id");
 
 // Custom models (for fine-tuned models or new models)
-chat.model(ChatModel::custom("ft:gpt-4o-mini:my-org::abc123"));
+chat.model(ChatModel::custom("ft:gpt-4.1-mini:my-org::abc123"));
 
 // Check if model is a reasoning model (GPT-5 series and o-series)
 if ChatModel::Gpt5_2.is_reasoning_model() {
@@ -296,7 +296,7 @@ use openai_tools::common::models::RealtimeModel;
 
 let mut client = RealtimeClient::new();
 client
-    .model(RealtimeModel::Gpt4oRealtimePreview)  // Type-safe model selection
+    .model(RealtimeModel::GptRealtime_2025_08_28)  // Type-safe model selection
     .modalities(vec![Modality::Text, Modality::Audio])
     .voice(Voice::Alloy)
     .server_vad(ServerVadConfig::default());
@@ -343,7 +343,7 @@ for item in &items.data {
 
 // Use with Responses API
 let mut client = Responses::new();
-client.model(ChatModel::Gpt4o).conversation(&conv.id).str_message("How are you?").complete().await?;
+client.model(ChatModel::Gpt4_1).conversation(&conv.id).str_message("How are you?").complete().await?;
 
 // Delete conversation when done
 conversations.delete(&conv.id).await?;
@@ -357,7 +357,7 @@ use openai_tools::common::models::ChatModel;
 let mut client = Responses::new();
 
 // Create a response with tool_choice and prompt caching
-client.model(ChatModel::Gpt4oMini)
+client.model(ChatModel::Gpt5Mini)
     .str_message("Hello!")
     .tool_choice(ToolChoice::Simple(ToolChoiceMode::Auto))
     .prompt_cache_key("my-cache-key")
@@ -378,7 +378,7 @@ for item in items.data {
 }
 
 // Count input tokens before sending a request
-let tokens = client.get_input_tokens("gpt-4o-mini", serde_json::json!("Hello!")).await?;
+let tokens = client.get_input_tokens("gpt-5-mini", serde_json::json!("Hello!")).await?;
 println!("Input tokens: {}", tokens.input_tokens);
 
 // Compact a response to reduce token usage
@@ -402,7 +402,7 @@ for model in &response.data {
 }
 
 // Retrieve a specific model
-let model = models.retrieve("gpt-4o-mini").await?;
+let model = models.retrieve("gpt-5-mini").await?;
 ```
 
 **Files API**: Upload, manage, and retrieve files:
@@ -478,15 +478,6 @@ let options = TtsOptions {
 let bytes = audio.text_to_speech("Hello!", options).await?;
 std::fs::write("hello.mp3", bytes)?;
 
-// Text-to-speech with instructions (gpt-4o-mini-tts only)
-let options = TtsOptions {
-    model: TtsModel::Gpt4oMiniTts,
-    voice: Voice::Coral,
-    instructions: Some("Speak in a cheerful and positive tone.".to_string()),
-    ..Default::default()
-};
-let bytes = audio.text_to_speech("Welcome!", options).await?;
-
 // Transcribe audio
 let options = TranscribeOptions {
     language: Some("en".to_string()),
@@ -531,7 +522,7 @@ let hyperparams = Hyperparameters {
     n_epochs: Some(3),
     ..Default::default()
 };
-let request = CreateFineTuningJobRequest::new(FineTuningModel::Gpt4oMini_2024_07_18, "file-abc123")
+let request = CreateFineTuningJobRequest::new(FineTuningModel::Gpt41Mini_2025_04_14, "file-abc123")
     .with_suffix("my-model")
     .with_supervised_method(Some(hyperparams));
 
@@ -741,7 +732,7 @@ Each API (Chat, Embedding, etc.) requires its own complete endpoint URL includin
 - WebSocket-based real-time communication
 - Text and audio modalities
 - Voice options: Alloy, Ash, Ballad, Coral, Echo, Sage, Shimmer, Verse
-- Transcription models: Whisper1, Gpt4oTranscribe, Gpt4oMiniTranscribe, Gpt4oTranscribeDiarize
+- Transcription models: Whisper1
 - Voice Activity Detection (VAD): Server VAD and Semantic VAD
 - Audio formats: PCM16, G711Ulaw, G711Alaw
 - Input audio transcription with language hints
@@ -750,11 +741,8 @@ Each API (Chat, Embedding, etc.) requires its own complete endpoint URL includin
 
 **Audio API Features:**
 - Text-to-speech (TTS) with multiple voices: Alloy, Ash, Ballad, Cedar, Coral, Echo, Fable, Marin, Nova, Onyx, Sage, Shimmer, Verse
-- TTS models: Tts1, Tts1Hd, Gpt4oMiniTts
-- **Instructions parameter** for voice control (gpt-4o-mini-tts only)
-  - Control tone, emotion, pacing with natural language
-  - Example: `instructions: Some("Speak in a cheerful and positive tone.".to_string())`
-- Audio transcription (Whisper, GPT-4o)
+- TTS models: Tts1, Tts1Hd
+- Audio transcription (Whisper)
 - Audio translation to English
 - Multiple audio formats (MP3, WAV, FLAC, Opus, AAC, PCM)
 - Word and segment timestamps
@@ -774,7 +762,7 @@ Each API (Chat, Embedding, etc.) requires its own complete endpoint URL includin
 - Access training checkpoints
 - List and retrieve job details
 - Cancel in-progress jobs
-- Support for GPT-4o-mini, GPT-4o, GPT-4 Turbo, GPT-3.5 Turbo
+- Support for GPT-4.1, GPT-4.1 Mini, GPT-4.1 Nano, GPT-4, GPT-3.5 Turbo
 
 ## Model-Specific Parameter Restrictions
 
@@ -868,7 +856,7 @@ WARN: Reasoning model 'o1-preview' does not support frequency_penalty. Ignoring 
 WARN: Reasoning model 'o3-mini' does not support top_p. Ignoring top_p=0.9 and using default (1.0).
 ```
 
-### Standard Models (GPT-4o, GPT-4, GPT-3.5, etc.)
+### Standard Models (GPT-4.1, GPT-4, GPT-3.5, etc.)
 
 Standard models support all available parameters without restrictions:
 
