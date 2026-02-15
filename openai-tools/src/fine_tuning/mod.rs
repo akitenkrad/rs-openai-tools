@@ -19,7 +19,7 @@
 //!
 //! # Supported Models
 //!
-//! - GPT-4.1 and GPT-4.1 Mini (recommended)
+//! - GPT-4o and GPT-4o-mini (recommended)
 //! - GPT-4 Turbo
 //! - GPT-3.5 Turbo
 //!
@@ -50,7 +50,7 @@
 //!     };
 //!
 //!     let request = CreateFineTuningJobRequest::new(
-//!             FineTuningModel::Gpt41Mini_2025_04_14,
+//!             FineTuningModel::Gpt4oMini_2024_07_18,
 //!             "file-abc123"
 //!         )
 //!         .with_suffix("my-model")
@@ -140,8 +140,8 @@ mod tests {
 
     #[test]
     fn test_create_fine_tuning_job_request_new() {
-        let request = CreateFineTuningJobRequest::new(FineTuningModel::Gpt41Mini_2025_04_14, "file-abc123");
-        assert_eq!(request.model, FineTuningModel::Gpt41Mini_2025_04_14);
+        let request = CreateFineTuningJobRequest::new(FineTuningModel::Gpt4oMini_2024_07_18, "file-abc123");
+        assert_eq!(request.model, FineTuningModel::Gpt4oMini_2024_07_18);
         assert_eq!(request.training_file, "file-abc123");
         assert!(request.validation_file.is_none());
         assert!(request.suffix.is_none());
@@ -151,7 +151,7 @@ mod tests {
 
     #[test]
     fn test_create_fine_tuning_job_request_with_options() {
-        let request = CreateFineTuningJobRequest::new(FineTuningModel::Gpt41Mini_2025_04_14, "file-abc123")
+        let request = CreateFineTuningJobRequest::new(FineTuningModel::Gpt4oMini_2024_07_18, "file-abc123")
             .with_validation_file("file-def456")
             .with_suffix("my-model")
             .with_seed(42);
@@ -165,7 +165,7 @@ mod tests {
     fn test_create_fine_tuning_job_request_with_supervised_method() {
         let hyperparams = Hyperparameters { n_epochs: Some(3), batch_size: Some(4), learning_rate_multiplier: Some(0.1) };
 
-        let request = CreateFineTuningJobRequest::new(FineTuningModel::Gpt41Mini_2025_04_14, "file-abc123").with_supervised_method(Some(hyperparams));
+        let request = CreateFineTuningJobRequest::new(FineTuningModel::Gpt4oMini_2024_07_18, "file-abc123").with_supervised_method(Some(hyperparams));
 
         assert!(request.method.is_some());
         let method = request.method.unwrap();
@@ -176,7 +176,7 @@ mod tests {
 
     #[test]
     fn test_create_fine_tuning_job_request_with_dpo_method() {
-        let request = CreateFineTuningJobRequest::new(FineTuningModel::Gpt41Mini_2025_04_14, "file-abc123").with_dpo_method(None);
+        let request = CreateFineTuningJobRequest::new(FineTuningModel::Gpt4oMini_2024_07_18, "file-abc123").with_dpo_method(None);
 
         assert!(request.method.is_some());
         let method = request.method.unwrap();
@@ -187,10 +187,10 @@ mod tests {
 
     #[test]
     fn test_create_fine_tuning_job_request_serialization() {
-        let request = CreateFineTuningJobRequest::new(FineTuningModel::Gpt41Mini_2025_04_14, "file-abc123").with_suffix("test-model");
+        let request = CreateFineTuningJobRequest::new(FineTuningModel::Gpt4oMini_2024_07_18, "file-abc123").with_suffix("test-model");
 
         let json = serde_json::to_string(&request).unwrap();
-        assert!(json.contains("\"model\":\"gpt-4.1-mini-2025-04-14\""));
+        assert!(json.contains("\"model\":\"gpt-4o-mini-2024-07-18\""));
         assert!(json.contains("\"training_file\":\"file-abc123\""));
         assert!(json.contains("\"suffix\":\"test-model\""));
         assert!(!json.contains("validation_file")); // None should be skipped

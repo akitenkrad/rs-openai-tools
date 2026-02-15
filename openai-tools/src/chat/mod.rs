@@ -26,7 +26,7 @@
 //!     let messages = vec![Message::from_string(Role::User, "Hello!")];
 //!     
 //!     let response = chat
-//!         .model_id("gpt-5-mini")
+//!         .model_id("gpt-4o-mini")
 //!         .messages(messages)
 //!         .temperature(1.0)
 //!         .chat()
@@ -70,7 +70,7 @@
 //!     json_schema.add_property("temperature", "string", "Temperature information");
 //!     
 //!     let response = chat
-//!         .model_id("gpt-5-mini")
+//!         .model_id("gpt-4o-mini")
 //!         .messages(messages)
 //!         .temperature(0.7)
 //!         .json_schema(json_schema)
@@ -117,7 +117,7 @@
 //!     );
 //!     
 //!     let response = chat
-//!         .model_id("gpt-5-mini")
+//!         .model_id("gpt-4o-mini")
 //!         .messages(messages)
 //!         .temperature(0.1)
 //!         .tools(vec![calculator_tool])

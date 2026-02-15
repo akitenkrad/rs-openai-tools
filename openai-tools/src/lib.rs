@@ -58,7 +58,7 @@
 //!     ];
 //!
 //!     let response = chat
-//!         .model(ChatModel::Gpt5Mini)  // Type-safe model selection
+//!         .model(ChatModel::Gpt4oMini)  // Type-safe model selection
 //!         .messages(messages)
 //!         .temperature(0.7)
 //!         .chat()
@@ -99,7 +99,7 @@
 //!     ];
 //!
 //!     let response = chat
-//!         .model(ChatModel::Gpt5Mini)
+//!         .model(ChatModel::Gpt4oMini)
 //!         .messages(messages)
 //!         .json_schema(schema)
 //!         .chat()
@@ -140,7 +140,7 @@
 //!     ];
 //!
 //!     let response = chat
-//!         .model(ChatModel::Gpt5Mini)
+//!         .model(ChatModel::Gpt4oMini)
 //!         .messages(messages)
 //!         .tools(vec![weather_tool])
 //!         .chat()
@@ -185,7 +185,7 @@
 //!     );
 //!
 //!     let response = chat
-//!         .model(ChatModel::Gpt5Mini)
+//!         .model(ChatModel::Gpt4oMini)
 //!         .messages(vec![message])
 //!         .chat()
 //!         .await?;
@@ -206,7 +206,7 @@
 //!     let mut responses = Responses::new();
 //!
 //!     responses
-//!         .model(ChatModel::Gpt5Mini)
+//!         .model(ChatModel::Gpt4oMini)
 //!         .instructions("You are an image analysis assistant.");
 //!
 //!     let message = Message::from_message_array(
@@ -405,8 +405,8 @@
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! // Chat/Responses API
 //! let mut chat = ChatCompletion::new();
-//! chat.model(ChatModel::Gpt5Mini);      // Cost-effective
-//! chat.model(ChatModel::Gpt4_1);        // GPT-4.1
+//! chat.model(ChatModel::Gpt4oMini);      // Cost-effective
+//! chat.model(ChatModel::Gpt4o);          // Most capable
 //! chat.model(ChatModel::O3Mini);         // Reasoning model
 //!
 //! // Embedding API

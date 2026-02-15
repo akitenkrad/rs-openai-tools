@@ -91,7 +91,7 @@ impl CreateFineTuningJobRequest {
     /// use openai_tools::common::models::FineTuningModel;
     ///
     /// let request = CreateFineTuningJobRequest::new(
-    ///     FineTuningModel::Gpt41Mini_2025_04_14,
+    ///     FineTuningModel::Gpt4oMini_2024_07_18,
     ///     "file-abc123"
     /// );
     /// ```
@@ -160,7 +160,7 @@ impl CreateFineTuningJobRequest {
 ///     };
 ///
 ///     let request = CreateFineTuningJobRequest::new(
-///             FineTuningModel::Gpt41Mini_2025_04_14,
+///             FineTuningModel::Gpt4oMini_2024_07_18,
 ///             "file-abc123"
 ///         )
 ///         .with_suffix("my-custom-model")
@@ -283,7 +283,7 @@ impl FineTuning {
     ///     let fine_tuning = FineTuning::new()?;
     ///
     ///     let request = CreateFineTuningJobRequest::new(
-    ///             FineTuningModel::Gpt41Mini_2025_04_14,
+    ///             FineTuningModel::Gpt4oMini_2024_07_18,
     ///             "file-abc123"
     ///         )
     ///         .with_suffix("my-model");

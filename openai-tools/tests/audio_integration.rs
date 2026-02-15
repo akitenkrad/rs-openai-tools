@@ -109,6 +109,7 @@ async fn test_text_to_speech_speed() {
 fn test_tts_model_enum() {
     assert_eq!(TtsModel::Tts1.as_str(), "tts-1");
     assert_eq!(TtsModel::Tts1Hd.as_str(), "tts-1-hd");
+    assert_eq!(TtsModel::Gpt4oMiniTts.as_str(), "gpt-4o-mini-tts");
 
     assert_eq!(format!("{}", TtsModel::Tts1), "tts-1");
     assert_eq!(TtsModel::default(), TtsModel::Tts1);

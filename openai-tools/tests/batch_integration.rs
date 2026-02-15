@@ -66,7 +66,7 @@ async fn test_create_batch() {
     let files = Files::new().expect("Failed to create Files client");
 
     // Create a simple JSONL batch input
-    let input = r#"{"custom_id": "request-1", "method": "POST", "url": "/v1/chat/completions", "body": {"model": "gpt-5-mini", "messages": [{"role": "user", "content": "Hello"}]}}"#;
+    let input = r#"{"custom_id": "request-1", "method": "POST", "url": "/v1/chat/completions", "body": {"model": "gpt-4o-mini", "messages": [{"role": "user", "content": "Hello"}]}}"#;
 
     let file = files
         .upload_bytes(input.as_bytes(), "batch_input.jsonl", FilePurpose::Batch)

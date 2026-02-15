@@ -49,6 +49,9 @@ pub enum TtsModel {
     /// High definition TTS model
     #[serde(rename = "tts-1-hd")]
     Tts1Hd,
+    /// GPT-4o Mini TTS model
+    #[serde(rename = "gpt-4o-mini-tts")]
+    Gpt4oMiniTts,
 }
 
 impl TtsModel {
@@ -57,7 +60,26 @@ impl TtsModel {
         match self {
             Self::Tts1 => "tts-1",
             Self::Tts1Hd => "tts-1-hd",
+            Self::Gpt4oMiniTts => "gpt-4o-mini-tts",
         }
+    }
+
+    /// Checks if this model supports the `instructions` parameter.
+    ///
+    /// Only `gpt-4o-mini-tts` supports the instructions parameter for
+    /// controlling voice characteristics like tone, emotion, and pacing.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use openai_tools::audio::request::TtsModel;
+    ///
+    /// assert!(TtsModel::Gpt4oMiniTts.supports_instructions());
+    /// assert!(!TtsModel::Tts1.supports_instructions());
+    /// assert!(!TtsModel::Tts1Hd.supports_instructions());
+    /// ```
+    pub fn supports_instructions(&self) -> bool {
+        matches!(self, Self::Gpt4oMiniTts)
     }
 }
 
@@ -178,6 +200,9 @@ pub enum SttModel {
     #[serde(rename = "whisper-1")]
     #[default]
     Whisper1,
+    /// GPT-4o Transcribe model
+    #[serde(rename = "gpt-4o-transcribe")]
+    Gpt4oTranscribe,
 }
 
 impl SttModel {
@@ -185,6 +210,7 @@ impl SttModel {
     pub fn as_str(&self) -> &'static str {
         match self {
             Self::Whisper1 => "whisper-1",
+            Self::Gpt4oTranscribe => "gpt-4o-transcribe",
         }
     }
 }
@@ -256,6 +282,20 @@ pub struct TtsOptions {
     pub response_format: AudioFormat,
     /// Speech speed (0.25 to 4.0, defaults to 1.0)
     pub speed: Option<f32>,
+    /// Instructions for controlling voice characteristics.
+    ///
+    /// Only supported by `gpt-4o-mini-tts` model.
+    /// Use natural language to control tone, emotion, and pacing.
+    ///
+    /// # Examples
+    ///
+    /// - `"Speak in a cheerful and positive tone."`
+    /// - `"Use a calm and soothing voice."`
+    /// - `"Speak with enthusiasm and energy."`
+    ///
+    /// If set with an unsupported model (`tts-1` or `tts-1-hd`),
+    /// this parameter will be ignored and a warning will be logged.
+    pub instructions: Option<String>,
 }
 
 /// Options for audio transcription.
@@ -298,6 +338,9 @@ struct TtsRequest {
     response_format: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     speed: Option<f32>,
+    /// Instructions for voice control (only for gpt-4o-mini-tts).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    instructions: Option<String>,
 }
 
 /// Client for interacting with the OpenAI Audio API.
@@ -454,12 +497,25 @@ impl Audio {
         let (client, mut headers) = self.create_client()?;
         headers.insert("Content-Type", request::header::HeaderValue::from_static("application/json"));
 
+        // Check if instructions parameter is supported by the model
+        let instructions = if options.instructions.is_some() {
+            if options.model.supports_instructions() {
+                options.instructions
+            } else {
+                tracing::warn!("Model '{}' does not support instructions parameter. Ignoring instructions.", options.model);
+                None
+            }
+        } else {
+            None
+        };
+
         let request_body = TtsRequest {
             model: options.model.as_str().to_string(),
             input: text.to_string(),
             voice: options.voice.as_str().to_string(),
             response_format: Some(options.response_format.as_str().to_string()),
             speed: options.speed,
+            instructions,
         };
 
         let body = serde_json::to_string(&request_body).map_err(OpenAIToolError::SerdeJsonError)?;
@@ -710,6 +766,15 @@ mod tests {
     fn test_tts_model_as_str() {
         assert_eq!(TtsModel::Tts1.as_str(), "tts-1");
         assert_eq!(TtsModel::Tts1Hd.as_str(), "tts-1-hd");
+        assert_eq!(TtsModel::Gpt4oMiniTts.as_str(), "gpt-4o-mini-tts");
+    }
+
+    #[test]
+    fn test_tts_model_supports_instructions() {
+        // Only gpt-4o-mini-tts supports instructions
+        assert!(TtsModel::Gpt4oMiniTts.supports_instructions());
+        assert!(!TtsModel::Tts1.supports_instructions());
+        assert!(!TtsModel::Tts1Hd.supports_instructions());
     }
 
     #[test]
@@ -720,8 +785,7 @@ mod tests {
 
     #[test]
     fn test_tts_model_display() {
-        assert_eq!(format!("{}", TtsModel::Tts1), "tts-1");
-        assert_eq!(format!("{}", TtsModel::Tts1Hd), "tts-1-hd");
+        assert_eq!(format!("{}", TtsModel::Gpt4oMiniTts), "gpt-4o-mini-tts");
     }
 
     // =========================================================================
@@ -796,6 +860,19 @@ mod tests {
         assert_eq!(options.voice, Voice::Alloy);
         assert_eq!(options.response_format, AudioFormat::Mp3);
         assert!(options.speed.is_none());
+        assert!(options.instructions.is_none());
+    }
+
+    #[test]
+    fn test_tts_options_with_instructions() {
+        let options = TtsOptions {
+            model: TtsModel::Gpt4oMiniTts,
+            voice: Voice::Coral,
+            instructions: Some("Speak in a cheerful tone.".to_string()),
+            ..Default::default()
+        };
+        assert_eq!(options.model, TtsModel::Gpt4oMiniTts);
+        assert_eq!(options.instructions, Some("Speak in a cheerful tone.".to_string()));
     }
 
     // =========================================================================
@@ -803,27 +880,53 @@ mod tests {
     // =========================================================================
 
     #[test]
-    fn test_tts_request_serialization() {
+    fn test_tts_request_serialization_with_instructions() {
+        let request = TtsRequest {
+            model: "gpt-4o-mini-tts".to_string(),
+            input: "Hello, world!".to_string(),
+            voice: "coral".to_string(),
+            response_format: Some("mp3".to_string()),
+            speed: None,
+            instructions: Some("Speak cheerfully.".to_string()),
+        };
+        let json = serde_json::to_value(&request).unwrap();
+
+        assert_eq!(json["model"], "gpt-4o-mini-tts");
+        assert_eq!(json["input"], "Hello, world!");
+        assert_eq!(json["voice"], "coral");
+        assert_eq!(json["response_format"], "mp3");
+        assert_eq!(json["instructions"], "Speak cheerfully.");
+        assert!(json.get("speed").is_none());
+    }
+
+    #[test]
+    fn test_tts_request_serialization_without_instructions() {
         let request = TtsRequest {
             model: "tts-1".to_string(),
             input: "Hello".to_string(),
             voice: "alloy".to_string(),
             response_format: Some("mp3".to_string()),
             speed: Some(1.0),
+            instructions: None,
         };
         let json = serde_json::to_value(&request).unwrap();
 
         assert_eq!(json["model"], "tts-1");
-        assert_eq!(json["input"], "Hello");
-        assert_eq!(json["voice"], "alloy");
-        assert_eq!(json["response_format"], "mp3");
         assert_eq!(json["speed"], 1.0);
+        // instructions should be omitted when None
+        assert!(json.get("instructions").is_none());
     }
 
     #[test]
     fn test_tts_request_skip_serializing_none_fields() {
-        let request =
-            TtsRequest { model: "tts-1".to_string(), input: "Test".to_string(), voice: "echo".to_string(), response_format: None, speed: None };
+        let request = TtsRequest {
+            model: "tts-1".to_string(),
+            input: "Test".to_string(),
+            voice: "echo".to_string(),
+            response_format: None,
+            speed: None,
+            instructions: None,
+        };
         let json = serde_json::to_value(&request).unwrap();
 
         // Required fields are present
@@ -834,6 +937,7 @@ mod tests {
         // Optional fields with None are omitted
         assert!(json.get("response_format").is_none());
         assert!(json.get("speed").is_none());
+        assert!(json.get("instructions").is_none());
     }
 
     // =========================================================================
@@ -863,6 +967,7 @@ mod tests {
     #[test]
     fn test_stt_model_as_str() {
         assert_eq!(SttModel::Whisper1.as_str(), "whisper-1");
+        assert_eq!(SttModel::Gpt4oTranscribe.as_str(), "gpt-4o-transcribe");
     }
 
     // =========================================================================

@@ -492,7 +492,7 @@ pub struct Format {
 /// use openai_tools::common::models::ChatModel;
 ///
 /// let body = Body {
-///     model: ChatModel::Gpt4_1,
+///     model: ChatModel::Gpt4o,
 ///     plain_text_input: Some("What is the weather like?".to_string()),
 ///     ..Default::default()
 /// };
@@ -511,7 +511,7 @@ pub struct Format {
 /// ];
 ///
 /// let body = Body {
-///     model: ChatModel::Gpt4_1,
+///     model: ChatModel::Gpt4o,
 ///     messages_input: Some(messages),
 ///     instructions: Some("You are a helpful coding assistant".to_string()),
 ///     max_output_tokens: Some(1000),
@@ -531,8 +531,8 @@ pub struct Body {
     ///
     /// # Examples
     ///
-    /// - `ChatModel::Gpt4_1` - GPT-4.1 model
-    /// - `ChatModel::Gpt5Mini` - Cost-effective option
+    /// - `ChatModel::Gpt4o` - Latest GPT-4o model
+    /// - `ChatModel::Gpt4oMini` - Cost-effective option
     /// - `ChatModel::O3Mini` - Reasoning model
     pub model: ChatModel,
 
@@ -1297,7 +1297,7 @@ impl Responses {
     /// use openai_tools::common::models::ChatModel;
     ///
     /// // Recommended: specify model at creation time
-    /// let mut responses = Responses::with_model(ChatModel::Gpt5Mini);
+    /// let mut responses = Responses::with_model(ChatModel::Gpt4oMini);
     ///
     /// // For reasoning models, unsupported parameters are validated at setter time
     /// let mut reasoning_responses = Responses::with_model(ChatModel::O3Mini);
@@ -1466,7 +1466,7 @@ impl Responses {
     ///
     /// # Arguments
     ///
-    /// * `model` - The model to use (e.g., `ChatModel::Gpt5Mini`, `ChatModel::Gpt4_1`)
+    /// * `model` - The model to use (e.g., `ChatModel::Gpt4oMini`, `ChatModel::Gpt4o`)
     ///
     /// # Returns
     ///
@@ -1479,7 +1479,7 @@ impl Responses {
     /// use openai_tools::common::models::ChatModel;
     ///
     /// let mut responses = Responses::new();
-    /// responses.model(ChatModel::Gpt5Mini);
+    /// responses.model(ChatModel::Gpt4oMini);
     /// ```
     pub fn model(&mut self, model: ChatModel) -> &mut Self {
         self.request_body.model = model;
@@ -1492,7 +1492,7 @@ impl Responses {
     ///
     /// # Arguments
     ///
-    /// * `model_id` - The ID of the model to use (e.g., "gpt-5-mini")
+    /// * `model_id` - The ID of the model to use (e.g., "gpt-4o-mini")
     ///
     /// # Returns
     ///
@@ -1520,7 +1520,7 @@ impl Responses {
     /// use openai_tools::responses::request::Responses;
     ///
     /// let mut responses = Responses::new();
-    /// responses.model_id("gpt-4.1")
+    /// responses.model_id("gpt-4o")
     ///     .timeout(Duration::from_secs(30));
     /// ```
     pub fn timeout(&mut self, timeout: Duration) -> &mut Self {
@@ -3036,7 +3036,7 @@ impl Responses {
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let client = Responses::new();
-    /// let tokens = client.get_input_tokens("gpt-5-mini", json!("Hello, world!")).await?;
+    /// let tokens = client.get_input_tokens("gpt-4o-mini", json!("Hello, world!")).await?;
     /// println!("Input tokens: {}", tokens.input_tokens);
     /// # Ok(())
     /// # }
