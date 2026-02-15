@@ -400,8 +400,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 Text-to-speech and transcription:
 
 ```rust
-use openai_tools::audio::request::{Audio, TtsOptions, TranscribeOptions};
-use openai_tools::audio::response::{TtsModel, Voice};
+use openai_tools::audio::request::{Audio, TtsOptions, TtsModel, Voice, TranscribeOptions};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -511,17 +510,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ## Update History
 
 <details>
-<summary>v2.0.0</summary>
+<summary>v1.1.0</summary>
 
-- **Breaking Change**: Removed GPT-4o model family
-  - `ChatModel`: Removed `Gpt4o`, `Gpt4oMini`, `Gpt4oAudioPreview`. Default changed to `Gpt5Mini`
+- Removed deprecated GPT-4o Realtime and Audio Preview model variants (confirmed shutdown March 24, 2026)
   - `RealtimeModel`: Removed `Gpt4oRealtimePreview`, `Gpt4oMiniRealtimePreview`. Added `GptRealtime_2025_08_28` as default
-  - `FineTuningModel`: Removed `Gpt4oMini_2024_07_18`, `Gpt4o_2024_08_06`. Default changed to `Gpt41Mini_2025_04_14`
-  - `TtsModel`: Removed `Gpt4oMiniTts`. Removed `instructions` field from `TtsOptions`. Removed `supports_instructions()` method
-  - `SttModel`: Removed `Gpt4oTranscribe`
-  - `TranscriptionModel` (Realtime): Removed `Gpt4oTranscribe`, `Gpt4oMiniTranscribe`, `Gpt4oTranscribeDiarize`
+  - `TranscriptionModel` (Realtime): Removed `Gpt4oTranscribe`, `Gpt4oMiniTranscribe`, `Gpt4oTranscribeDiarize`. Only `Whisper1` remains
+- GPT-4o base models (`Gpt4o`, `Gpt4oMini`, `Gpt4oAudioPreview`) remain available in `ChatModel`
+- GPT-4o fine-tuning models (`Gpt4oMini_2024_07_18`, `Gpt4o_2024_08_06`) remain available in `FineTuningModel`
+- GPT-4o audio models (`Gpt4oMiniTts`, `Gpt4oTranscribe`) remain available in `TtsModel` and `SttModel`
 - **Fix**: `Response.incomplete_details` changed from `Option<String>` to `Option<Value>`
 - **Fix**: `Response.error` changed from `Option<String>` to `Option<Value>`
+- Updated documentation to reflect current model availability
 
 </details>
 

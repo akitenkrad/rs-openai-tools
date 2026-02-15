@@ -136,7 +136,7 @@ rs-openai-tools/
   - `response.rs`: `ImageResponse`, `ImageData`
 
 - **`audio/`**: Audio API (`/v1/audio`)
-  - `request.rs`: `Audio` client for TTS, transcription, translation; `TtsModel` (Tts1, Tts1Hd), `Voice` (Alloy, Ash, Ballad, Cedar, Coral, Echo, Fable, Marin, Nova, Onyx, Sage, Shimmer, Verse), `AudioFormat`, `TtsOptions`
+  - `request.rs`: `Audio` client for TTS, transcription, translation; `TtsModel` (Tts1, Tts1Hd, Gpt4oMiniTts), `SttModel` (Whisper1, Gpt4oTranscribe), `Voice` (Alloy, Ash, Ballad, Cedar, Coral, Echo, Fable, Marin, Nova, Onyx, Sage, Shimmer, Verse), `AudioFormat`, `TtsOptions` (with `instructions` field for Gpt4oMiniTts)
   - `response.rs`: `TranscriptionResponse`, `Word`, `Segment`
 
 - **`batch/`**: Batch API (`/v1/batches`)
@@ -241,10 +241,10 @@ Chat Completions API and Responses API. Images API does **not** support this par
 
 | Enum | API | Available Variants |
 |------|-----|-------------------|
-| `ChatModel` | Chat, Responses | **GPT-5**: `Gpt5_2`, `Gpt5_2ChatLatest`, `Gpt5_2Pro`, `Gpt5_1`, `Gpt5_1ChatLatest`, `Gpt5_1CodexMax`, `Gpt5Mini` / **GPT-4.1**: `Gpt4_1`, `Gpt4_1Mini`, `Gpt4_1Nano` / **GPT-4/3.5**: `Gpt4Turbo`, `Gpt4`, `Gpt3_5Turbo` / **Reasoning**: `O1`, `O1Pro`, `O3`, `O3Mini`, `O4Mini` / `Custom(String)` |
+| `ChatModel` | Chat, Responses | **GPT-5**: `Gpt5_2`, `Gpt5_2ChatLatest`, `Gpt5_2Pro`, `Gpt5_1`, `Gpt5_1ChatLatest`, `Gpt5_1CodexMax`, `Gpt5Mini` / **GPT-4.1**: `Gpt4_1`, `Gpt4_1Mini`, `Gpt4_1Nano` / **GPT-4o**: `Gpt4o`, `Gpt4oMini`, `Gpt4oAudioPreview` / **GPT-4/3.5**: `Gpt4Turbo`, `Gpt4`, `Gpt3_5Turbo` / **Reasoning**: `O1`, `O1Pro`, `O3`, `O3Mini`, `O4Mini` / `Custom(String)` |
 | `EmbeddingModel` | Embedding | `TextEmbedding3Small`, `TextEmbedding3Large`, `TextEmbeddingAda002` |
 | `RealtimeModel` | Realtime | `GptRealtime_2025_08_28`, `Custom(String)` |
-| `FineTuningModel` | Fine-tuning | `Gpt41_2025_04_14`, `Gpt41Mini_2025_04_14`, `Gpt41Nano_2025_04_14`, `Gpt4_0613`, `Gpt35Turbo_0125`, etc. |
+| `FineTuningModel` | Fine-tuning | `Gpt41_2025_04_14`, `Gpt41Mini_2025_04_14`, `Gpt41Nano_2025_04_14`, `Gpt4oMini_2024_07_18`, `Gpt4o_2024_08_06`, `Gpt4_0613`, `Gpt35Turbo_0125`, etc. |
 
 ```rust
 use openai_tools::common::models::{ChatModel, EmbeddingModel, RealtimeModel, FineTuningModel};
@@ -741,8 +741,10 @@ Each API (Chat, Embedding, etc.) requires its own complete endpoint URL includin
 
 **Audio API Features:**
 - Text-to-speech (TTS) with multiple voices: Alloy, Ash, Ballad, Cedar, Coral, Echo, Fable, Marin, Nova, Onyx, Sage, Shimmer, Verse
-- TTS models: Tts1, Tts1Hd
-- Audio transcription (Whisper)
+- TTS models: Tts1, Tts1Hd, Gpt4oMiniTts
+- `instructions` parameter for Gpt4oMiniTts (control voice tone, emotion, and pacing with natural language)
+- STT models: Whisper1, Gpt4oTranscribe
+- Audio transcription (Whisper, GPT-4o Transcribe)
 - Audio translation to English
 - Multiple audio formats (MP3, WAV, FLAC, Opus, AAC, PCM)
 - Word and segment timestamps
@@ -762,7 +764,7 @@ Each API (Chat, Embedding, etc.) requires its own complete endpoint URL includin
 - Access training checkpoints
 - List and retrieve job details
 - Cancel in-progress jobs
-- Support for GPT-4.1, GPT-4.1 Mini, GPT-4.1 Nano, GPT-4, GPT-3.5 Turbo
+- Support for GPT-4.1, GPT-4.1 Mini, GPT-4.1 Nano, GPT-4o, GPT-4o Mini, GPT-4, GPT-3.5 Turbo
 
 ## Model-Specific Parameter Restrictions
 
@@ -856,7 +858,7 @@ WARN: Reasoning model 'o1-preview' does not support frequency_penalty. Ignoring 
 WARN: Reasoning model 'o3-mini' does not support top_p. Ignoring top_p=0.9 and using default (1.0).
 ```
 
-### Standard Models (GPT-4.1, GPT-4, GPT-3.5, etc.)
+### Standard Models (GPT-4o, GPT-4.1, GPT-4, GPT-3.5, etc.)
 
 Standard models support all available parameters without restrictions:
 
