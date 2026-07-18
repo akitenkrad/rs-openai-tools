@@ -250,6 +250,10 @@ pub enum ChatModel {
     #[serde(rename = "gpt-5-mini")]
     Gpt5Mini,
 
+    /// GPT-5 Nano - Fastest, most cost-efficient GPT-5 variant
+    #[serde(rename = "gpt-5-nano")]
+    Gpt5Nano,
+
     // === GPT-4.1 Series ===
     /// GPT-4.1 - Smartest non-reasoning model with 1M token context
     #[serde(rename = "gpt-4.1")]
@@ -312,6 +316,11 @@ pub enum ChatModel {
     #[serde(rename = "o4-mini")]
     O4Mini,
 
+    // Gemini
+    /// Gemini 3.1 Flash Lite - Fast, cost-effective Gemini variant
+    #[serde(rename = "gemini-3.1-flash-lite")]
+    Gemini3_1FlashLite,
+
     // === Custom Model ===
     /// Custom model ID for fine-tuned models or new models not yet in enum
     #[serde(untagged)]
@@ -340,6 +349,7 @@ impl ChatModel {
             Self::Gpt5_1ChatLatest => "gpt-5.1-chat-latest",
             Self::Gpt5_1CodexMax => "gpt-5.1-codex-max",
             Self::Gpt5Mini => "gpt-5-mini",
+            Self::Gpt5Nano => "gpt-5-nano",
             // GPT-4.1 Series
             Self::Gpt4_1 => "gpt-4.1",
             Self::Gpt4_1Mini => "gpt-4.1-mini",
@@ -359,6 +369,8 @@ impl ChatModel {
             Self::O3 => "o3",
             Self::O3Mini => "o3-mini",
             Self::O4Mini => "o4-mini",
+            // Gemini
+            Self::Gemini3_1FlashLite => "gemini-3.1-flash-lite",
             // Custom
             Self::Custom(s) => s.as_str(),
         }
