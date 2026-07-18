@@ -316,11 +316,6 @@ pub enum ChatModel {
     #[serde(rename = "o4-mini")]
     O4Mini,
 
-    // Gemini
-    /// Gemini 3.1 Flash Lite - Fast, cost-effective Gemini variant
-    #[serde(rename = "gemini-3.1-flash-lite")]
-    Gemini3_1FlashLite,
-
     // === Custom Model ===
     /// Custom model ID for fine-tuned models or new models not yet in enum
     #[serde(untagged)]
@@ -369,8 +364,6 @@ impl ChatModel {
             Self::O3 => "o3",
             Self::O3Mini => "o3-mini",
             Self::O4Mini => "o4-mini",
-            // Gemini
-            Self::Gemini3_1FlashLite => "gemini-3.1-flash-lite",
             // Custom
             Self::Custom(s) => s.as_str(),
         }
@@ -400,7 +393,7 @@ impl ChatModel {
             // GPT-5 series are reasoning models
             Self::Gpt5_2 | Self::Gpt5_2ChatLatest | Self::Gpt5_2Pro |
             Self::Gpt5_1 | Self::Gpt5_1ChatLatest | Self::Gpt5_1CodexMax |
-            Self::Gpt5Mini |
+            Self::Gpt5Mini | Self::Gpt5Nano |
             // O-series reasoning models
             Self::O1 | Self::O1Pro | Self::O3 | Self::O3Mini | Self::O4Mini
         ) || matches!(
@@ -474,6 +467,7 @@ impl From<&str> for ChatModel {
             "gpt-5.1-chat-latest" => Self::Gpt5_1ChatLatest,
             "gpt-5.1-codex-max" => Self::Gpt5_1CodexMax,
             "gpt-5-mini" => Self::Gpt5Mini,
+            "gpt-5-nano" => Self::Gpt5Nano,
             // GPT-4.1 Series
             "gpt-4.1" => Self::Gpt4_1,
             "gpt-4.1-mini" => Self::Gpt4_1Mini,
@@ -952,6 +946,7 @@ mod tests {
             ChatModel::Gpt5_1ChatLatest,
             ChatModel::Gpt5_1CodexMax,
             ChatModel::Gpt5Mini,
+            ChatModel::Gpt5Nano,
         ];
 
         for model in gpt5_series {
@@ -1083,6 +1078,7 @@ mod tests {
             ChatModel::Gpt5_1ChatLatest,
             ChatModel::Gpt5_1CodexMax,
             ChatModel::Gpt5Mini,
+            ChatModel::Gpt5Nano,
         ];
 
         for model in gpt5_series {
@@ -1160,6 +1156,7 @@ mod tests {
             ("gpt-5.1-chat-latest", ChatModel::Gpt5_1ChatLatest),
             ("gpt-5.1-codex-max", ChatModel::Gpt5_1CodexMax),
             ("gpt-5-mini", ChatModel::Gpt5Mini),
+            ("gpt-5-nano", ChatModel::Gpt5Nano),
         ];
 
         for (model_str, expected_model) in gpt5_models {
