@@ -275,7 +275,7 @@ Note: a catch-all variant holding a `String` is incompatible with `#[derive(Copy
 
 | Enum | API | Available Variants |
 |------|-----|-------------------|
-| `ChatModel` | Chat, Responses | **GPT-6**: `Gpt6Astra`, `Gpt6Sol`, `Gpt6Luna` / **GPT-5.6**: `Gpt5_6` (alias→Sol), `Gpt5_6Sol`, `Gpt5_6Terra`, `Gpt5_6Luna` / **GPT-5.5**: `Gpt5_5`, `Gpt5_5Pro` / **GPT-5.4**: `Gpt5_4`, `Gpt5_4Pro`, `Gpt5_4Mini`, `Gpt5_4Nano` / **GPT-5.3**: `Gpt5_3ChatLatest` / **Codex**: `Gpt5_3Codex`, `Gpt5_2Codex`, `Gpt5_1Codex`, `Gpt5_1CodexMax` / **GPT-5**: `Gpt5`, `Gpt5Pro`, `Gpt5_2`, `Gpt5_2ChatLatest`, `Gpt5_2Pro`, `Gpt5_1`, `Gpt5_1ChatLatest`, `Gpt5Mini`, `Gpt5Nano` / **Search**: `Gpt5SearchApi`, `Gpt4oSearchPreview`, `Gpt4oMiniSearchPreview` / **Audio**: `GptAudio`, `GptAudio1_5`, `GptAudioMini` / **GPT-4.1**: `Gpt4_1`, `Gpt4_1Mini`, `Gpt4_1Nano` / **GPT-4o**: `Gpt4o`, `Gpt4oMini`, `Gpt4oAudioPreview` / **GPT-4/3.5**: `Gpt4Turbo`, `Gpt4`, `Gpt3_5Turbo`, `Gpt3_5Turbo16k` / **Reasoning**: `O1`, `O1Pro`, `O3`, `O3Pro`, `O3Mini`, `O4Mini` / `Custom(String)` |
+| `ChatModel` | Chat, Responses | **GPT-6.1**: `Gpt6_1Sol` / **GPT-6**: `Gpt6Astra`, `Gpt6Sol`, `Gpt6Luna` / **GPT-5.6**: `Gpt5_6` (alias→Sol), `Gpt5_6Sol`, `Gpt5_6Terra`, `Gpt5_6Luna` / **GPT-5.5**: `Gpt5_5`, `Gpt5_5Pro` / **GPT-5.4**: `Gpt5_4`, `Gpt5_4Pro`, `Gpt5_4Mini`, `Gpt5_4Nano` / **GPT-5.3**: `Gpt5_3ChatLatest` / **Codex**: `Gpt5_3Codex`, `Gpt5_2Codex`, `Gpt5_1Codex`, `Gpt5_1CodexMax` / **GPT-5**: `Gpt5`, `Gpt5Pro`, `Gpt5_2`, `Gpt5_2ChatLatest`, `Gpt5_2Pro`, `Gpt5_1`, `Gpt5_1ChatLatest`, `Gpt5Mini`, `Gpt5Nano` / **Search**: `Gpt5SearchApi`, `Gpt4oSearchPreview`, `Gpt4oMiniSearchPreview` / **Audio**: `GptAudio`, `GptAudio1_5`, `GptAudioMini` / **GPT-4.1**: `Gpt4_1`, `Gpt4_1Mini`, `Gpt4_1Nano` / **GPT-4o**: `Gpt4o`, `Gpt4oMini`, `Gpt4oAudioPreview` / **GPT-4/3.5**: `Gpt4Turbo`, `Gpt4`, `Gpt3_5Turbo`, `Gpt3_5Turbo16k` / **Reasoning**: `O1`, `O1Pro`, `O3`, `O3Pro`, `O3Mini`, `O4Mini` / `Custom(String)` |
 | `EmbeddingModel` | Embedding | `TextEmbedding3Small`, `TextEmbedding3Large`, `TextEmbeddingAda002` |
 | `RealtimeModel` | Realtime | `GptRealtime2_1`, `GptRealtime2_1Mini`, `GptRealtime2`, `GptRealtime1_5`, `GptRealtime`, `GptRealtimeMini`, `GptRealtimeTranslate`, `GptRealtime_2025_08_28` (default), `Custom(String)` |
 | `LiveModel` | Live | `GptLive1` (default), `Custom(String)` |
@@ -899,10 +899,10 @@ responses.model(ChatModel::Gpt5_2)
 | `Low` | Light reasoning | GPT-5.1, GPT-5.2, o-series |
 | `Medium` | Balanced reasoning | All reasoning models |
 | `High` | Deep reasoning | All reasoning models |
-| `Xhigh` | Maximum reasoning | GPT-5.2 Pro, GPT-5.1 Codex Max, GPT-6 series |
-| `Max` | Maximum reasoning (Responses API only) | GPT-6 series |
+| `Xhigh` | Maximum reasoning | GPT-5.2 Pro, GPT-5.1 Codex Max, GPT-6.1 Sol, GPT-6 series |
+| `Max` | Maximum reasoning (Responses API only) | GPT-6.1 Sol, GPT-6 series |
 
-GPT-6 Astra は `none` と `minimal` を，GPT-6 Sol / Luna は `minimal` を拒否する．
+GPT-6.1 Sol と GPT-6 Astra は `none` と `minimal` を，GPT-6 Sol / Luna は `minimal` を拒否する．
 
 #### Chat Completions API Parameter Restrictions
 

@@ -131,7 +131,7 @@ runtime `model_not_found`.
 
 | Enum | API | Variants |
 |------|-----|----------|
-| `ChatModel` | Chat, Responses | **GPT-6**: `Gpt6Astra`, `Gpt6Sol`, `Gpt6Luna`<br>**GPT-5.6**: `Gpt5_6` (alias to Sol), `Gpt5_6Sol`, `Gpt5_6Terra`, `Gpt5_6Luna`<br>**GPT-5.5**: `Gpt5_5`, `Gpt5_5Pro`<br>**GPT-5.4**: `Gpt5_4`, `Gpt5_4Pro`, `Gpt5_4Mini`, `Gpt5_4Nano`<br>**GPT-5.3**: `Gpt5_3ChatLatest`<br>**Codex**: `Gpt5_3Codex`, `Gpt5_2Codex`, `Gpt5_1Codex`, `Gpt5_1CodexMax`<br>**GPT-5**: `Gpt5`, `Gpt5Pro`, `Gpt5_2`, `Gpt5_2ChatLatest`, `Gpt5_2Pro`, `Gpt5_1`, `Gpt5_1ChatLatest`, `Gpt5Mini`, `Gpt5Nano`<br>**Search**: `Gpt5SearchApi`, `Gpt4oSearchPreview`, `Gpt4oMiniSearchPreview`<br>**Audio**: `GptAudio`, `GptAudio1_5`, `GptAudioMini`<br>**GPT-4.1 / 4o / 4 / 3.5**: `Gpt4_1`, `Gpt4_1Mini`, `Gpt4_1Nano`, `Gpt4o`, `Gpt4oMini`, `Gpt4oAudioPreview`, `Gpt4Turbo`, `Gpt4`, `Gpt3_5Turbo`, `Gpt3_5Turbo16k`<br>**o-series**: `O1`, `O1Pro`, `O3`, `O3Pro`, `O3Mini`, `O4Mini`<br>`Custom(String)` |
+| `ChatModel` | Chat, Responses | **GPT-6.1**: `Gpt6_1Sol`<br>**GPT-6**: `Gpt6Astra`, `Gpt6Sol`, `Gpt6Luna`<br>**GPT-5.6**: `Gpt5_6` (alias to Sol), `Gpt5_6Sol`, `Gpt5_6Terra`, `Gpt5_6Luna`<br>**GPT-5.5**: `Gpt5_5`, `Gpt5_5Pro`<br>**GPT-5.4**: `Gpt5_4`, `Gpt5_4Pro`, `Gpt5_4Mini`, `Gpt5_4Nano`<br>**GPT-5.3**: `Gpt5_3ChatLatest`<br>**Codex**: `Gpt5_3Codex`, `Gpt5_2Codex`, `Gpt5_1Codex`, `Gpt5_1CodexMax`<br>**GPT-5**: `Gpt5`, `Gpt5Pro`, `Gpt5_2`, `Gpt5_2ChatLatest`, `Gpt5_2Pro`, `Gpt5_1`, `Gpt5_1ChatLatest`, `Gpt5Mini`, `Gpt5Nano`<br>**Search**: `Gpt5SearchApi`, `Gpt4oSearchPreview`, `Gpt4oMiniSearchPreview`<br>**Audio**: `GptAudio`, `GptAudio1_5`, `GptAudioMini`<br>**GPT-4.1 / 4o / 4 / 3.5**: `Gpt4_1`, `Gpt4_1Mini`, `Gpt4_1Nano`, `Gpt4o`, `Gpt4oMini`, `Gpt4oAudioPreview`, `Gpt4Turbo`, `Gpt4`, `Gpt3_5Turbo`, `Gpt3_5Turbo16k`<br>**o-series**: `O1`, `O1Pro`, `O3`, `O3Pro`, `O3Mini`, `O4Mini`<br>`Custom(String)` |
 | `EmbeddingModel` | Embedding | `TextEmbedding3Small`, `TextEmbedding3Large`, `TextEmbeddingAda002` |
 | `RealtimeModel` | Realtime | `GptRealtime2_1`, `GptRealtime2_1Mini`, `GptRealtime2`, `GptRealtime1_5`, `GptRealtime`, `GptRealtimeMini`, `GptRealtimeTranslate`, `GptRealtime_2025_08_28` (default), `Custom(String)` |
 | `ImageModel` | Images | `GptImage1` (default), `GptImage1Mini`, `GptImage1_5`, `GptImage2`, `GptImage2_5Flare`, `GptImage2_5Sunburst`, `ChatGptImageLatest`, `DallE2`, `DallE3` |
@@ -144,6 +144,7 @@ runtime `model_not_found`.
 use openai_tools::common::models::ChatModel;
 
 chat.model(ChatModel::Gpt6Astra);                    // Latest flagship
+chat.model(ChatModel::Gpt6_1Sol);                    // Latest Sol model
 chat.model(ChatModel::Gpt6Luna);                     // Most cost-efficient
 responses.model(ChatModel::Gpt5_5Pro);               // Responses API only
 chat.model(ChatModel::custom("ft:gpt-4.1-mini:my-org::abc123"));  // Fine-tuned
@@ -726,6 +727,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ```
 
 ## Update History
+
+<details>
+<summary>v3.2.0</summary>
+
+All additions in this release are non-breaking because 3.0.0 made the public enums `#[non_exhaustive]`.
+
+**New models**
+
+- `ChatModel::Gpt6_1Sol` (`gpt-6.1-sol`), with Chat Completions and Responses support. Tool calling is available through Responses only.
+
+**Docs**
+
+- Documented GPT-6.1 Sol reasoning efforts and the Responses API `ultrafast` service tier.
+- Fixed all rustdoc warnings and added a `cargo make doc-check` task that fails on any new one.
+
+</details>
 
 <details>
 <summary>v3.1.0</summary>

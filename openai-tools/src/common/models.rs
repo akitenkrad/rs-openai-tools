@@ -164,6 +164,7 @@ impl ParameterSupport {
 /// # Model Categories
 ///
 /// ## GPT-6 Series (Latest Flagship)
+/// - [`Gpt6_1Sol`](Self::Gpt6_1Sol): Latest Sol model ($2 / $10)
 /// - [`Gpt6Astra`](Self::Gpt6Astra): Flagship model ($10 input / $50 output per million tokens)
 /// - [`Gpt6Sol`](Self::Gpt6Sol): Complex coding and professional tasks ($2 / $10)
 /// - [`Gpt6Luna`](Self::Gpt6Luna): High-volume routine tasks ($0.10 / $0.50)
@@ -226,6 +227,17 @@ impl ParameterSupport {
 #[non_exhaustive]
 pub enum ChatModel {
     // === GPT-6 Series (Latest Flagship) ===
+    /// GPT-6.1 Sol - Latest Sol model for complex professional work
+    ///
+    /// - Pricing per million tokens (input up to 272K): $2 input, $0.10 cached
+    ///   input, $2.50 cache write, $10 output
+    /// - Context: 1,050,000 tokens, 128,000 max output
+    /// - Supports Chat Completions and Responses APIs
+    /// - Tool calling: Responses only; unavailable in Chat Completions
+    /// - Responses reasoning effort: low, medium (default), high, xhigh, max
+    #[serde(rename = "gpt-6.1-sol")]
+    Gpt6_1Sol,
+
     /// GPT-6 Astra - Flagship model
     ///
     /// - Pricing: $10 input / $50 output per million tokens
@@ -540,6 +552,7 @@ impl ChatModel {
     pub fn as_str(&self) -> &str {
         match self {
             // GPT-6 Series
+            Self::Gpt6_1Sol => "gpt-6.1-sol",
             Self::Gpt6Astra => "gpt-6-astra",
             Self::Gpt6Sol => "gpt-6-sol",
             Self::Gpt6Luna => "gpt-6-luna",
@@ -629,7 +642,7 @@ impl ChatModel {
         matches!(
             self,
             // GPT-6 series
-            Self::Gpt6Astra | Self::Gpt6Sol | Self::Gpt6Luna |
+            Self::Gpt6_1Sol | Self::Gpt6Astra | Self::Gpt6Sol | Self::Gpt6Luna |
             // GPT-5.6 series
             Self::Gpt5_6 | Self::Gpt5_6Sol | Self::Gpt5_6Terra | Self::Gpt5_6Luna |
             // GPT-5.5 series
@@ -734,6 +747,7 @@ impl From<&str> for ChatModel {
     fn from(s: &str) -> Self {
         match s {
             // GPT-6 Series
+            "gpt-6.1-sol" => Self::Gpt6_1Sol,
             "gpt-6-astra" => Self::Gpt6Astra,
             "gpt-6-sol" => Self::Gpt6Sol,
             "gpt-6-luna" => Self::Gpt6Luna,
@@ -1695,6 +1709,8 @@ mod tests {
     /// with the exact string the API expects.
     fn new_chat_models() -> Vec<(ChatModel, &'static str)> {
         vec![
+            // GPT-6.1 series has no `gpt-6.1` alias.
+            (ChatModel::Gpt6_1Sol, "gpt-6.1-sol"),
             // GPT-6 series has no `gpt-6` alias.
             (ChatModel::Gpt6Astra, "gpt-6-astra"),
             (ChatModel::Gpt6Sol, "gpt-6-sol"),
@@ -1736,6 +1752,7 @@ mod tests {
             assert_eq!(ChatModel::from(model_str).as_str(), model_str, "Roundtrip failed for {}", model_str);
         }
 
+        assert!(matches!(ChatModel::from("gpt-6.1"), ChatModel::Custom(_)), "gpt-6.1 must not be treated as an API model alias");
         assert!(matches!(ChatModel::from("gpt-6"), ChatModel::Custom(_)), "gpt-6 must not be treated as an API model alias");
     }
 
@@ -1754,6 +1771,7 @@ mod tests {
     #[test]
     fn test_new_models_are_reasoning_models() {
         let reasoning = vec![
+            ChatModel::Gpt6_1Sol,
             ChatModel::Gpt6Astra,
             ChatModel::Gpt6Sol,
             ChatModel::Gpt6Luna,

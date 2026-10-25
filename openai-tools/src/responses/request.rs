@@ -97,6 +97,7 @@ pub enum Include {
 ///
 /// | Model | Supported Values |
 /// |-------|-----------------|
+/// | GPT-6.1 Sol | `low`, `medium`, `high`, `xhigh`, `max` |
 /// | GPT-6 Astra | `low`, `medium`, `high`, `xhigh`, `max` |
 /// | GPT-6 Sol, GPT-6 Luna | `none`, `low`, `medium`, `high`, `xhigh`, `max` |
 /// | GPT-5.2, GPT-5.2-pro | `none`, `low`, `medium`, `high`, `xhigh` |
@@ -147,19 +148,21 @@ pub enum ReasoningEffort {
     #[serde(rename = "high")]
     High,
 
-    /// Extra-high reasoning effort - quality-critical work (GPT-5.2 only)
+    /// Extra-high reasoning effort - quality-critical work
     ///
     /// Use this for the most demanding tasks requiring maximum reasoning
-    /// quality. Only available on GPT-5.2 and GPT-5.2-pro models.
+    /// quality. Available on supported GPT-5 and GPT-6 models, including
+    /// GPT-6.1 Sol.
     #[strum(serialize = "xhigh")]
     #[serde(rename = "xhigh")]
     Xhigh,
 
     /// Maximum reasoning effort for GPT-6 models
     ///
-    /// Responses API only. Accepted by GPT-6 Astra, GPT-6 Sol, and GPT-6 Luna
-    /// (`gpt-6-astra`, `gpt-6-sol`, and `gpt-6-luna`). Chat Completions rejects
-    /// `max` in its `reasoning_effort` parameter, including for GPT-6 models.
+    /// Responses API only. Accepted by GPT-6.1 Sol, GPT-6 Astra, GPT-6 Sol, and
+    /// GPT-6 Luna (`gpt-6.1-sol`, `gpt-6-astra`, `gpt-6-sol`, and
+    /// `gpt-6-luna`). Chat Completions rejects `max` in its `reasoning_effort`
+    /// parameter, including for GPT-6 models.
     #[strum(serialize = "max")]
     #[serde(rename = "max")]
     Max,
@@ -2255,6 +2258,7 @@ impl Responses {
     /// client.service_tier("default");   // Standard service
     /// client.service_tier("scale");     // High-throughput processing
     /// client.service_tier("premium");   // Premium features and priority
+    /// client.service_tier("ultrafast"); // GPT-6.1 Sol/Astra, Responses only; 6x Standard price
     /// ```
     pub fn service_tier<T: AsRef<str>>(&mut self, tier: T) -> &mut Self {
         self.request_body.service_tier = Some(tier.as_ref().to_string());
