@@ -759,6 +759,29 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ## Update History
 
 <details>
+<summary>v3.4.0</summary>
+
+**New API**
+
+- Responses API prompt caching options: `PromptCacheOptions` (`ttl`, `mode`, `prewarm`, `comparison_response_id`), `PromptCacheTtl` (`30m`, the default, and `12h`), `PromptCacheMode` (`implicit`, `explicit`), and the `prompt_cache_options()` / `prompt_cache_ttl()` setters. Supported for `gpt-5.6` and later models.
+- GPT Image 2.6 output options on `GenerateOptions` and `EditOptions`: `complexity` (`ImageComplexity`), `output_format` (`ImageOutputFormat`, including `svg` and `gif`), `frame_count` and `frame_duration_ms`. Values are passed to the API without client-side validation.
+- `ImageResponse` now exposes `output_format`, `quality`, `size`, `background` and `svg_usage` (`SvgUsage`). All are optional, so older responses still deserialize.
+
+**Deprecated**
+
+- `Responses::prompt_cache_retention()`. The API reference deprecates it in favour of `prompt_cache_options.ttl`. It still works; the two fields are independent and both are sent when both are set.
+
+**Upgrade note**
+
+- `GenerateOptions`, `EditOptions` and `ImageResponse` gained public fields. Code that builds them with a struct literal listing every field must add the new fields or use `..Default::default()` (the options structs implement `Default`).
+
+**Not supported yet**
+
+- Markup-guided image editing (`markup`).
+
+</details>
+
+<details>
 <summary>v3.3.0</summary>
 
 All additions in this release are non-breaking because 3.0.0 made the public enums `#[non_exhaustive]`.
