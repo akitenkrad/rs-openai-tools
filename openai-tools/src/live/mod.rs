@@ -100,6 +100,11 @@ mod tests {
         assert_eq!(LiveModel::from("gpt-live-1"), LiveModel::GptLive1);
         assert_eq!(serde_json::to_string(&LiveModel::GptLive1).unwrap(), "\"gpt-live-1\"");
 
+        assert_eq!(LiveModel::GptLive1_1.as_str(), "gpt-live-1.1");
+        assert_eq!(LiveModel::from("gpt-live-1.1"), LiveModel::GptLive1_1);
+        assert_eq!(serde_json::to_string(&LiveModel::GptLive1_1).unwrap(), "\"gpt-live-1.1\"");
+        assert_eq!(serde_json::from_str::<LiveModel>("\"gpt-live-1.1\"").unwrap(), LiveModel::GptLive1_1);
+
         let custom = LiveModel::from("gpt-live-next");
         assert_eq!(custom, LiveModel::Custom("gpt-live-next".to_string()));
         assert_eq!(serde_json::from_str::<LiveModel>("\"gpt-live-next\"").unwrap(), custom);

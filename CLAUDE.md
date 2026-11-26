@@ -275,12 +275,12 @@ Note: a catch-all variant holding a `String` is incompatible with `#[derive(Copy
 
 | Enum | API | Available Variants |
 |------|-----|-------------------|
-| `ChatModel` | Chat, Responses | **GPT-6.1**: `Gpt6_1Sol` / **GPT-6**: `Gpt6Astra`, `Gpt6Sol`, `Gpt6Luna` / **GPT-5.6**: `Gpt5_6` (alias→Sol), `Gpt5_6Sol`, `Gpt5_6Terra`, `Gpt5_6Luna` / **GPT-5.5**: `Gpt5_5`, `Gpt5_5Pro` / **GPT-5.4**: `Gpt5_4`, `Gpt5_4Pro`, `Gpt5_4Mini`, `Gpt5_4Nano` / **GPT-5.3**: `Gpt5_3ChatLatest` / **Codex**: `Gpt5_3Codex`, `Gpt5_2Codex`, `Gpt5_1Codex`, `Gpt5_1CodexMax` / **GPT-5**: `Gpt5`, `Gpt5Pro`, `Gpt5_2`, `Gpt5_2ChatLatest`, `Gpt5_2Pro`, `Gpt5_1`, `Gpt5_1ChatLatest`, `Gpt5Mini`, `Gpt5Nano` / **Search**: `Gpt5SearchApi`, `Gpt4oSearchPreview`, `Gpt4oMiniSearchPreview` / **Audio**: `GptAudio`, `GptAudio1_5`, `GptAudioMini` / **GPT-4.1**: `Gpt4_1`, `Gpt4_1Mini`, `Gpt4_1Nano` / **GPT-4o**: `Gpt4o`, `Gpt4oMini`, `Gpt4oAudioPreview` / **GPT-4/3.5**: `Gpt4Turbo`, `Gpt4`, `Gpt3_5Turbo`, `Gpt3_5Turbo16k` / **Reasoning**: `O1`, `O1Pro`, `O3`, `O3Pro`, `O3Mini`, `O4Mini` / `Custom(String)` |
+| `ChatModel` | Chat, Responses | **GPT-6.2**: `Gpt6_2Astra`, `Gpt6_2Sol` / **GPT-6.1**: `Gpt6_1Sol`, `Gpt6_1Terra` / **GPT-6**: `Gpt6Astra`, `Gpt6Sol`, `Gpt6Luna` / **Instant**: `ChatLatest` / **GPT-5.6**: `Gpt5_6` (alias→Sol), `Gpt5_6Sol`, `Gpt5_6Terra`, `Gpt5_6Luna` / **GPT-5.5**: `Gpt5_5`, `Gpt5_5Pro` / **GPT-5.4**: `Gpt5_4`, `Gpt5_4Pro`, `Gpt5_4Mini`, `Gpt5_4Nano` / **GPT-5.3**: `Gpt5_3ChatLatest` / **Codex**: `Gpt5_3Codex`, `Gpt5_2Codex`, `Gpt5_1Codex`, `Gpt5_1CodexMax` / **GPT-5**: `Gpt5`, `Gpt5Pro`, `Gpt5_2`, `Gpt5_2ChatLatest`, `Gpt5_2Pro`, `Gpt5_1`, `Gpt5_1ChatLatest`, `Gpt5Mini`, `Gpt5Nano` / **Search**: `Gpt5SearchApi`, `Gpt4oSearchPreview`, `Gpt4oMiniSearchPreview` / **Audio**: `GptAudio`, `GptAudio1_5`, `GptAudioMini` / **GPT-4.1**: `Gpt4_1`, `Gpt4_1Mini`, `Gpt4_1Nano` / **GPT-4o**: `Gpt4o`, `Gpt4oMini`, `Gpt4oAudioPreview` / **GPT-4/3.5**: `Gpt4Turbo`, `Gpt4`, `Gpt3_5Turbo`, `Gpt3_5Turbo16k` / **Reasoning**: `O1`, `O1Pro`, `O3`, `O3Pro`, `O3Mini`, `O4Mini` / `Custom(String)` |
 | `EmbeddingModel` | Embedding | `TextEmbedding3Small`, `TextEmbedding3Large`, `TextEmbeddingAda002` |
 | `RealtimeModel` | Realtime | `GptRealtime2_1`, `GptRealtime2_1Mini`, `GptRealtime2`, `GptRealtime1_5`, `GptRealtime`, `GptRealtimeMini`, `GptRealtimeTranslate`, `GptRealtime_2025_08_28` (default), `Custom(String)` |
-| `LiveModel` | Live | `GptLive1` (default), `Custom(String)` |
+| `LiveModel` | Live | `GptLive1` (default), `GptLive1_1`, `Custom(String)` |
 | `FineTuningModel` | Fine-tuning | `Gpt41_2025_04_14`, `Gpt41Mini_2025_04_14`, `Gpt41Nano_2025_04_14`, `Gpt4oMini_2024_07_18`, `Gpt4o_2024_08_06`, `Gpt4_0613`, `Gpt35Turbo_0125`, `Babbage002`, `Davinci002`, etc. |
-| `ImageModel` | Images | `GptImage1` (default), `GptImage1Mini`, `GptImage1_5`, `GptImage2`, `GptImage2_5Flare`, `GptImage2_5Sunburst`, `ChatGptImageLatest`, `DallE2`/`DallE3` (retired on OpenAI; Azure only) |
+| `ImageModel` | Images | `GptImage1` (default), `GptImage1Mini`, `GptImage1_5`, `GptImage2`, `GptImage2_5Flare`, `GptImage2_5Sunburst`, `GptImage2_6Flare`, `GptImage2_6Sunburst`, `ChatGptImageLatest`, `DallE2`/`DallE3` (retired on OpenAI; Azure only) |
 | `VideoModel` | Videos | `Sora2` (default), `Sora2Pro` |
 
 ```rust
@@ -805,9 +805,9 @@ Each API (Chat, Embedding, etc.) requires its own complete endpoint URL includin
 - Detailed category scores
 
 **Images API Features:**
-- Image generation (GPT Image 1 / 1 Mini / 1.5 / 2 / 2.5 Flare / 2.5 Sunburst)
+- Image generation (GPT Image 1 / 1 Mini / 1.5 / 2 / 2.5 Flare / 2.5 Sunburst / 2.6 Flare / 2.6 Sunburst)
 - **DALL-E retired**: `dall-e-2`/`dall-e-3` no longer exist on `api.openai.com` (the API returns "The model 'dall-e-3' does not exist."). The enum variants remain for Azure deployments. `ImageModel::default()` is `GptImage1`.
-- GPT Image models reject `response_format` and `style` (`unknown_parameter`) and always return base64; `quality` must be `low`/`medium`/`high`/`auto` (GPT Image 2.5 also accepts `max`), not `standard`/`hd`
+- GPT Image models reject `response_format` and `style` (`unknown_parameter`) and always return base64; `quality` must be `low`/`medium`/`high`/`auto` (GPT Image 2.5 / 2.6 Flare and Sunburst also accept `xhigh` and `max`), not `standard`/`hd`
 - Image editing with masks
 - Image variations (DALL-E 2 only)
 - URL or base64 response format
@@ -825,6 +825,7 @@ Each API (Chat, Embedding, etc.) requires its own complete endpoint URL includin
 - Function calling support
 
 **Live API Features:**
+- Models: `GptLive1` (`gpt-live-1`, default) and `GptLive1_1` (`gpt-live-1.1`)
 - Primary WebSocket sessions and session Fork
 - PCM16, G.711 μ-law, and G.711 A-law audio
 - Client and Responses API delegation
@@ -866,7 +867,7 @@ Each API (Chat, Embedding, etc.) requires its own complete endpoint URL includin
 
 OpenAI's reasoning models (GPT-6 series: `gpt-6-*`, GPT-5 series: `gpt-5.6-*`, `gpt-5.5`, `gpt-5.4`, `gpt-5.2`, `gpt-5.1`, `gpt-5-mini`, the `*-codex` models, and o-series: `o1`, `o3`, `o3-mini`, `o4-mini`, etc.) have specific parameter restrictions. This library automatically handles these restrictions by ignoring unsupported parameters and logging warnings.
 
-**Exception — `*-chat-latest` models**: `gpt-5.1-chat-latest`, `gpt-5.2-chat-latest` and `gpt-5.3-chat-latest` point at the non-reasoning "Instant" snapshots used in ChatGPT. They accept the **full standard parameter set** (`temperature`, `top_p`, `n`, `logprobs`, …), so `is_reasoning_model()` returns `false` for them and no parameters are dropped.
+**Exception — chat-latest aliases**: `chat-latest`, `gpt-5.1-chat-latest`, `gpt-5.2-chat-latest` and `gpt-5.3-chat-latest` point at non-reasoning "Instant" models used in ChatGPT. They accept the **full standard parameter set** (`temperature`, `top_p`, `n`, `logprobs`, …), so `is_reasoning_model()` returns `false` for them and no parameters are dropped.
 
 **Responses API only** (no Chat Completions endpoint): `gpt-5.5-pro`, `gpt-5.4-pro`, `gpt-5.2-pro`, `gpt-5-pro`, `o3-pro`, and all `*-codex` models.
 
@@ -894,15 +895,15 @@ responses.model(ChatModel::Gpt5_2)
 **ReasoningEffort levels:**
 | Level | Description | Supported Models |
 |-------|-------------|------------------|
-| `None` | No reasoning tokens (fastest) | GPT-5.1, GPT-5.2, GPT-6 Sol, GPT-6 Luna |
+| `None` | No reasoning tokens (fastest) | GPT-5.1, GPT-5.2, GPT-6.1 Terra, GPT-6 Sol, GPT-6 Luna |
 | `Minimal` | Very few reasoning tokens | GPT-5 Mini |
-| `Low` | Light reasoning | GPT-5.1, GPT-5.2, o-series |
+| `Low` | Light reasoning | GPT-6.2 Astra / Sol, GPT-6.1 Terra, GPT-5.1, GPT-5.2, o-series |
 | `Medium` | Balanced reasoning | All reasoning models |
 | `High` | Deep reasoning | All reasoning models |
-| `Xhigh` | Maximum reasoning | GPT-5.2 Pro, GPT-5.1 Codex Max, GPT-6.1 Sol, GPT-6 series |
-| `Max` | Maximum reasoning (Responses API only) | GPT-6.1 Sol, GPT-6 series |
+| `Xhigh` | Maximum reasoning | GPT-5.2 Pro, GPT-5.1 Codex Max, GPT-6.1 Terra / Sol, GPT-6 series |
+| `Max` | Maximum reasoning (Responses API only) | GPT-6.1 Terra / Sol, GPT-6 series |
 
-GPT-6.1 Sol と GPT-6 Astra は `none` と `minimal` を，GPT-6 Sol / Luna は `minimal` を拒否する．
+GPT-6.2 Astra / Sol は `none` を拒否するため，`none` / `minimal` から移行する場合は `low` を使う．GPT-6.1 Terra は `minimal` を拒否し，`medium` が既定である．GPT-6.1 Sol と GPT-6 Astra は `none` と `minimal` を，GPT-6 Sol / Luna は `minimal` を拒否する．
 
 #### Chat Completions API Parameter Restrictions
 

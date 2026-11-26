@@ -131,10 +131,11 @@ runtime `model_not_found`.
 
 | Enum | API | Variants |
 |------|-----|----------|
-| `ChatModel` | Chat, Responses | **GPT-6.1**: `Gpt6_1Sol`<br>**GPT-6**: `Gpt6Astra`, `Gpt6Sol`, `Gpt6Luna`<br>**GPT-5.6**: `Gpt5_6` (alias to Sol), `Gpt5_6Sol`, `Gpt5_6Terra`, `Gpt5_6Luna`<br>**GPT-5.5**: `Gpt5_5`, `Gpt5_5Pro`<br>**GPT-5.4**: `Gpt5_4`, `Gpt5_4Pro`, `Gpt5_4Mini`, `Gpt5_4Nano`<br>**GPT-5.3**: `Gpt5_3ChatLatest`<br>**Codex**: `Gpt5_3Codex`, `Gpt5_2Codex`, `Gpt5_1Codex`, `Gpt5_1CodexMax`<br>**GPT-5**: `Gpt5`, `Gpt5Pro`, `Gpt5_2`, `Gpt5_2ChatLatest`, `Gpt5_2Pro`, `Gpt5_1`, `Gpt5_1ChatLatest`, `Gpt5Mini`, `Gpt5Nano`<br>**Search**: `Gpt5SearchApi`, `Gpt4oSearchPreview`, `Gpt4oMiniSearchPreview`<br>**Audio**: `GptAudio`, `GptAudio1_5`, `GptAudioMini`<br>**GPT-4.1 / 4o / 4 / 3.5**: `Gpt4_1`, `Gpt4_1Mini`, `Gpt4_1Nano`, `Gpt4o`, `Gpt4oMini`, `Gpt4oAudioPreview`, `Gpt4Turbo`, `Gpt4`, `Gpt3_5Turbo`, `Gpt3_5Turbo16k`<br>**o-series**: `O1`, `O1Pro`, `O3`, `O3Pro`, `O3Mini`, `O4Mini`<br>`Custom(String)` |
+| `ChatModel` | Chat, Responses | **GPT-6.2**: `Gpt6_2Astra`, `Gpt6_2Sol`<br>**GPT-6.1**: `Gpt6_1Sol`, `Gpt6_1Terra`<br>**GPT-6**: `Gpt6Astra`, `Gpt6Sol`, `Gpt6Luna`<br>**Instant**: `ChatLatest`<br>**GPT-5.6**: `Gpt5_6` (alias to Sol), `Gpt5_6Sol`, `Gpt5_6Terra`, `Gpt5_6Luna`<br>**GPT-5.5**: `Gpt5_5`, `Gpt5_5Pro`<br>**GPT-5.4**: `Gpt5_4`, `Gpt5_4Pro`, `Gpt5_4Mini`, `Gpt5_4Nano`<br>**GPT-5.3**: `Gpt5_3ChatLatest`<br>**Codex**: `Gpt5_3Codex`, `Gpt5_2Codex`, `Gpt5_1Codex`, `Gpt5_1CodexMax`<br>**GPT-5**: `Gpt5`, `Gpt5Pro`, `Gpt5_2`, `Gpt5_2ChatLatest`, `Gpt5_2Pro`, `Gpt5_1`, `Gpt5_1ChatLatest`, `Gpt5Mini`, `Gpt5Nano`<br>**Search**: `Gpt5SearchApi`, `Gpt4oSearchPreview`, `Gpt4oMiniSearchPreview`<br>**Audio**: `GptAudio`, `GptAudio1_5`, `GptAudioMini`<br>**GPT-4.1 / 4o / 4 / 3.5**: `Gpt4_1`, `Gpt4_1Mini`, `Gpt4_1Nano`, `Gpt4o`, `Gpt4oMini`, `Gpt4oAudioPreview`, `Gpt4Turbo`, `Gpt4`, `Gpt3_5Turbo`, `Gpt3_5Turbo16k`<br>**o-series**: `O1`, `O1Pro`, `O3`, `O3Pro`, `O3Mini`, `O4Mini`<br>`Custom(String)` |
 | `EmbeddingModel` | Embedding | `TextEmbedding3Small`, `TextEmbedding3Large`, `TextEmbeddingAda002` |
 | `RealtimeModel` | Realtime | `GptRealtime2_1`, `GptRealtime2_1Mini`, `GptRealtime2`, `GptRealtime1_5`, `GptRealtime`, `GptRealtimeMini`, `GptRealtimeTranslate`, `GptRealtime_2025_08_28` (default), `Custom(String)` |
-| `ImageModel` | Images | `GptImage1` (default), `GptImage1Mini`, `GptImage1_5`, `GptImage2`, `GptImage2_5Flare`, `GptImage2_5Sunburst`, `ChatGptImageLatest`, `DallE2`, `DallE3` |
+| `ImageModel` | Images | `GptImage1` (default), `GptImage1Mini`, `GptImage1_5`, `GptImage2`, `GptImage2_5Flare`, `GptImage2_5Sunburst`, `GptImage2_6Flare`, `GptImage2_6Sunburst`, `ChatGptImageLatest`, `DallE2`, `DallE3` |
+| `LiveModel` | Live | `GptLive1` (default), `GptLive1_1`, `Custom(String)` |
 | `VideoModel` | Videos | `Sora2` (default), `Sora2Pro` |
 | `TtsModel` | Audio | `Tts1`, `Tts1Hd`, `Tts1_1106`, `Tts1Hd1106`, `Gpt4oMiniTts` |
 | `SttModel` | Audio | `Whisper1`, `Gpt4oTranscribe`, `Gpt4oMiniTranscribe`, `Gpt4oTranscribeDiarize`, `GptTranscribe`, `GptLiveTranscribe`, `GptRealtimeWhisper` |
@@ -163,9 +164,10 @@ The library validates parameters per model and drops unsupported ones with a
 
 Two things are easy to get wrong here:
 
-- The **`*-chat-latest`** aliases (`gpt-5.1-chat-latest`, `gpt-5.2-chat-latest`,
-  `gpt-5.3-chat-latest`) point at the non-reasoning "Instant" snapshots, so they
-  accept the **full** standard parameter set despite the `gpt-5` prefix.
+- The **chat-latest aliases** (`chat-latest`, `gpt-5.1-chat-latest`,
+  `gpt-5.2-chat-latest`, `gpt-5.3-chat-latest`) point at non-reasoning "Instant" models, so they
+  accept the **full** standard parameter set. The versioned aliases do so despite
+  the `gpt-5` prefix.
 - **Search models** reject the same sampling parameters as reasoning models, and
   also `n > 1`, but expose no `reasoning` parameter, so they are a separate category.
 
@@ -368,7 +370,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ## Live API
 
-Full-duplex voice conversations with `gpt-live-1` over a primary WebSocket.
+Full-duplex voice conversations with `gpt-live-1` or `gpt-live-1.1` over a primary WebSocket.
 Reasoning and tool execution are delegated to a Responses API model or to your application.
 
 ```rust
@@ -542,7 +544,7 @@ The GPT Image models differ from DALL-E in three ways:
 
 | | DALL-E 3 | GPT Image |
 |---|---|---|
-| `quality` | `Standard`, `Hd` | `Low`, `Medium`, `High`, `Max` (GPT Image 2.5 only), `Auto` |
+| `quality` | `Standard`, `Hd` | `Low`, `Medium`, `High`, `Auto`; `Xhigh` and `Max` for GPT Image 2.5 / 2.6 Flare and Sunburst |
 | `size` | `1024x1024`, `1792x1024`, `1024x1792` | `1024x1024`, `1024x1536`, `1536x1024`, `Auto` |
 | `response_format` / `style` | Supported | **Rejected** (`unknown_parameter`); always base64 |
 
@@ -727,6 +729,29 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ```
 
 ## Update History
+
+<details>
+<summary>v3.3.0</summary>
+
+All additions in this release are non-breaking because 3.0.0 made the public enums `#[non_exhaustive]`.
+
+**New models**
+
+- `ChatModel::Gpt6_2Astra` (`gpt-6.2-astra`) and `ChatModel::Gpt6_2Sol` (`gpt-6.2-sol`), with Chat Completions and Responses support. Tool calling is available through Responses only, and reasoning effort `none` is rejected.
+- `ChatModel::Gpt6_1Terra` (`gpt-6.1-terra`), with Chat Completions and Responses support. Reasoning effort `minimal` is rejected.
+- `ChatModel::ChatLatest` (`chat-latest`), the non-reasoning ChatGPT Instant alias. It accepts the full standard parameter set.
+- `ImageModel::GptImage2_6Sunburst` (`gpt-image-2.6-sunburst`) and `ImageModel::GptImage2_6Flare` (`gpt-image-2.6-flare`).
+- `LiveModel::GptLive1_1` (`gpt-live-1.1`). The default stays `GptLive1`.
+
+**New API**
+
+- `ImageQuality::Xhigh` (`xhigh`), accepted by GPT Image 2.5 / 2.6 Flare and Sunburst.
+
+**Docs**
+
+- Documented the supported reasoning efforts for GPT-6.2 Astra / Sol and GPT-6.1 Terra.
+
+</details>
 
 <details>
 <summary>v3.2.0</summary>

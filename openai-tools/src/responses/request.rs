@@ -97,6 +97,7 @@ pub enum Include {
 ///
 /// | Model | Supported Values |
 /// |-------|-----------------|
+/// | GPT-6.1 Terra | `none`, `low`, `medium`, `high`, `xhigh`, `max` |
 /// | GPT-6.1 Sol | `low`, `medium`, `high`, `xhigh`, `max` |
 /// | GPT-6 Astra | `low`, `medium`, `high`, `xhigh`, `max` |
 /// | GPT-6 Sol, GPT-6 Luna | `none`, `low`, `medium`, `high`, `xhigh`, `max` |
@@ -104,6 +105,9 @@ pub enum Include {
 /// | GPT-5.1 | `none`, `low`, `medium`, `high` |
 /// | GPT-5-mini | `minimal`, `medium`, `high` |
 /// | o1, o3, o4 series | `low`, `medium`, `high` |
+///
+/// GPT-6.2 Astra and Sol reject `none`; use `low` when replacing `none` or
+/// `minimal`. GPT-6.1 Terra rejects `minimal`, and `medium` is its default.
 ///
 /// # API Reference
 ///
@@ -152,17 +156,16 @@ pub enum ReasoningEffort {
     ///
     /// Use this for the most demanding tasks requiring maximum reasoning
     /// quality. Available on supported GPT-5 and GPT-6 models, including
-    /// GPT-6.1 Sol.
+    /// GPT-6.1 Terra and GPT-6.1 Sol.
     #[strum(serialize = "xhigh")]
     #[serde(rename = "xhigh")]
     Xhigh,
 
     /// Maximum reasoning effort for GPT-6 models
     ///
-    /// Responses API only. Accepted by GPT-6.1 Sol, GPT-6 Astra, GPT-6 Sol, and
-    /// GPT-6 Luna (`gpt-6.1-sol`, `gpt-6-astra`, `gpt-6-sol`, and
-    /// `gpt-6-luna`). Chat Completions rejects `max` in its `reasoning_effort`
-    /// parameter, including for GPT-6 models.
+    /// Responses API only. Accepted by GPT-6.1 Terra, GPT-6.1 Sol, GPT-6
+    /// Astra, GPT-6 Sol, and GPT-6 Luna. Chat Completions rejects `max` in its
+    /// `reasoning_effort` parameter, including for GPT-6 models.
     #[strum(serialize = "max")]
     #[serde(rename = "max")]
     Max,

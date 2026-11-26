@@ -164,10 +164,14 @@ impl ParameterSupport {
 /// # Model Categories
 ///
 /// ## GPT-6 Series (Latest Flagship)
+/// - [`Gpt6_2Astra`](Self::Gpt6_2Astra): GPT-6.2 Astra reasoning model
+/// - [`Gpt6_2Sol`](Self::Gpt6_2Sol): GPT-6.2 Sol reasoning model
+/// - [`Gpt6_1Terra`](Self::Gpt6_1Terra): Fast, efficient model for visual reasoning and computer use
 /// - [`Gpt6_1Sol`](Self::Gpt6_1Sol): Latest Sol model ($2 / $10)
 /// - [`Gpt6Astra`](Self::Gpt6Astra): Flagship model ($10 input / $50 output per million tokens)
 /// - [`Gpt6Sol`](Self::Gpt6Sol): Complex coding and professional tasks ($2 / $10)
 /// - [`Gpt6Luna`](Self::Gpt6Luna): High-volume routine tasks ($0.10 / $0.50)
+/// - [`ChatLatest`](Self::ChatLatest): Latest Instant model used in ChatGPT
 ///
 /// ## GPT-5 Series
 /// - [`Gpt5_2`](Self::Gpt5_2): GPT-5.2 Thinking - flagship model for coding and agentic tasks
@@ -207,6 +211,10 @@ impl ParameterSupport {
 /// - `xhigh`: Extra-high reasoning
 /// - `max`: Maximum reasoning (GPT-6 series, Responses API only)
 ///
+/// GPT-6.2 Astra and Sol reject `none`; use `low` when replacing `none` or
+/// `minimal`. GPT-6.1 Terra rejects `minimal` and supports `none`, `low`,
+/// `medium` (default), `high`, `xhigh`, and `max`.
+///
 /// # Example
 ///
 /// ```rust
@@ -227,6 +235,44 @@ impl ParameterSupport {
 #[non_exhaustive]
 pub enum ChatModel {
     // === GPT-6 Series (Latest Flagship) ===
+    /// GPT-6.2 Astra reasoning model
+    ///
+    /// - Supports Chat Completions and Responses APIs
+    /// - Tool calling requires the Responses API
+    /// - Rejects reasoning effort `none`; use `low` when replacing `none` or
+    ///   `minimal`
+    /// - Does not support `temperature`, `top_p`, `logprobs`, or `top_logprobs`
+    /// - Does not support Flex processing (`service_tier: flex`)
+    /// - In the Responses API, top-level `instructions` are appended after
+    ///   `input`; put instructions that should be cached in the initial
+    ///   `developer` message
+    /// - Editing a conversation prefix discards reasoning items
+    #[serde(rename = "gpt-6.2-astra")]
+    Gpt6_2Astra,
+
+    /// GPT-6.2 Sol reasoning model
+    ///
+    /// - Supports Chat Completions and Responses APIs
+    /// - Tool calling requires the Responses API
+    /// - Rejects reasoning effort `none`; use `low` when replacing `none` or
+    ///   `minimal`
+    /// - Does not support `temperature`, `top_p`, `logprobs`, or `top_logprobs`
+    /// - Does not support Flex processing (`service_tier: flex`)
+    /// - In the Responses API, top-level `instructions` are appended after
+    ///   `input`; put instructions that should be cached in the initial
+    ///   `developer` message
+    /// - Editing a conversation prefix discards reasoning items
+    #[serde(rename = "gpt-6.2-sol")]
+    Gpt6_2Sol,
+
+    /// GPT-6.1 Terra - fast, efficient model for visual reasoning and computer use
+    ///
+    /// - Supports reasoning effort `none`, `low`, `medium` (default), `high`,
+    ///   `xhigh`, and `max`; `minimal` is unsupported
+    /// - Tool calling requires the Responses API
+    #[serde(rename = "gpt-6.1-terra")]
+    Gpt6_1Terra,
+
     /// GPT-6.1 Sol - Latest Sol model for complex professional work
     ///
     /// - Pricing per million tokens (input up to 272K): $2 input, $0.10 cached
@@ -261,6 +307,14 @@ pub enum ChatModel {
     /// - Responses reasoning effort: none, low, medium, high, xhigh, max
     #[serde(rename = "gpt-6-luna")]
     Gpt6Luna,
+
+    /// Alias for the latest Instant model used in ChatGPT
+    ///
+    /// - Supports Chat Completions and Responses APIs
+    /// - Does not support Batch
+    /// - GPT-6.2 models are recommended for production use
+    #[serde(rename = "chat-latest")]
+    ChatLatest,
 
     // === GPT-5.6 Series ===
     /// GPT-5.6 - Alias routing to GPT-5.6 Sol
@@ -552,10 +606,14 @@ impl ChatModel {
     pub fn as_str(&self) -> &str {
         match self {
             // GPT-6 Series
+            Self::Gpt6_2Astra => "gpt-6.2-astra",
+            Self::Gpt6_2Sol => "gpt-6.2-sol",
+            Self::Gpt6_1Terra => "gpt-6.1-terra",
             Self::Gpt6_1Sol => "gpt-6.1-sol",
             Self::Gpt6Astra => "gpt-6-astra",
             Self::Gpt6Sol => "gpt-6-sol",
             Self::Gpt6Luna => "gpt-6-luna",
+            Self::ChatLatest => "chat-latest",
             // GPT-5.6 Series
             Self::Gpt5_6 => "gpt-5.6",
             Self::Gpt5_6Sol => "gpt-5.6-sol",
@@ -642,7 +700,7 @@ impl ChatModel {
         matches!(
             self,
             // GPT-6 series
-            Self::Gpt6_1Sol | Self::Gpt6Astra | Self::Gpt6Sol | Self::Gpt6Luna |
+            Self::Gpt6_2Astra | Self::Gpt6_2Sol | Self::Gpt6_1Terra | Self::Gpt6_1Sol | Self::Gpt6Astra | Self::Gpt6Sol | Self::Gpt6Luna |
             // GPT-5.6 series
             Self::Gpt5_6 | Self::Gpt5_6Sol | Self::Gpt5_6Terra | Self::Gpt5_6Luna |
             // GPT-5.5 series
@@ -747,10 +805,14 @@ impl From<&str> for ChatModel {
     fn from(s: &str) -> Self {
         match s {
             // GPT-6 Series
+            "gpt-6.2-astra" => Self::Gpt6_2Astra,
+            "gpt-6.2-sol" => Self::Gpt6_2Sol,
+            "gpt-6.1-terra" => Self::Gpt6_1Terra,
             "gpt-6.1-sol" => Self::Gpt6_1Sol,
             "gpt-6-astra" => Self::Gpt6Astra,
             "gpt-6-sol" => Self::Gpt6Sol,
             "gpt-6-luna" => Self::Gpt6Luna,
+            "chat-latest" => Self::ChatLatest,
             // GPT-5.6 Series
             "gpt-5.6" => Self::Gpt5_6,
             "gpt-5.6-sol" => Self::Gpt5_6Sol,
@@ -1053,6 +1115,10 @@ pub enum LiveModel {
     #[default]
     GptLive1,
 
+    /// GPT Live 1.1 speech-to-speech model.
+    #[serde(rename = "gpt-live-1.1")]
+    GptLive1_1,
+
     /// A model identifier not yet represented by a dedicated variant.
     #[serde(untagged)]
     Custom(String),
@@ -1063,6 +1129,7 @@ impl LiveModel {
     pub fn as_str(&self) -> &str {
         match self {
             Self::GptLive1 => "gpt-live-1",
+            Self::GptLive1_1 => "gpt-live-1.1",
             Self::Custom(model) => model,
         }
     }
@@ -1083,6 +1150,7 @@ impl From<&str> for LiveModel {
     fn from(model: &str) -> Self {
         match model {
             "gpt-live-1" => Self::GptLive1,
+            "gpt-live-1.1" => Self::GptLive1_1,
             other => Self::Custom(other.to_string()),
         }
     }
@@ -1702,13 +1770,18 @@ mod tests {
     // GPT-5.3 / 5.4 / 5.5 / 5.6, GPT-6 series, and Codex models
     //
     // Model IDs and capabilities verified against the OpenAI API reference
-    // (https://developers.openai.com/api/docs/models), September 2026.
+    // (https://developers.openai.com/api/docs/models), November 2026.
     // ========================================================================
 
-    /// Every model ID added for the GPT-5.3 through GPT-6 generations, paired
+    /// Every model ID added for the GPT-5.3 through GPT-6.2 generations, paired
     /// with the exact string the API expects.
     fn new_chat_models() -> Vec<(ChatModel, &'static str)> {
         vec![
+            // GPT-6.2 series has no `gpt-6.2` alias.
+            (ChatModel::Gpt6_2Astra, "gpt-6.2-astra"),
+            (ChatModel::Gpt6_2Sol, "gpt-6.2-sol"),
+            // GPT-6.1 series has no `gpt-6.1` alias.
+            (ChatModel::Gpt6_1Terra, "gpt-6.1-terra"),
             // GPT-6.1 series has no `gpt-6.1` alias.
             (ChatModel::Gpt6_1Sol, "gpt-6.1-sol"),
             // GPT-6 series has no `gpt-6` alias.
@@ -1730,6 +1803,8 @@ mod tests {
             (ChatModel::Gpt5_4Nano, "gpt-5.4-nano"),
             // GPT-5.3 series
             (ChatModel::Gpt5_3ChatLatest, "gpt-5.3-chat-latest"),
+            // Latest ChatGPT Instant alias.
+            (ChatModel::ChatLatest, "chat-latest"),
             // Codex series
             (ChatModel::Gpt5_3Codex, "gpt-5.3-codex"),
             (ChatModel::Gpt5_2Codex, "gpt-5.2-codex"),
@@ -1753,6 +1828,7 @@ mod tests {
         }
 
         assert!(matches!(ChatModel::from("gpt-6.1"), ChatModel::Custom(_)), "gpt-6.1 must not be treated as an API model alias");
+        assert!(matches!(ChatModel::from("gpt-6.2"), ChatModel::Custom(_)), "gpt-6.2 must not be treated as an API model alias");
         assert!(matches!(ChatModel::from("gpt-6"), ChatModel::Custom(_)), "gpt-6 must not be treated as an API model alias");
     }
 
@@ -1771,6 +1847,9 @@ mod tests {
     #[test]
     fn test_new_models_are_reasoning_models() {
         let reasoning = vec![
+            ChatModel::Gpt6_2Astra,
+            ChatModel::Gpt6_2Sol,
+            ChatModel::Gpt6_1Terra,
             ChatModel::Gpt6_1Sol,
             ChatModel::Gpt6Astra,
             ChatModel::Gpt6Sol,
@@ -1798,12 +1877,12 @@ mod tests {
         }
     }
 
-    /// The `*-chat-latest` models point at the non-reasoning "Instant"
+    /// The chat-latest aliases point at the non-reasoning "Instant"
     /// snapshots used in ChatGPT. The API reference lists no reasoning token
     /// support for them, so they accept the full standard parameter set.
     #[test]
     fn test_chat_latest_models_are_not_reasoning_models() {
-        let chat_latest = vec![ChatModel::Gpt5_3ChatLatest, ChatModel::Gpt5_2ChatLatest, ChatModel::Gpt5_1ChatLatest];
+        let chat_latest = vec![ChatModel::ChatLatest, ChatModel::Gpt5_3ChatLatest, ChatModel::Gpt5_2ChatLatest, ChatModel::Gpt5_1ChatLatest];
 
         for model in chat_latest {
             assert!(!model.is_reasoning_model(), "Expected {} to NOT be a reasoning model", model.as_str());
