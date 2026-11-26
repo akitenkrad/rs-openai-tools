@@ -688,6 +688,9 @@ pub struct Body {
     ///
     /// Controls how long cached prompts should be retained.
     /// Format: duration string (e.g., "1h", "24h", "7d")
+    ///
+    /// GPT-6.2 Astra and Sol use `prompt_cache_options.ttl` instead of this
+    /// field; see [`Responses::prompt_cache_retention`].
     pub prompt_cache_retention: Option<String>,
 
     /// Optional structured output format specification
@@ -1721,6 +1724,14 @@ impl Responses {
     /// Sets the prompt cache retention duration
     ///
     /// Controls how long cached prompts should be retained.
+    ///
+    /// # GPT-6.2
+    ///
+    /// OpenAI's GPT-6.2 migration guide says to replace `prompt_cache_retention`
+    /// with `prompt_cache_options.ttl` (for example `"30m"`) when moving from
+    /// GPT-5.5 or earlier. This library does not support
+    /// `prompt_cache_options` yet, so do not rely on this setter for
+    /// [`ChatModel::Gpt6_2Astra`] or [`ChatModel::Gpt6_2Sol`].
     ///
     /// # Arguments
     ///

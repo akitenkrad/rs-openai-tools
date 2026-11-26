@@ -286,9 +286,14 @@ Note: a catch-all variant holding a `String` is incompatible with `#[derive(Copy
 ```rust
 use openai_tools::common::models::{ChatModel, EmbeddingModel, RealtimeModel, FineTuningModel};
 
-// Chat/Responses API - GPT-5 series (latest flagship)
+// Chat/Responses API - GPT-6 series (latest flagship)
+responses.model(ChatModel::Gpt6_2Astra); // GPT-6.2 Astra - recommended for production
+chat.model(ChatModel::Gpt6_2Sol);        // GPT-6.2 Sol (tool calling needs the Responses API)
+chat.model(ChatModel::Gpt6_1Terra);      // GPT-6.1 Terra - fast visual reasoning & computer use
+
+// Chat/Responses API - GPT-5 series
 chat.model(ChatModel::Gpt5_2);          // GPT-5.2 Thinking - coding & agentic tasks
-responses.model(ChatModel::Gpt5_2Pro);  // GPT-5.2 Pro - most capable (Responses API only)
+responses.model(ChatModel::Gpt5_2Pro);  // GPT-5.2 Pro (Responses API only)
 chat.model(ChatModel::Gpt5_1);          // GPT-5.1 - configurable reasoning
 
 // Chat/Responses API - Other models
@@ -757,7 +762,7 @@ Each API (Chat, Embedding, etc.) requires its own complete endpoint URL includin
 - Input truncation behavior with `Truncation` (Auto, Disabled)
 - Tool choice control with `ToolChoice` (auto, none, required, or specific function)
 - Prompt templates with `Prompt` (ID and variable substitution)
-- Prompt caching with `prompt_cache_key` and `prompt_cache_retention`
+- Prompt caching with `prompt_cache_key` and `prompt_cache_retention` (GPT-6.2 uses `prompt_cache_options.ttl` instead, which is not supported yet)
 - Response data inclusion with `Include`:
   - `WebSearchCall` - web search results
   - `CodeInterpreterCall` - code execution outputs
@@ -865,7 +870,7 @@ Each API (Chat, Embedding, etc.) requires its own complete endpoint URL includin
 
 ### Reasoning Models (GPT-6 Series, GPT-5 Series, o1, o3, o4 Series)
 
-OpenAI's reasoning models (GPT-6 series: `gpt-6-*`, GPT-5 series: `gpt-5.6-*`, `gpt-5.5`, `gpt-5.4`, `gpt-5.2`, `gpt-5.1`, `gpt-5-mini`, the `*-codex` models, and o-series: `o1`, `o3`, `o3-mini`, `o4-mini`, etc.) have specific parameter restrictions. This library automatically handles these restrictions by ignoring unsupported parameters and logging warnings.
+OpenAI's reasoning models (GPT-6 series: `gpt-6.2-*`, `gpt-6.1-*`, `gpt-6-*`, GPT-5 series: `gpt-5.6-*`, `gpt-5.5`, `gpt-5.4`, `gpt-5.2`, `gpt-5.1`, `gpt-5-mini`, the `*-codex` models, and o-series: `o1`, `o3`, `o3-mini`, `o4-mini`, etc.) have specific parameter restrictions. This library automatically handles these restrictions by ignoring unsupported parameters and logging warnings.
 
 **Exception — chat-latest aliases**: `chat-latest`, `gpt-5.1-chat-latest`, `gpt-5.2-chat-latest` and `gpt-5.3-chat-latest` point at non-reasoning "Instant" models used in ChatGPT. They accept the **full standard parameter set** (`temperature`, `top_p`, `n`, `logprobs`, …), so `is_reasoning_model()` returns `false` for them and no parameters are dropped.
 

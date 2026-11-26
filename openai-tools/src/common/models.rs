@@ -167,10 +167,12 @@ impl ParameterSupport {
 /// - [`Gpt6_2Astra`](Self::Gpt6_2Astra): GPT-6.2 Astra reasoning model
 /// - [`Gpt6_2Sol`](Self::Gpt6_2Sol): GPT-6.2 Sol reasoning model
 /// - [`Gpt6_1Terra`](Self::Gpt6_1Terra): Fast, efficient model for visual reasoning and computer use
-/// - [`Gpt6_1Sol`](Self::Gpt6_1Sol): Latest Sol model ($2 / $10)
-/// - [`Gpt6Astra`](Self::Gpt6Astra): Flagship model ($10 input / $50 output per million tokens)
+/// - [`Gpt6_1Sol`](Self::Gpt6_1Sol): GPT-6.1 Sol ($2 / $10)
+/// - [`Gpt6Astra`](Self::Gpt6Astra): GPT-6 Astra ($10 input / $50 output per million tokens)
 /// - [`Gpt6Sol`](Self::Gpt6Sol): Complex coding and professional tasks ($2 / $10)
 /// - [`Gpt6Luna`](Self::Gpt6Luna): High-volume routine tasks ($0.10 / $0.50)
+///
+/// ## Instant (non-reasoning)
 /// - [`ChatLatest`](Self::ChatLatest): Latest Instant model used in ChatGPT
 ///
 /// ## GPT-5 Series
