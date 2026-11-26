@@ -12,7 +12,7 @@ use crate::{
 };
 use derive_new::new;
 use request;
-use serde::{ser::SerializeStruct, Serialize};
+use serde::{ser::SerializeStruct, Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::Duration;
 use strum::{Display, EnumString};
@@ -86,6 +86,59 @@ pub enum Include {
     #[strum(serialize = "reasoning.encrypted_content")]
     #[serde(rename = "reasoning.encrypted_content")]
     ReasoningEncryptedContent,
+}
+
+/// Minimum lifetime for a prompt cache entry.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[non_exhaustive]
+pub enum PromptCacheTtl {
+    /// 30 minutes (the API default).
+    #[serde(rename = "30m")]
+    ThirtyMinutes,
+    /// 12 hours.
+    #[serde(rename = "12h")]
+    TwelveHours,
+}
+
+impl PromptCacheTtl {
+    /// Returns the API value for this minimum cache lifetime.
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::ThirtyMinutes => "30m",
+            Self::TwelveHours => "12h",
+        }
+    }
+}
+
+/// Controls how prompt cache breakpoints are selected.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+#[non_exhaustive]
+pub enum PromptCacheMode {
+    /// Creates one implicit breakpoint and writes up to the three most recent
+    /// explicit breakpoints. This is the default mode.
+    Implicit,
+    /// Does not create an implicit breakpoint and uses up to four explicit
+    /// breakpoints.
+    Explicit,
+}
+
+/// Options for prompt caching, supported by GPT-5.6 and later models.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+pub struct PromptCacheOptions {
+    /// Minimum lifetime for a prompt cache entry.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ttl: Option<PromptCacheTtl>,
+    /// Prompt cache breakpoint mode.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mode: Option<PromptCacheMode>,
+    /// Whether to prewarm the cache. The default is `false`. When `true`,
+    /// `generate` is overridden to `false`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub prewarm: Option<bool>,
+    /// Requests prompt cache diagnostics when the feature is enabled.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub comparison_response_id: Option<String>,
 }
 
 /// Defines the level of reasoning effort the model should apply
@@ -684,14 +737,15 @@ pub struct Body {
     /// the same cache key.
     pub prompt_cache_key: Option<String>,
 
-    /// Optional prompt cache retention duration
+    /// Optional deprecated prompt cache retention duration.
     ///
-    /// Controls how long cached prompts should be retained.
-    /// Format: duration string (e.g., "1h", "24h", "7d")
-    ///
-    /// GPT-6.2 Astra and Sol use `prompt_cache_options.ttl` instead of this
-    /// field; see [`Responses::prompt_cache_retention`].
+    /// This field represents the maximum retention period and accepts
+    /// `in_memory` or `24h`. GPT-5.5 and later accept only `24h`.
     pub prompt_cache_retention: Option<String>,
+
+    /// Optional prompt cache configuration.
+    #[new(default)]
+    pub prompt_cache_options: Option<PromptCacheOptions>,
 
     /// Optional structured output format specification
     ///
@@ -1142,6 +1196,9 @@ impl Serialize for Body {
         }
         if self.prompt_cache_retention.is_some() {
             state.serialize_field("prompt_cache_retention", &self.prompt_cache_retention)?;
+        }
+        if self.prompt_cache_options.is_some() {
+            state.serialize_field("prompt_cache_options", &self.prompt_cache_options)?;
         }
         if self.structured_output.is_some() {
             state.serialize_field("text", &self.structured_output)?;
@@ -1721,36 +1778,33 @@ impl Responses {
         self
     }
 
-    /// Sets the prompt cache retention duration
+    /// Sets the deprecated prompt cache retention duration.
     ///
-    /// Controls how long cached prompts should be retained.
+    /// The official reference marks this field as deprecated. It represents
+    /// the maximum retention period, while `prompt_cache_options.ttl`
+    /// represents the minimum lifetime. They are independent and do not affect
+    /// each other.
     ///
-    /// # GPT-6.2
+    /// The accepted values are `in_memory` and `24h`. GPT-5.5 and later accept
+    /// only `24h`. The GPT-6.2 migration guide recommends replacing this with
+    /// `prompt_cache_options.ttl = "30m"`.
     ///
-    /// OpenAI's GPT-6.2 migration guide says to replace `prompt_cache_retention`
-    /// with `prompt_cache_options.ttl` (for example `"30m"`) when moving from
-    /// GPT-5.5 or earlier. This library does not support
-    /// `prompt_cache_options` yet, so do not rely on this setter for
-    /// [`ChatModel::Gpt6_2Astra`] or [`ChatModel::Gpt6_2Sol`].
-    ///
-    /// # Arguments
-    ///
-    /// * `retention` - The retention duration string (e.g., "1h", "24h", "7d")
-    ///
-    /// # Returns
-    ///
-    /// A mutable reference to self for method chaining
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use openai_tools::responses::request::Responses;
-    ///
-    /// let mut client = Responses::new();
-    /// client.prompt_cache_retention("24h");
-    /// ```
+    /// `retention` is sent without client-side validation.
+    #[deprecated(since = "3.4.0", note = "Use prompt_cache_options / prompt_cache_ttl instead")]
     pub fn prompt_cache_retention<T: AsRef<str>>(&mut self, retention: T) -> &mut Self {
         self.request_body.prompt_cache_retention = Some(retention.as_ref().to_string());
+        self
+    }
+
+    /// Sets all prompt cache options.
+    pub fn prompt_cache_options(&mut self, options: PromptCacheOptions) -> &mut Self {
+        self.request_body.prompt_cache_options = Some(options);
+        self
+    }
+
+    /// Sets the minimum prompt cache lifetime while preserving other options.
+    pub fn prompt_cache_ttl(&mut self, ttl: PromptCacheTtl) -> &mut Self {
+        self.request_body.prompt_cache_options.get_or_insert_with(PromptCacheOptions::default).ttl = Some(ttl);
         self
     }
 
@@ -3103,12 +3157,98 @@ impl Responses {
 
 #[cfg(test)]
 mod tests {
-    use super::ReasoningEffort;
+    use super::{Body, PromptCacheMode, PromptCacheOptions, PromptCacheTtl, ReasoningEffort, Responses};
+
+    fn body_json(body: &Body) -> serde_json::Value {
+        serde_json::to_value(body).unwrap()
+    }
 
     #[test]
     fn reasoning_effort_max_serializes_as_max() {
         assert_eq!(serde_json::to_string(&ReasoningEffort::Max).unwrap(), "\"max\"");
         assert_eq!(ReasoningEffort::Max.to_string(), "max");
         assert_eq!("max".parse::<ReasoningEffort>().unwrap(), ReasoningEffort::Max);
+    }
+
+    #[test]
+    fn prompt_cache_ttl_serializes_in_options() {
+        let body = Body {
+            plain_text_input: Some("hello".to_string()),
+            prompt_cache_options: Some(PromptCacheOptions { ttl: Some(PromptCacheTtl::ThirtyMinutes), ..Default::default() }),
+            ..Default::default()
+        };
+
+        assert_eq!(body_json(&body)["prompt_cache_options"], serde_json::json!({ "ttl": "30m" }));
+    }
+
+    #[test]
+    fn prompt_cache_enums_serialize_and_deserialize() {
+        assert_eq!(PromptCacheTtl::ThirtyMinutes.as_str(), "30m");
+        assert_eq!(PromptCacheTtl::TwelveHours.as_str(), "12h");
+
+        for (ttl, expected) in [(PromptCacheTtl::ThirtyMinutes, "30m"), (PromptCacheTtl::TwelveHours, "12h")] {
+            let json = serde_json::to_string(&ttl).unwrap();
+            assert_eq!(json, format!("\"{expected}\""));
+            assert_eq!(serde_json::from_str::<PromptCacheTtl>(&json).unwrap(), ttl);
+        }
+
+        for (mode, expected) in [(PromptCacheMode::Implicit, "implicit"), (PromptCacheMode::Explicit, "explicit")] {
+            let json = serde_json::to_string(&mode).unwrap();
+            assert_eq!(json, format!("\"{expected}\""));
+            assert_eq!(serde_json::from_str::<PromptCacheMode>(&json).unwrap(), mode);
+        }
+    }
+
+    #[test]
+    fn all_prompt_cache_options_serialize() {
+        let body = Body {
+            plain_text_input: Some("hello".to_string()),
+            prompt_cache_options: Some(PromptCacheOptions {
+                ttl: Some(PromptCacheTtl::TwelveHours),
+                mode: Some(PromptCacheMode::Explicit),
+                prewarm: Some(true),
+                comparison_response_id: Some("resp_123".to_string()),
+            }),
+            ..Default::default()
+        };
+
+        assert_eq!(
+            body_json(&body)["prompt_cache_options"],
+            serde_json::json!({
+                "ttl": "12h",
+                "mode": "explicit",
+                "prewarm": true,
+                "comparison_response_id": "resp_123"
+            })
+        );
+    }
+
+    #[test]
+    fn prompt_cache_ttl_setter_preserves_existing_mode() {
+        let mut responses = Responses::with_auth(crate::common::auth::AuthProvider::OpenAI(crate::common::auth::OpenAIAuth::new("test-key")));
+        responses.prompt_cache_options(PromptCacheOptions { mode: Some(PromptCacheMode::Implicit), ..Default::default() });
+        responses.prompt_cache_ttl(PromptCacheTtl::ThirtyMinutes);
+
+        let options = responses.request_body.prompt_cache_options.as_ref().unwrap();
+        assert_eq!(options.mode, Some(PromptCacheMode::Implicit));
+        assert_eq!(options.ttl, Some(PromptCacheTtl::ThirtyMinutes));
+    }
+
+    #[test]
+    fn prompt_cache_options_are_omitted_when_unset() {
+        let body = Body { plain_text_input: Some("hello".to_string()), ..Default::default() };
+
+        assert!(body_json(&body).get("prompt_cache_options").is_none());
+    }
+
+    #[test]
+    #[allow(deprecated)]
+    fn prompt_cache_retention_and_options_are_both_serialized() {
+        let mut responses = Responses::with_auth(crate::common::auth::AuthProvider::OpenAI(crate::common::auth::OpenAIAuth::new("test-key")));
+        responses.str_message("hello").prompt_cache_retention("24h").prompt_cache_ttl(PromptCacheTtl::ThirtyMinutes);
+
+        let json = body_json(&responses.request_body);
+        assert_eq!(json["prompt_cache_retention"], "24h");
+        assert_eq!(json["prompt_cache_options"], serde_json::json!({ "ttl": "30m" }));
     }
 }

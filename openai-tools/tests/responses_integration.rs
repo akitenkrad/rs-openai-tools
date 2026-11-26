@@ -748,6 +748,7 @@ async fn test_tool_choice_none() {
 
 /// Unit test: Test new request parameters serialization
 #[test]
+#[allow(deprecated)]
 fn test_new_parameters_serialization() {
     init_tracing();
 

@@ -276,6 +276,60 @@ impl ResponseFormat {
     }
 }
 
+/// Output format for generated or edited images.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+#[non_exhaustive]
+pub enum ImageOutputFormat {
+    /// PNG output.
+    Png,
+    /// JPEG output.
+    Jpeg,
+    /// WebP output.
+    Webp,
+    /// GIF output.
+    Gif,
+    /// SVG output.
+    Svg,
+}
+
+impl ImageOutputFormat {
+    /// Returns the output format string.
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Png => "png",
+            Self::Jpeg => "jpeg",
+            Self::Webp => "webp",
+            Self::Gif => "gif",
+            Self::Svg => "svg",
+        }
+    }
+}
+
+/// Planning complexity for image generation or editing.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+#[non_exhaustive]
+pub enum ImageComplexity {
+    /// Low complexity.
+    Low,
+    /// Medium complexity.
+    Medium,
+    /// High complexity.
+    High,
+}
+
+impl ImageComplexity {
+    /// Returns the complexity string.
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Low => "low",
+            Self::Medium => "medium",
+            Self::High => "high",
+        }
+    }
+}
+
 /// Options for image generation.
 #[derive(Debug, Clone, Default)]
 pub struct GenerateOptions {
@@ -303,6 +357,29 @@ pub struct GenerateOptions {
     pub style: Option<ImageStyle>,
     /// User identifier for abuse monitoring
     pub user: Option<String>,
+    /// Output format. The default is PNG.
+    ///
+    /// SVG requires `n=1` and cannot be combined with streaming, partial
+    /// images, or `output_compression`. It requires access to SVG model
+    /// selection. The result is base64 in `data[].b64_json`; decoding it yields
+    /// SVG as UTF-8 XML.
+    ///
+    /// GIF cannot be combined with streaming, partial images, masks, or output
+    /// compression. It requires access to the GIF preview. The result is in
+    /// `b64_json`.
+    ///
+    /// Use PNG or WebP with a `transparent` background.
+    pub output_format: Option<ImageOutputFormat>,
+    /// Controls how much the image model plans before rendering. GPT Image 2.6
+    /// Sunburst and Flare support this option. When omitted, the model default
+    /// is used. This is separate from `quality` and has no additional charge.
+    pub complexity: Option<ImageComplexity>,
+    /// Used only when `output_format=gif`. The range is 2 to 16. The default is
+    /// 9 when omitted.
+    pub frame_count: Option<u32>,
+    /// Used only when `output_format=gif`. The minimum is 20. The default is
+    /// 200 when omitted, and the value is rounded to 10 ms increments.
+    pub frame_duration_ms: Option<u32>,
 }
 
 /// Options for image editing.
@@ -320,6 +397,29 @@ pub struct EditOptions {
     pub response_format: Option<ResponseFormat>,
     /// User identifier for abuse monitoring
     pub user: Option<String>,
+    /// Output format. The default is PNG.
+    ///
+    /// SVG requires `n=1` and cannot be combined with streaming, partial
+    /// images, or `output_compression`. It requires access to SVG model
+    /// selection. The result is base64 in `data[].b64_json`; decoding it yields
+    /// SVG as UTF-8 XML.
+    ///
+    /// GIF cannot be combined with streaming, partial images, masks, or output
+    /// compression. It requires access to the GIF preview. The result is in
+    /// `b64_json`.
+    ///
+    /// Use PNG or WebP with a `transparent` background.
+    pub output_format: Option<ImageOutputFormat>,
+    /// Controls how much the image model plans before rendering. GPT Image 2.6
+    /// Sunburst and Flare support this option. When omitted, the model default
+    /// is used. This is separate from `quality` and has no additional charge.
+    pub complexity: Option<ImageComplexity>,
+    /// Used only when `output_format=gif`. The range is 2 to 16. The default is
+    /// 9 when omitted.
+    pub frame_count: Option<u32>,
+    /// Used only when `output_format=gif`. The minimum is 20. The default is
+    /// 200 when omitted, and the value is rounded to 10 ms increments.
+    pub frame_duration_ms: Option<u32>,
 }
 
 /// Options for image variations.
@@ -355,6 +455,34 @@ struct GenerateRequest {
     style: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     user: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    output_format: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    complexity: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    frame_count: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    frame_duration_ms: Option<u32>,
+}
+
+impl GenerateRequest {
+    /// Builds the JSON payload for `POST /images/generations`.
+    fn new(prompt: &str, options: GenerateOptions) -> Self {
+        Self {
+            prompt: prompt.to_string(),
+            model: options.model.map(|m| m.as_str().to_string()),
+            n: options.n,
+            quality: options.quality.map(|q| q.as_str().to_string()),
+            response_format: options.response_format.map(|f| f.as_str().to_string()),
+            size: options.size.map(|s| s.as_str().to_string()),
+            style: options.style.map(|s| s.as_str().to_string()),
+            user: options.user,
+            output_format: options.output_format.map(|value| value.as_str().to_string()),
+            complexity: options.complexity.map(|value| value.as_str().to_string()),
+            frame_count: options.frame_count,
+            frame_duration_ms: options.frame_duration_ms,
+        }
+    }
 }
 
 /// Client for interacting with the OpenAI Images API.
@@ -513,16 +641,7 @@ impl Images {
         let (client, mut headers) = self.create_client()?;
         headers.insert("Content-Type", request::header::HeaderValue::from_static("application/json"));
 
-        let request_body = GenerateRequest {
-            prompt: prompt.to_string(),
-            model: options.model.map(|m| m.as_str().to_string()),
-            n: options.n,
-            quality: options.quality.map(|q| q.as_str().to_string()),
-            response_format: options.response_format.map(|f| f.as_str().to_string()),
-            size: options.size.map(|s| s.as_str().to_string()),
-            style: options.style.map(|s| s.as_str().to_string()),
-            user: options.user,
-        };
+        let request_body = GenerateRequest::new(prompt, options);
 
         let body = serde_json::to_string(&request_body).map_err(OpenAIToolError::SerdeJsonError)?;
 
@@ -627,6 +746,18 @@ impl Images {
         }
         if let Some(user) = options.user {
             form = form.text("user", user);
+        }
+        if let Some(output_format) = options.output_format {
+            form = form.text("output_format", output_format.as_str().to_string());
+        }
+        if let Some(complexity) = options.complexity {
+            form = form.text("complexity", complexity.as_str().to_string());
+        }
+        if let Some(frame_count) = options.frame_count {
+            form = form.text("frame_count", frame_count.to_string());
+        }
+        if let Some(frame_duration_ms) = options.frame_duration_ms {
+            form = form.text("frame_duration_ms", frame_duration_ms.to_string());
         }
 
         let url = format!("{}/edits", self.auth.endpoint(IMAGES_PATH));
@@ -746,6 +877,10 @@ impl Images {
 mod tests {
     use super::*;
 
+    fn generate_request(options: GenerateOptions) -> GenerateRequest {
+        GenerateRequest::new("draw a fox", options)
+    }
+
     // =========================================================================
     // Image models added in 2026.
     //
@@ -856,5 +991,67 @@ mod tests {
     fn test_auto_image_size() {
         assert_eq!(ImageSize::Auto.as_str(), "auto");
         assert_eq!(serde_json::to_string(&ImageSize::Auto).unwrap(), "\"auto\"");
+    }
+
+    #[test]
+    fn test_new_generation_fields_serialize() {
+        let request = generate_request(GenerateOptions {
+            output_format: Some(ImageOutputFormat::Gif),
+            complexity: Some(ImageComplexity::High),
+            frame_count: Some(16),
+            frame_duration_ms: Some(20),
+            ..Default::default()
+        });
+
+        let json = serde_json::to_value(request).unwrap();
+        assert_eq!(json["output_format"], "gif");
+        assert_eq!(json["complexity"], "high");
+        assert_eq!(json["frame_count"], 16);
+        assert_eq!(json["frame_duration_ms"], 20);
+    }
+
+    #[test]
+    fn test_new_generation_fields_are_omitted_when_unset() {
+        let json = serde_json::to_value(generate_request(GenerateOptions::default())).unwrap();
+
+        assert!(json.get("output_format").is_none());
+        assert!(json.get("complexity").is_none());
+        assert!(json.get("frame_count").is_none());
+        assert!(json.get("frame_duration_ms").is_none());
+    }
+
+    #[test]
+    fn test_new_image_option_enums_as_str_and_serde_roundtrip() {
+        for (value, expected) in [
+            (ImageOutputFormat::Png, "png"),
+            (ImageOutputFormat::Jpeg, "jpeg"),
+            (ImageOutputFormat::Webp, "webp"),
+            (ImageOutputFormat::Gif, "gif"),
+            (ImageOutputFormat::Svg, "svg"),
+        ] {
+            assert_eq!(value.as_str(), expected);
+            let json = serde_json::to_string(&value).unwrap();
+            assert_eq!(serde_json::from_str::<ImageOutputFormat>(&json).unwrap(), value);
+        }
+
+        for (value, expected) in [(ImageComplexity::Low, "low"), (ImageComplexity::Medium, "medium"), (ImageComplexity::High, "high")] {
+            assert_eq!(value.as_str(), expected);
+            let json = serde_json::to_string(&value).unwrap();
+            assert_eq!(serde_json::from_str::<ImageComplexity>(&json).unwrap(), value);
+        }
+    }
+
+    #[test]
+    fn test_generation_frame_values_are_not_validated_client_side() {
+        let request = generate_request(GenerateOptions {
+            output_format: Some(ImageOutputFormat::Gif),
+            frame_count: Some(1),
+            frame_duration_ms: Some(19),
+            ..Default::default()
+        });
+
+        let json = serde_json::to_value(request).unwrap();
+        assert_eq!(json["frame_count"], 1);
+        assert_eq!(json["frame_duration_ms"], 19);
     }
 }

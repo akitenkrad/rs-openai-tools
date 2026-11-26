@@ -283,7 +283,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ### Responses API CRUD Operations
 
 ```rust
-use openai_tools::responses::request::{Responses, ToolChoice, ToolChoiceMode};
+use openai_tools::responses::request::{PromptCacheTtl, Responses, ToolChoice, ToolChoiceMode};
 use openai_tools::common::models::ChatModel;
 
 #[tokio::main]
@@ -295,6 +295,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .str_message("Hello!")
         .tool_choice(ToolChoice::Simple(ToolChoiceMode::Auto))
         .prompt_cache_key("my-cache-key")
+        .prompt_cache_ttl(PromptCacheTtl::TwelveHours)
         .store(true);
 
     let response = client.complete().await?;
@@ -571,6 +572,9 @@ The GPT Image models differ from DALL-E in three ways:
 | `quality` | `Standard`, `Hd` | `Low`, `Medium`, `High`, `Auto`; `Xhigh` and `Max` for GPT Image 2.5 / 2.6 Flare and Sunburst |
 | `size` | `1024x1024`, `1792x1024`, `1024x1792` | `1024x1024`, `1024x1536`, `1536x1024`, `Auto` |
 | `response_format` / `style` | Supported | **Rejected** (`unknown_parameter`); always base64 |
+
+GPT Image 2.6 Flare and Sunburst also support planning `complexity`, SVG/GIF
+`output_format`, and `frame_count` / `frame_duration_ms` for GIF output.
 
 ## Audio API
 

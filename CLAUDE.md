@@ -437,7 +437,7 @@ conversations.delete(&conv.id).await?;
 
 **Responses API CRUD Operations**: Manage responses with full CRUD support:
 ```rust
-use openai_tools::responses::request::{Responses, ToolChoice, ToolChoiceMode, Prompt};
+use openai_tools::responses::request::{Prompt, PromptCacheTtl, Responses, ToolChoice, ToolChoiceMode};
 use openai_tools::common::models::ChatModel;
 
 let mut client = Responses::new();
@@ -447,7 +447,7 @@ client.model(ChatModel::Gpt5Mini)
     .str_message("Hello!")
     .tool_choice(ToolChoice::Simple(ToolChoiceMode::Auto))
     .prompt_cache_key("my-cache-key")
-    .prompt_cache_retention("24h")
+    .prompt_cache_ttl(PromptCacheTtl::TwelveHours)
     .store(true);  // Store for later retrieval
 
 let response = client.complete().await?;
@@ -762,7 +762,7 @@ Each API (Chat, Embedding, etc.) requires its own complete endpoint URL includin
 - Input truncation behavior with `Truncation` (Auto, Disabled)
 - Tool choice control with `ToolChoice` (auto, none, required, or specific function)
 - Prompt templates with `Prompt` (ID and variable substitution)
-- Prompt caching with `prompt_cache_key` and `prompt_cache_retention` (GPT-6.2 uses `prompt_cache_options.ttl` instead, which is not supported yet)
+- Prompt caching with `prompt_cache_key`, `prompt_cache_options`, and `prompt_cache_ttl`; the deprecated `prompt_cache_retention` remains available independently
 - Response data inclusion with `Include`:
   - `WebSearchCall` - web search results
   - `CodeInterpreterCall` - code execution outputs
@@ -813,6 +813,8 @@ Each API (Chat, Embedding, etc.) requires its own complete endpoint URL includin
 - Image generation (GPT Image 1 / 1 Mini / 1.5 / 2 / 2.5 Flare / 2.5 Sunburst / 2.6 Flare / 2.6 Sunburst)
 - **DALL-E retired**: `dall-e-2`/`dall-e-3` no longer exist on `api.openai.com` (the API returns "The model 'dall-e-3' does not exist."). The enum variants remain for Azure deployments. `ImageModel::default()` is `GptImage1`.
 - GPT Image models reject `response_format` and `style` (`unknown_parameter`) and always return base64; `quality` must be `low`/`medium`/`high`/`auto` (GPT Image 2.5 / 2.6 Flare and Sunburst also accept `xhigh` and `max`), not `standard`/`hd`
+- GPT Image 2.6 Flare and Sunburst support `complexity`, SVG/GIF `output_format`, and GIF `frame_count`/`frame_duration_ms`
+- Markup-guided editing is not supported
 - Image editing with masks
 - Image variations (DALL-E 2 only)
 - URL or base64 response format

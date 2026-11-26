@@ -16,7 +16,7 @@ use openai_tools::live::{LiveClient, LiveVoice};
 use openai_tools::models::request::Models;
 use openai_tools::moderations::request::Moderations;
 use openai_tools::realtime::{Modality, RealtimeClient, Voice};
-use openai_tools::responses::request::Responses;
+use openai_tools::responses::request::{PromptCacheTtl, Responses, ToolChoice, ToolChoiceMode};
 use openai_tools::videos::request::Videos;
 
 use openai_tools::common::models::{ChatModel, RealtimeModel};
@@ -154,6 +154,26 @@ async fn videos_other_sample() -> Result<(), Box<dyn std::error::Error>> {
 
     let remixed = videos.remix("video_abc123", "...but at night").await?;
     println!("Remixed as {}", remixed.id);
+    Ok(())
+}
+
+#[allow(dead_code, unused_variables)]
+async fn responses_crud_sample() -> Result<(), Box<dyn std::error::Error>> {
+    let mut client = Responses::new();
+
+    client
+        .model(ChatModel::Gpt5Mini)
+        .str_message("Hello!")
+        .tool_choice(ToolChoice::Simple(ToolChoiceMode::Auto))
+        .prompt_cache_key("my-cache-key")
+        .prompt_cache_ttl(PromptCacheTtl::TwelveHours)
+        .store(true);
+
+    let response = client.complete().await?;
+    let response_id = response.id.as_ref().unwrap();
+    let retrieved = client.retrieve(response_id).await?;
+    let items = client.list_input_items(response_id, Some(10), None, None).await?;
+    let tokens = client.get_input_tokens("gpt-5-mini", serde_json::json!("Hello!")).await?;
     Ok(())
 }
 

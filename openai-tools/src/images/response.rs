@@ -11,6 +11,41 @@ pub struct ImageResponse {
     pub created: i64,
     /// Array of generated images
     pub data: Vec<ImageData>,
+    /// Output format used for the image data.
+    #[serde(default)]
+    pub output_format: Option<String>,
+    /// Quality used for the image data.
+    #[serde(default)]
+    pub quality: Option<String>,
+    /// Size used for the image data.
+    #[serde(default)]
+    pub size: Option<String>,
+    /// Background used for the image data.
+    #[serde(default)]
+    pub background: Option<String>,
+    /// Usage details for SVG output.
+    #[serde(default)]
+    pub svg_usage: Option<SvgUsage>,
+}
+
+/// Usage details returned for SVG output.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SvgUsage {
+    /// Input token count.
+    #[serde(default)]
+    pub input_tokens: Option<u64>,
+    /// Output token count.
+    #[serde(default)]
+    pub output_tokens: Option<u64>,
+    /// Reasoning token count.
+    #[serde(default)]
+    pub reasoning_tokens: Option<u64>,
+    /// Total token count.
+    #[serde(default)]
+    pub total_tokens: Option<u64>,
+    /// Model used for the SVG output.
+    #[serde(default)]
+    pub model: Option<String>,
 }
 
 /// Individual image data from generation response.
@@ -64,5 +99,52 @@ impl ImageData {
     /// Returns true if this image data contains base64 data.
     pub fn has_b64(&self) -> bool {
         self.b64_json.is_some()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::ImageResponse;
+
+    #[test]
+    fn deserializes_new_image_response_metadata() {
+        let json = r#"{
+            "created": 123,
+            "data": [{"b64_json": "PHN2Zz4="}],
+            "output_format": "svg",
+            "quality": "high",
+            "size": "1024x1024",
+            "background": "transparent",
+            "svg_usage": {
+                "input_tokens": 10,
+                "output_tokens": 20,
+                "reasoning_tokens": 30,
+                "total_tokens": 60,
+                "model": "gpt-image-2.6-sunburst"
+            }
+        }"#;
+
+        let response: ImageResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(response.output_format.as_deref(), Some("svg"));
+        let usage = response.svg_usage.unwrap();
+        assert_eq!(usage.input_tokens, Some(10));
+        assert_eq!(usage.output_tokens, Some(20));
+        assert_eq!(usage.reasoning_tokens, Some(30));
+        assert_eq!(usage.total_tokens, Some(60));
+        assert_eq!(usage.model.as_deref(), Some("gpt-image-2.6-sunburst"));
+    }
+
+    #[test]
+    fn deserializes_legacy_image_response_without_metadata() {
+        let json = r#"{"created":123,"data":[{"url":"https://example.com/image.png"}]}"#;
+
+        let response: ImageResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(response.created, 123);
+        assert_eq!(response.data.len(), 1);
+        assert!(response.output_format.is_none());
+        assert!(response.quality.is_none());
+        assert!(response.size.is_none());
+        assert!(response.background.is_none());
+        assert!(response.svg_usage.is_none());
     }
 }

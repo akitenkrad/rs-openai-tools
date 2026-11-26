@@ -757,6 +757,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(deprecated)]
     fn test_responses_builder_prompt_cache_retention() {
         let mut responses = Responses::new();
         responses.prompt_cache_retention("24h");
@@ -776,6 +777,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(deprecated)]
     fn test_request_body_with_prompt_serialization() {
         let mut responses = Responses::new();
         responses.model(ChatModel::Gpt4oMini);

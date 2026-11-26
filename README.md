@@ -548,6 +548,9 @@ The GPT Image models differ from DALL-E in three ways:
 | `size` | `1024x1024`, `1792x1024`, `1024x1792` | `1024x1024`, `1024x1536`, `1536x1024`, `Auto` |
 | `response_format` / `style` | Supported | **Rejected** (`unknown_parameter`); always base64 |
 
+GPT Image 2.6 Flare and Sunburst also support planning `complexity`, SVG/GIF
+`output_format`, and `frame_count` / `frame_duration_ms` for GIF output.
+
 ## Audio API
 
 Text-to-speech and transcription:
